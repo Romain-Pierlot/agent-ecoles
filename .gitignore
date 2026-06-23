@@ -1,0 +1,27 @@
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Variables d'environnement — JAMAIS sur GitHub
+.env
+
+# Base de données locale
+*.db
+*.sqlite
+
+# ChromaDB local
+chroma_db/
+
+# LangSmith / logs locaux
+*.log
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
