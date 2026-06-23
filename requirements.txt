@@ -1,0 +1,24 @@
+# LLM et orchestration
+openai
+langchain
+langchain-openai
+langchain-community
+langgraph
+
+# Base de données
+# sqlite3 est inclus dans Python — pas besoin de l'installer
+
+# Vectorstore RAG
+chromadb
+
+# Chargement variables d'environnement
+python-dotenv
+
+# Data processing
+pandas
+
+# Interface utilisateur
+streamlit
+
+# Monitoring
+langsmith
