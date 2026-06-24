@@ -25,3 +25,4 @@ chroma_db/
 
 # Jupyter
 .ipynb_checkpoints/
+data/agent_ecoles.db
