@@ -40,3 +40,6 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 # --- LangSmith ---
 LANGSMITH_PROJECT = "agent-ecoles"
+
+# --- Géolocalisation ---
+GEO_RAYON_DEFAUT_KM = 10       # Rayon par défaut si non précisé par l'utilisateur
