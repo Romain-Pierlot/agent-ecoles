@@ -1,20 +1,12 @@
 """
 ingest_rag.py — Pipeline d'ingestion des documents DEPP dans ChromaDB
-Chunking structurel via Unstructured (chunk_by_title).
+Version 7 — correction filtrage artefacts + chunk manuel page 4 IVAC
 
-Stratégie de traitement des pages complexes :
-- Pages avec mise en page multi-colonnes, formules mathématiques ou exemples
-  fictifs sont exclues du parsing Unstructured et remplacées par des chunks
-  manuels dont le texte a été extrait et vérifié manuellement depuis le PDF.
-- Cette approche est préférable à l'installation de hi_res (Detectron2) pour
-  un volume faible de documents traités une seule fois.
-
-Chunks manuels :
-- Note d'information IPS 23.16 — pages 1, 2, 3, 4 (4 pages, mise en page
-  multi-colonnes sur l'ensemble du document)
-- Guide IVAC 2025 — pages 9, 10, 11 (formules mathématiques classifiées
-  comme Title par Unstructured, page 10 section "Calcul pratique" exclue
-  car exemple fictif)
+Corrections v7 :
+- Correction du filtrage CHUNKS_ARTEFACTS (index calculé avant filtrage)
+- Suppression doublon ivac_2025_004 dans CHUNKS_ARTEFACTS
+- Ajout chunk manuel ivac_2025_manual_page4 (page 4 deux colonnes)
+- Page 4 guide IVAC ajoutée aux pages exclues
 """
 
 import os
@@ -29,16 +21,26 @@ from unstructured.chunking.title import chunk_by_title
 load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import (
-    CHROMA_PATH, CHROMA_COLLECTION,
-    EMBEDDING_MODEL
-)
+from config import CHROMA_PATH, CHROMA_COLLECTION, EMBEDDING_MODEL
 
 SOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources")
 
 CHUNK_MAX_CHARACTERS = 1500
 CHUNK_NEW_AFTER_N_CHARS = 1000
 CHUNK_COMBINE_UNDER_N_CHARS = 500
+
+CHUNKS_ARTEFACTS = {
+    "ivac_2025_003",  # page 4 deux colonnes — tronqué, remplacé par chunk manuel
+    "ivac_2025_004",  # page 4 deux colonnes — contenu mélangé, remplacé par chunk manuel
+    "ivac_2025_005",  # note isolée "1 Les conditions de publication sont précisées page 9."
+    "ips_2016_000",   # page de titre — sans contenu utile
+    "ips_2016_004",   # note de bas de page isolée
+    "ips_2016_015",   # note de bas de page numérotée isolée
+    "ips_2016_018",   # note de bas de page numérotée isolée
+    "ips_2016_020",   # note de bas de page numérotée isolée
+    "ips_2016_035",   # "Kernel" — légende de graphique
+    "ips_2023_000",   # "↘ Introduction" — trop court, sans contenu
+}
 
 KEYWORDS_EXCLUSION = [
     "SOMMAIRE",
@@ -53,7 +55,6 @@ KEYWORDS_EXCLUSION = [
 
 # ================================================================
 # MÉTADONNÉES DE BASE PAR DOCUMENT
-# Factorisées pour éviter la répétition dans chaque chunk manuel
 # ================================================================
 META_NI = {
     "dc_title":      "Note d'information — L'IPS, un outil pour décrire les inégalités sociales entre établissements",
@@ -63,6 +64,7 @@ META_NI = {
     "dc_type":       "note_information",
     "dc_source":     "https://www.education.gouv.fr/ni-23-16-l-indice-de-position-sociale-ips-364089",
     "chunk_domaine": "ips",
+    "dc_niveau":     "avancé",
 }
 
 META_IVAC = {
@@ -73,26 +75,42 @@ META_IVAC = {
     "dc_type":       "methodologie",
     "dc_source":     "https://www.education.gouv.fr/depp/les-indicateurs-de-resultats-des-colleges-et-des-lycees-377729",
     "chunk_domaine": "ivac",
+    "dc_niveau":     "avancé",
+}
+
+META_IVAC_VULGAIRE = {
+    "dc_title":      "Indicateurs de valeur ajoutée des collèges (IVAC) — Description officielle",
+    "dc_creator":    "DEPP — Ministère de l'Éducation Nationale",
+    "dc_publisher":  "Ministère de l'Éducation Nationale",
+    "dc_date":       "2022",
+    "dc_type":       "description_dataset",
+    "dc_source":     "https://data.education.gouv.fr/explore/assets/fr-en-indicateurs-valeur-ajoutee-colleges/",
+    "chunk_domaine": "ivac",
+    "dc_niveau":     "vulgarisation",
+}
+
+META_IPS_VULGAIRE = {
+    "dc_title":      "L'indice de position sociale (IPS) — Page officielle DEPP",
+    "dc_creator":    "DEPP — Ministère de l'Éducation Nationale",
+    "dc_publisher":  "Ministère de l'Éducation Nationale",
+    "dc_date":       "2023",
+    "dc_type":       "page_officielle",
+    "dc_source":     "https://www.education.gouv.fr/depp/l-indice-de-position-sociale-ips-357755",
+    "chunk_domaine": "ips",
+    "dc_niveau":     "vulgarisation",
 }
 
 
 def chunk_meta(base: dict, page: str, titre: str) -> dict:
-    """Construit les métadonnées complètes d'un chunk manuel."""
     return {**base, "chunk_page": page, "chunk_titre_section": titre}
 
 
 # ================================================================
 # CHUNKS MANUELS
-# Texte extrait manuellement depuis le PDF original.
-# Notes de bas de page intégrées au point d'appel entre parenthèses
-# avec le préfixe "Note :".
 # ================================================================
 CHUNKS_MANUELS = [
 
-    # ----------------------------------------------------------------
-    # Note d'information IPS 23.16 — Page 1
-    # Exclue : mise en page trois colonnes + infographie
-    # ----------------------------------------------------------------
+    # ── Note d'information IPS 23.16 — Page 1 ───────────────────
     {
         "id": "ips_2023_ni_manual_000",
         "contenu": """L'indice de position sociale (IPS) : un outil statistique pour décrire les inégalités sociales entre établissements. Focus sur les collèges.
@@ -111,10 +129,7 @@ L'indice de position sociale (IPS) d'un collège est un indicateur qui résume l
         "metadata": chunk_meta(META_NI, "1", "Les valeurs de l'IPS représentent les conditions socio-économiques et culturelles moyennes des professions"),
     },
 
-    # ----------------------------------------------------------------
-    # Note d'information IPS 23.16 — Page 2
-    # Exclue : mise en page deux colonnes + carte France
-    # ----------------------------------------------------------------
+    # ── Note d'information IPS 23.16 — Page 2 ───────────────────
     {
         "id": "ips_2023_ni_manual_003",
         "contenu": """Les valeurs de l'IPS varient de 45 à 185 : plus l'IPS est élevé, plus les conditions familiales sont favorables à l'apprentissage. Par exemple, un élève dont la mère est professeure des écoles et le père ingénieur a un IPS de 175, tandis qu'un autre élève dont la mère est employée de commerce et le père est ouvrier qualifié de l'industrie a un IPS de 75. Il convient de noter que l'IPS est le résultat de la compilation de plusieurs dimensions, mais il n'est pas en lui-même une mesure de ces dimensions. Ainsi, dans les deux exemples donnés, le fait que le premier élève ait un IPS plus élevé que le second ne signifie pas nécessairement que sa famille est concrètement plus avantagée. Cela signifie plutôt qu'en moyenne, les familles qui ressemblent à la sienne ont des conditions plus favorables à l'apprentissage. Au final, lorsque les PCS des parents sont disponibles, il suffit d'appliquer ces valeurs de référence et de considérer cette nouvelle variable comme un indice, c'est-à-dire de manière quantitative. Il est alors aisé d'apprécier le niveau social d'un établissement scolaire, à travers le calcul de l'indice moyen, ou encore les disparités sociales au sein de l'établissement, au moyen de l'écart-type de l'indice. En outre, l'IPS permet de s'appuyer sur les PCS des deux parents, et non pas seulement sur celle du responsable légal, comme cela pouvait être le cas précédemment. Or, nombre d'études et de recherches montrent qu'il est important de tenir compte des profils des deux parents.""",
@@ -151,10 +166,7 @@ L'étendue des IPS des collèges est très différente selon les secteurs d'appa
         "metadata": chunk_meta(META_NI, "2", "La distribution des IPS des collèges varie selon le secteur, mais aussi à l'intérieur de chaque secteur"),
     },
 
-    # ----------------------------------------------------------------
-    # Note d'information IPS 23.16 — Page 3
-    # Exclue : mise en page deux colonnes + graphiques
-    # ----------------------------------------------------------------
+    # ── Note d'information IPS 23.16 — Page 3 ───────────────────
     {
         "id": "ips_2023_ni_manual_008",
         "contenu": """Une diversité sociale plus faible en REP+ et dans le secteur privé
@@ -170,10 +182,7 @@ L'IPS permet de décrire le profil social des élèves d'un collège, mais il pe
         "metadata": chunk_meta(META_NI, "3", "Des résultats au DNB fortement corrélés à l'IPS"),
     },
 
-    # ----------------------------------------------------------------
-    # Note d'information IPS 23.16 — Page 4
-    # Exclue : mise en page deux colonnes + graphiques
-    # ----------------------------------------------------------------
+    # ── Note d'information IPS 23.16 — Page 4 ───────────────────
     {
         "id": "ips_2023_ni_manual_010",
         "contenu": """Pour la première fois, des indicateurs de valeur ajoutée des collèges (IVAC)
@@ -182,12 +191,28 @@ Cependant, l'IPS ne permet pas à lui seul d'expliquer les différences de résu
         "metadata": chunk_meta(META_NI, "4", "Pour la première fois, des indicateurs de valeur ajoutée des collèges (IVAC)"),
     },
 
-    # ----------------------------------------------------------------
-    # Guide IVAC 2025 — Pages 9, 10, 11
-    # Exclues : formules mathématiques classifiées comme Title par
-    # Unstructured (italique centré), ce qui fragmente les chunks.
-    # Page 10 : section "Calcul pratique" exclue car exemple fictif.
-    # ----------------------------------------------------------------
+    # ── Guide IVAC 2025 — Page 4 ─────────────────────────────────
+    # Exclue : mise en page deux colonnes mal parsée par Unstructured
+    # ivac_2025_003 tronqué, ivac_2025_004 contenu mélangé
+    {
+        "id": "ivac_2025_manual_page4",
+        "contenu": """Quels indicateurs de résultats retenir ?
+
+Le ministère présente quatre indicateurs complémentaires publiés pour tous les collèges publics et privés sous contrat.
+
+Deux indicateurs sont accompagnés d'une valeur ajoutée (résultat constaté comparé au résultat attendu compte tenu du profil des élèves) :
+— La note moyenne aux épreuves écrites du DNB (français, mathématiques, sciences, histoire-géographie), calculée sur 20 points.
+— Le taux de réussite au DNB : proportion d'élèves reçus parmi ceux présents à l'examen.
+
+Deux indicateurs sont publiés en valeur brute uniquement, sans valeur ajoutée associée :
+— Le taux d'accès de la 6ème à la 3ème : probabilité pour un élève de sixième d'atteindre la troisième en restant dans le collège, quel que soit le nombre d'années nécessaire.
+— La part d'élèves présents au DNB : proportion des élèves de troisième présentés aux épreuves écrites du brevet.""",
+        "metadata": chunk_meta(META_IVAC, "4", "Quels indicateurs de résultats retenir"),
+    },
+
+    # ── Guide IVAC 2025 — Pages 9, 10, 11 ───────────────────────
+    # Exclues : formules mathématiques classifiées comme Title par Unstructured
+    # Page 10 section "Calcul pratique" exclue car exemple fictif
     {
         "id": "ivac_2025_manual_000",
         "contenu": """Le calcul des indicateurs
@@ -215,9 +240,9 @@ Le brevet est évalué sur 800 points : l'évaluation du socle commun représent
 
 Le taux d'accès de la sixième à la troisième est la probabilité, pour un élève, d'accéder successivement de sixième en cinquième, de cinquième en quatrième, et de quatrième en troisième au sein de l'établissement (Note : Les déménagements sont pris en compte dans le calcul du taux d'accès. Un élève qui accède au niveau supérieur tout en changeant d'établissement ne pénalise pas le taux d'accès du collège d'origine si cela fait suite à un changement de commune de résidence ou si le département de l'établissement de destination est différent du département de l'établissement d'origine. Les départs d'établissement pour suivre une formation non-disponible dans le collège d'origine sont considérés comme des réussites pour le collège d'origine. Depuis la session 2025 du DNB, les élèves en Upe2a sont retirés du calcul du taux d'accès.). Ainsi, le taux d'accès de la sixième à la troisième est le produit de ces trois taux intermédiaires (6ème-5ème, 5ème-4ème et 4ème-3ème).
 
-Pour les IVAC session N du brevet, chaque taux d'accès intermédiaire est calculé en observant ce que les élèves inscrits dans l'établissement en octobre N-1 sont devenus en octobre N. Le taux d'accès de la sixième à la troisième, produit de ces taux intermédiaires, n'est donc pas fondé sur le suivi d'une cohorte réelle d'élèves, mais sur l'observation du parcours des élèves présents à tous les niveaux une même année scolaire. C'est ce qu'il est convenu d'appeler un suivi de cohorte fictive. Les cohortes fictives nécessitent seulement les données du constat sur deux années consécutives, permettant ainsi de ne pas attendre que la cohorte ait quitté le collège, ce qui nécessiterait l'observation d'au moins quatre années successives.
+Pour les IVAC session N du brevet, chaque taux d'accès intermédiaire est calculé en observant ce que les élèves inscrits dans l'établissement en octobre N-1 sont devenus en octobre N. Le taux d'accès de la sixième à la troisième, produit de ces taux intermédiaires, n'est donc pas fondé sur le suivi d'une cohorte réelle d'élèves, mais sur l'observation du parcours des élèves présents à tous les niveaux une même année scolaire. C'est ce qu'il est convenu d'appeler un suivi de cohorte fictive.
 
-Le taux d'accès constaté d'un niveau à l'autre = Succès × 100 / (Inscrits − Doublants). Où : Inscrits = élèves inscrits dans le niveau de départ en octobre de l'année (N-1). Doublants = élèves de l'établissement qui redoublent le niveau de départ dans le collège en octobre de l'année (N). Succès = élèves qui passent dans le niveau supérieur dans le collège en octobre de l'année (N). En soustrayant les redoublants de l'établissement du dénominateur, on suppose que les élèves ayant redoublé cette année dans l'établissement auront, l'année suivante, la même probabilité d'accéder au niveau supérieur.""",
+Le taux d'accès constaté d'un niveau à l'autre = Succès × 100 / (Inscrits − Doublants). Où : Inscrits = élèves inscrits dans le niveau de départ en octobre de l'année (N-1). Doublants = élèves de l'établissement qui redoublent le niveau de départ dans le collège en octobre de l'année (N). Succès = élèves qui passent dans le niveau supérieur dans le collège en octobre de l'année (N).""",
         "metadata": chunk_meta(META_IVAC, "10", "Taux d'accès constaté"),
     },
     {
@@ -233,28 +258,77 @@ Cette proportion est calculée de la manière suivante : Part d'élèves présen
         "id": "ivac_2025_manual_005",
         "contenu": """Taux attendus et valeurs ajoutées
 
-La DEPP a mis au point un modèle statistique (Note : La mise en œuvre du modèle se base sur des théories statistiques élaborées et fait appel à des procédures de calculs longues et complexes qui ne peuvent être reproduites à la main. Il n'est donc pas possible d'expliciter dans le présent document les formules de calcul.) de calcul du taux et de la note attendus de chaque collège. Il permet de simuler, pour chaque élève, sa probabilité d'obtenir le brevet et d'avoir une note moyenne donnée aux épreuves écrites, en fonction de ses caractéristiques (âge, niveau scolaire à l'entrée en sixième (Note : Lorsque la note individuelle d'un élève aux évaluations exhaustives de sixième n'est pas retrouvée, elle est imputée par la note moyenne des élèves de son collège.), origine sociale et sexe) et des caractéristiques du collège dans lequel il évolue. Le calcul de cette probabilité est réalisé en considérant que l'élève est scolarisé dans un établissement ne contribuant ni plus ni moins que la moyenne des établissements à la réussite scolaire de ses élèves.
+La DEPP a mis au point un modèle statistique (Note : La mise en œuvre du modèle se base sur des théories statistiques élaborées et fait appel à des procédures de calculs longues et complexes qui ne peuvent être reproduites à la main. Il n'est donc pas possible d'expliciter dans le présent document les formules de calcul.) de calcul du taux et de la note attendus de chaque collège. Il permet de simuler, pour chaque élève, sa probabilité d'obtenir le brevet et d'avoir une note moyenne donnée aux épreuves écrites, en fonction de ses caractéristiques (âge, niveau scolaire à l'entrée en sixième (Note : Lorsque la note individuelle d'un élève aux évaluations exhaustives de sixième n'est pas retrouvée, elle est imputée par la note moyenne des élèves de son collège.), origine sociale et sexe) et des caractéristiques du collège dans lequel il évolue.
 
-Une fois obtenues ces probabilités pour chaque élève, il suffit ensuite d'en calculer les moyennes. Le taux de réussite attendu pour l'établissement est obtenu en faisant la moyenne des probabilités de réussite de chaque élève ayant passé la série générale. Le taux de réussite attendu n'est pas calculé pour la série professionnelle du brevet. La même méthode est utilisée pour la note moyenne à l'écrit attendue à la série générale du brevet.
+Une fois obtenues ces probabilités pour chaque élève, il suffit ensuite d'en calculer les moyennes. Le taux de réussite attendu pour l'établissement est obtenu en faisant la moyenne des probabilités de réussite de chaque élève ayant passé la série générale. Le taux de réussite attendu n'est pas calculé pour la série professionnelle du brevet.
 
 Pour chaque indicateur, taux de réussite ou note moyenne à l'écrit, la valeur ajoutée de l'établissement est la différence entre le taux constaté de l'établissement et le taux attendu. Aucune valeur ajoutée n'est calculée pour la série professionnelle du brevet. Valeur ajoutée = Taux constaté – Taux attendu.""",
         "metadata": chunk_meta(META_IVAC, "11", "Taux attendus et valeurs ajoutées"),
+    },
+
+    # ── Source vulgarisation — Description IVAC ──────────────────
+    {
+        "id": "ivac_vulgaire_000",
+        "contenu": """Les indicateurs de valeur ajoutée des collèges (IVAC) sont une batterie d'indicateurs qui visent à évaluer l'action propre de chaque collège pour faire réussir les élèves qu'il accueille, en termes de réussite au diplôme national du brevet (DNB) et d'accompagnement tout au long de sa scolarité au collège. Ils sont calculés pour la première fois pour la session 2022 du DNB.
+
+Les IVAC permettent un diagnostic qui va au-delà de celui qui peut être fait à partir des seuls taux de réussite bruts à l'examen. Pour donner une image de l'apport de chaque collège, le calcul statistique s'efforce d'éliminer l'incidence des facteurs de réussite scolaire extérieurs au collège, pour essayer de conserver ce qui est dû à son action propre. Pour juger de l'efficacité d'un collège, la réussite de chacun de ses élèves doit ainsi être comparée à celle des élèves comparables scolarisés dans des collèges comparables.""",
+        "metadata": chunk_meta(META_IVAC_VULGAIRE, "1", "Définition et objectifs des IVAC"),
+    },
+    {
+        "id": "ivac_vulgaire_001",
+        "contenu": """Pour chaque collège, la valeur ajoutée correspond à la différence entre les résultats obtenus et les résultats qui étaient attendus, compte tenu des caractéristiques scolaires et sociodémographiques des élèves accueillis. L'analyse combine des facteurs individuels des élèves (âge et sexe, score obtenu aux évaluations à l'entrée en sixième, profil social) et des facteurs liés à la structure de l'établissement (pourcentage de filles, part d'élèves en retard scolaire, profil social et score moyen obtenu aux évaluations de sixième).
+
+La valeur ajoutée est une approche relative et non pas absolue. Si la valeur ajoutée est positive, on a tout lieu de penser que l'établissement a plus fait réussir ses élèves que ce qui était prévu, au vu du profil des élèves qu'il accueillait. Si elle est négative, cela signifie que les résultats de l'établissement sont inférieurs à la moyenne des résultats des établissements qui lui ressemblent.""",
+        "metadata": chunk_meta(META_IVAC_VULGAIRE, "1", "Calcul et interprétation de la valeur ajoutée"),
+    },
+    {
+        "id": "ivac_vulgaire_002",
+        "contenu": """Conditions de publication et précautions d'usage des IVAC
+
+Les résultats bruts sont calculés dès lors que le nombre de candidats présents en série générale est supérieur ou égal à 20. Pour que les valeurs ajoutées soient calculées, il est nécessaire qu'au moins 40 élèves soient présents en série générale. La valeur ajoutée n'est pas calculée si les scores aux évaluations de sixième sont retrouvés pour moins de 75 % des candidats.
+
+Les IVAC ne constituent pas un classement officiel des collèges. Ils visent à évaluer la capacité d'un établissement à accompagner la progression de ses élèves par rapport à leur profil sociodémographique et scolaire initial. Ils sont destinés à servir d'outils de pilotage pédagogique et de transparence, et non à établir des palmarès entre établissements. Une valeur ajoutée négative ne signifie pas que les élèves régressent — elle signifie que les résultats sont inférieurs à ce qui était attendu compte tenu du profil des élèves. Seule l'analyse combinée de l'ensemble des indicateurs donne une image juste d'un établissement.""",
+        "metadata": chunk_meta(META_IVAC_VULGAIRE, "1", "Conditions de publication et précautions d'usage des IVAC"),
+    },
+
+    # ── Source vulgarisation — Page IPS officielle ───────────────
+    {
+        "id": "ips_vulgaire_000",
+        "contenu": """L'indice de position sociale (IPS) d'un établissement scolaire est un indicateur calculé par la DEPP. Ce dernier résume les conditions socio-économiques et culturelles des familles des élèves accueillis dans l'établissement. L'IPS permet ainsi de rendre compte des disparités sociales existantes entre établissements et à l'intérieur de ces mêmes établissements.
+
+Quel est le niveau social moyen d'un établissement scolaire ? Quel est le degré d'hétérogénéité sociale des élèves qu'il accueille ? Comment comparer cet établissement à un autre, du point de vue de leur situation sociale ? L'indice de position sociale (IPS) est un outil construit par la DEPP pour répondre à ce type de questions.""",
+        "metadata": chunk_meta(META_IPS_VULGAIRE, "1", "Définition et objectif de l'IPS"),
+    },
+    {
+        "id": "ips_vulgaire_001",
+        "contenu": """Méthodologie de l'IPS
+
+Les valeurs de l'IPS représentent les conditions socio-économiques et culturelles moyennes des professions. Elles sont déterminées à partir des valeurs de référence des catégories socio-professionnelles des parents ou du parent de l'élève. Elles peuvent être calculées pour chaque établissement scolaire. Il en résulte un indicateur statistique qui permet de rendre compte de la composition sociale de l'établissement.
+
+L'IPS d'un élève correspond à la valeur de référence du croisement des PCS de ses deux parents. L'IPS moyen d'un collège est la moyenne des IPS de l'ensemble des élèves qu'il accueille. Les valeurs d'IPS varient de 45 à 185 : plus l'IPS est élevé, plus les conditions familiales sont favorables à l'apprentissage. Il existe 1 600 combinaisons possibles de PCS père et mère.""",
+        "metadata": chunk_meta(META_IPS_VULGAIRE, "1", "Méthodologie de l'IPS"),
+    },
+    {
+        "id": "ips_vulgaire_002",
+        "contenu": """Précautions d'usage de l'IPS
+
+L'IPS n'est pas en lui-même une mesure directe des revenus ou du niveau d'éducation des parents. Il résume des conditions socio-économiques et culturelles moyennes associées à chaque catégorie socioprofessionnelle. Un IPS élevé signifie que, en moyenne, les familles qui ressemblent à celle de l'élève ont des conditions plus favorables à l'apprentissage — pas nécessairement que la famille de cet élève précis est plus avantagée.
+
+Il convient de ne pas surinterpréter des écarts de 3 points d'IPS moyen entre deux collèges : la marge d'erreur de mesure est de l'ordre de plus ou moins 3 points. L'IPS mesure le contexte social d'un établissement, pas sa qualité pédagogique. Un collège avec un IPS faible peut très bien avoir une excellente valeur ajoutée — c'est-à-dire faire mieux réussir ses élèves que ce qu'on attendrait compte tenu de leur profil social.
+
+Mise à jour 2023 : grâce à une meilleure remontée des professions des deux parents dans le secteur privé sous contrat, l'IPS de ces établissements reflète mieux leur profil social. Du fait de cette évolution, la comparabilité 2022-2023 n'est pas assurée pour les établissements privés sous contrat.""",
+        "metadata": chunk_meta(META_IPS_VULGAIRE, "1", "Précautions d'usage de l'IPS"),
     },
 ]
 
 SOURCES = [
     {
         "fichier": "Depp_Guide_méthodologique_IVAC_2025.pdf-515492.pdf",
-        # Pages 1-2 : titre et sommaire
-        # Page 7 : exemple fictif "Cas d'un collège"
-        # Pages 9-11 : formules mathématiques mal parsées → remplacées par chunks manuels
-        "pages_exclure": [1, 2, 7, 9, 10, 11],
+        "pages_exclure": [1, 2, 4, 7, 9, 10, 11],
         **META_IVAC,
     },
     {
         "fichier": "EF-90-chap-01-construction-d-un-indice-de-position-sociale-des-eleves-pdfa.pdf",
-        # Page 10 : tableau valeurs IPS par PCS → déjà dans SQLite
-        # Pages 19-24 : annexes, figures, bibliographie
         "pages_exclure": [10, 19, 20, 21, 22, 23, 24],
         "dc_title":      "Construction d'un Indice de Position Sociale des élèves",
         "dc_creator":    "Thierry Rocher — MENESR-DEPP",
@@ -263,11 +337,10 @@ SOURCES = [
         "dc_type":       "article_methodologique",
         "dc_source":     "https://www.education.gouv.fr/education-formations-n-90-avril-2016-5959",
         "chunk_domaine": "ips",
+        "dc_niveau":     "avancé",
     },
     {
         "fichier": "Indice de position sociale (IPS) _ actualisation 2022-476864.pdf",
-        # Pages 1-5 : titre, pages blanches, mentions légales, sommaire
-        # Pages 16-22 : bibliographie, pages blanches, annexes
         "pages_exclure": [1, 2, 3, 4, 5, 16, 17, 18, 19, 20, 21, 22],
         "dc_title":      "Indice de position sociale (IPS) — Actualisation 2022",
         "dc_creator":    "Thierry Rocher — DEPP",
@@ -276,11 +349,10 @@ SOURCES = [
         "dc_type":       "document_travail",
         "dc_source":     "https://www.education.gouv.fr/indice-de-position-sociale-ips-actualisation-2022-476864",
         "chunk_domaine": "ips",
+        "dc_niveau":     "avancé",
     },
     {
         "fichier": "NI 23.16-364089_IPS.pdf",
-        # Pages 1-4 : mise en page multi-colonnes sur l'ensemble du document
-        # → toutes les pages remplacées par chunks manuels
         "pages_exclure": [1, 2, 3, 4],
         **META_NI,
     },
@@ -324,30 +396,22 @@ def extraire_chunks(chemin: str, pages_exclure: list) -> list:
 
         if any(kw.lower() in texte.lower() for kw in KEYWORDS_EXCLUSION):
             continue
-
         premier_mot = texte.split()[0] if texte.split() else ""
         if premier_mot and premier_mot[0].islower():
             continue
-
         if re.match(r'^[A-Z] [a-z]', texte):
             continue
-
         if texte.startswith("(cid:"):
             continue
-
         if len(texte) < 100:
             continue
-
         chars_alpha = sum(1 for c in texte if c.isalpha())
         ratio_alpha = chars_alpha / len(texte) if texte else 0
         if ratio_alpha < 0.60:
             continue
-# Exclusion chunks avec mots collés sans espace (légendes de graphiques)
-# Ex: "FillesGarçonsÀ l'heureEn retard" → mots collés sans espace
         if re.search(r'[a-zàâéèêëîïôùûü][A-ZÀÂÉÈÊËÎÏÔÙÛÜ]', texte) and \
-   len(re.findall(r'[a-zàâéèêëîïôùûü][A-ZÀÂÉÈÊËÎÏÔÙÛÜ]', texte)) > 3:
+           len(re.findall(r'[a-zàâéèêëîïôùûü][A-ZÀÂÉÈÊËÎÏÔÙÛÜ]', texte)) > 3:
             continue
-
         if est_chunk_fragmente(texte):
             continue
 
@@ -362,13 +426,11 @@ def construire_metadata(chunk, source: dict) -> dict:
         page = str(chunk.metadata.page_number)
     except AttributeError:
         pass
-
     titre_section = ""
     try:
         titre_section = chunk.metadata.section or ""
     except AttributeError:
         pass
-
     return {
         "dc_title":            source["dc_title"],
         "dc_creator":          source["dc_creator"],
@@ -377,13 +439,15 @@ def construire_metadata(chunk, source: dict) -> dict:
         "dc_type":             source["dc_type"],
         "dc_source":           source["dc_source"],
         "chunk_domaine":       source["chunk_domaine"],
+        "dc_niveau":           source["dc_niveau"],
         "chunk_page":          page,
         "chunk_titre_section": titre_section,
     }
 
 
 def main():
-    print("=== INGESTION RAG AGENT-ECOLES v5 (Unstructured + 23 chunks manuels) ===\n")
+    print("=== INGESTION RAG AGENT-ECOLES v7 ===")
+    print("=== Unstructured + chunks manuels + sources vulgarisation ===\n")
 
     chroma_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -392,7 +456,6 @@ def main():
     os.makedirs(chroma_path, exist_ok=True)
 
     client = chromadb.PersistentClient(path=chroma_path)
-
     embedding_fn = OpenAIEmbeddingFunction(
         api_key=os.getenv("OPENAI_API_KEY"),
         model_name=EMBEDDING_MODEL,
@@ -412,8 +475,7 @@ def main():
 
     total_chunks = 0
 
-    # Ingestion des chunks manuels
-    print(f"→ Chunks manuels ({len(CHUNKS_MANUELS)} chunks — pages non parsables)")
+    print(f"→ Chunks manuels ({len(CHUNKS_MANUELS)} chunks)")
     collection.upsert(
         ids=[c["id"] for c in CHUNKS_MANUELS],
         documents=[c["contenu"] for c in CHUNKS_MANUELS],
@@ -422,7 +484,6 @@ def main():
     total_chunks += len(CHUNKS_MANUELS)
     print(f"  ✓ {len(CHUNKS_MANUELS)} chunks manuels ingérés\n")
 
-    # Ingestion des PDFs via Unstructured
     for source in SOURCES:
         chemin = os.path.join(SOURCES_DIR, source["fichier"])
 
@@ -430,59 +491,68 @@ def main():
             print(f"⚠  Fichier non trouvé : {source['fichier'][:60]}")
             continue
 
-        print(f"→ {source['dc_title']}")
-        print(f"  Pages exclues : {source['pages_exclure']}")
+        print(f"→ {source['dc_title'][:55]}")
+        print(f"  Niveau : {source['dc_niveau']} | Pages exclues : {source['pages_exclure']}")
 
-        chunks = extraire_chunks(chemin, source["pages_exclure"])
-
-        if not chunks:
-            print(f"  ⚠  Aucun chunk extrait\n")
-            continue
+        chunks_bruts = extraire_chunks(chemin, source["pages_exclure"])
 
         prefix = f"{source['chunk_domaine']}_{source['dc_date']}"
-        ids = [f"{prefix}_{i:03d}" for i in range(len(chunks))]
-        documents = [c.text.strip() for c in chunks]
-        metadatas = [construire_metadata(c, source) for c in chunks]
+
+        # Assignation des IDs AVANT filtrage artefacts
+        chunks_avec_ids = [
+            (f"{prefix}_{i:03d}", c)
+            for i, c in enumerate(chunks_bruts)
+        ]
+
+        # Filtrage artefacts sur les IDs définitifs
+        chunks_filtres = [
+            (id_, c) for id_, c in chunks_avec_ids
+            if id_ not in CHUNKS_ARTEFACTS
+        ]
+
+        if not chunks_filtres:
+            print(f"  ⚠  Aucun chunk après filtrage artefacts\n")
+            continue
+
+        ids_filtres = [x[0] for x in chunks_filtres]
+        chunks_ok = [x[1] for x in chunks_filtres]
+
+        documents = [c.text.strip() for c in chunks_ok]
+        metadatas = [construire_metadata(c, source) for c in chunks_ok]
 
         collection.upsert(
-            ids=ids,
+            ids=ids_filtres,
             documents=documents,
             metadatas=metadatas,
         )
 
-        total_chunks += len(chunks)
-
-        print(f"  ✓ {len(chunks)} chunks ingérés")
-        print(f"  Aperçu :")
-        for i, (doc, meta) in enumerate(zip(documents[:3], metadatas[:3])):
-            print(f"    [{i}] p.{meta['chunk_page']} — {len(doc)} car.")
-            print(f"         {doc[:120]}...")
+        total_chunks += len(chunks_filtres)
+        print(f"  ✓ {len(chunks_filtres)} chunks ingérés")
+        for i, (doc, meta) in enumerate(zip(documents[:2], metadatas[:2])):
+            print(f"    [{i}] p.{meta['chunk_page']} — {doc[:100]}...")
         print()
 
     print(f"✓ Total : {total_chunks} chunks dans ChromaDB\n")
 
     print("=== TEST DE RECHERCHE ===\n")
-
     questions = [
         "qu'est-ce que la valeur ajoutée d'un collège",
+        "quels sont les quatre indicateurs IVAC",
         "comment est calculé l'IPS",
-        "taux d'accès de la 6ème à la 3ème",
-        "conditions de publication des indicateurs",
-        "différence entre collège public et privé en termes d'IPS",
+        "différence IPS public privé",
+        "taux d'accès sixième troisième",
+        "précautions d'usage des IVAC",
+        "météo Paris demain",
     ]
 
     for question in questions:
-        results = collection.query(
-            query_texts=[question],
-            n_results=2,
-        )
+        results = collection.query(query_texts=[question], n_results=2)
         print(f"Q : '{question}'")
         for i, (doc, meta) in enumerate(zip(
-            results["documents"][0],
-            results["metadatas"][0],
+            results["documents"][0], results["metadatas"][0]
         )):
-            print(f"  [{i+1}] {meta['dc_title'][:50]} — p.{meta['chunk_page']}")
-            print(f"       {doc[:120]}...")
+            print(f"  [{i+1}] [{meta.get('dc_niveau','?')}] {meta['dc_title'][:45]} — p.{meta['chunk_page']}")
+            print(f"       {doc[:110]}...")
         print()
 
 
