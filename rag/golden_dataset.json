@@ -1,0 +1,62 @@
+[
+  {
+    "id": "GD_RAG_001",
+    "question": "Qu'est-ce que les IVAC et à quoi servent-ils ?",
+    "reformulations": [
+      "Pouvez-vous m'expliquer ce que sont les IVAC ?",
+      "À quoi servent les indicateurs de valeur ajoutée des collèges ?"
+    ],
+    "reponse_reference": "Les indicateurs de valeur ajoutée des collèges (IVAC) évaluent ce que chaque collège apporte réellement à ses élèves, au-delà de leur profil d'entrée. Quatre indicateurs sont calculés : la note moyenne aux épreuves écrites du DNB, le taux de réussite, le taux d'accès de la 6ème à la 3ème et la part d'élèves présents à l'examen. Ils permettent un diagnostic plus précis que les seuls taux de réussite bruts pour évaluer la valeur ajoutée de chaque collège.",
+    "chunks_attendus": ["ivac_vulgaire_001", "ivac_2025_manual_page4", "ivac_2025_manual_000"],
+    "position_minimale": 2,
+    "type": "conceptuel",
+    "domaine": "ivac",
+    "difficulte": "facile",
+    "notes": "Question d'entrée sur les IVAC. Chunk page4 indispensable pour les 4 indicateurs avec taux d'accès de la 6ème à la 3ème."
+  },
+  {
+    "id": "GD_RAG_002",
+    "question": "Est-ce qu'un collège avec un bon taux de réussite est forcément un bon collège ?",
+    "reformulations": [
+      "Un bon taux de réussite signifie-t-il que le collège est de qualité ?",
+      "Peut-on dire qu'un collège est bon juste parce qu'il a un bon taux de réussite ?"
+    ],
+    "reponse_reference": "Pas nécessairement. Un bon taux de réussite peut s'expliquer par le profil des élèves accueillis plutôt que par la qualité pédagogique du collège — c'est notamment le cas dans certains collèges privés qui pratiquent une sélection à l'entrée, comme le souligne le rapport de la Cour des comptes de 2023. Pour évaluer ce qu'un collège apporte vraiment à ses élèves, il faut regarder sa valeur ajoutée (IVAC), qui compare ses résultats à ceux attendus compte tenu du profil de ses élèves.",
+    "chunks_attendus": ["ccomptes_2023_prive_000", "ivac_vulgaire_000", "ivac_vulgaire_001"],
+    "position_minimale": 2,
+    "type": "nuance",
+    "domaine": "ivac",
+    "difficulte": "moyen",
+    "notes": "Question clé sur la limite des taux bruts. Chunk Cour des comptes indispensable pour la nuance privé/sélection."
+  },
+  {
+    "id": "GD_RAG_003",
+    "question": "Comment est calculée la valeur ajoutée d'un collège ?",
+    "reformulations": [
+      "Comment on détermine si un collège a une bonne valeur ajoutée ?",
+      "Qu'est-ce qui entre dans le calcul de la valeur ajoutée d'un collège ?"
+    ],
+    "reponse_reference": "La valeur ajoutée d'un collège est la différence entre ses résultats constatés au diplôme national du brevet (DNB) et ses résultats attendus, compte tenu du profil scolaire et sociodémographique des élèves accueillis. Elle est calculée pour deux indicateurs : le taux de réussite au DNB et la note moyenne aux épreuves écrites. Si la valeur ajoutée est positive, le collège a fait mieux réussir ses élèves que ce qui était prévu au vu de leur profil.",
+    "chunks_attendus": ["ivac_vulgaire_001", "ivac_2025_manual_005"],
+    "position_minimale": 2,
+    "type": "conceptuel",
+    "domaine": "ivac",
+    "difficulte": "moyen",
+    "notes": "Attention : la VA est calculée sur 2 indicateurs seulement (taux réussite + note moyenne), pas les 4."
+  },
+  {
+    "id": "GD_RAG_004",
+    "question": "Comment savoir si un collège fait vraiment progresser les élèves ?",
+    "reformulations": [
+      "Quels signes montrent qu'un collège aide ses élèves à s'améliorer ?",
+      "Comment on peut vérifier si un collège aide vraiment les élèves à avancer ?"
+    ],
+    "reponse_reference": "Il faut regarder la valeur ajoutée (IVAC), qui indique si les résultats des élèves sont meilleurs que ce qui était prévu selon leur profil scolaire et social. Si la valeur ajoutée est positive, le collège a fait mieux réussir ses élèves que ce qu'on attendait au vu de leur profil d'entrée.",
+    "chunks_attendus": ["ivac_vulgaire_001", "ivac_vulgaire_002"],
+    "position_minimale": 2,
+    "type": "conceptuel",
+    "domaine": "ivac",
+    "difficulte": "moyen",
+    "notes": "Question proche de GD_RAG_003 mais angle parent — focus sur l'interprétation plutôt que le calcul."
+  }
+]
