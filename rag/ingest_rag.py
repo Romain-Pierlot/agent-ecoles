@@ -19,13 +19,14 @@ from unstructured.chunking.title import chunk_by_title
 load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CHROMA_PATH, CHROMA_COLLECTION, EMBEDDING_MODEL
+from config import CHROMA_PATH, CHROMA_COLLECTION, EMBEDDING_MODEL, RAG_CHUNK_OVERLAP
 
 SOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources")
 
 CHUNK_MAX_CHARACTERS = 1500
 CHUNK_NEW_AFTER_N_CHARS = 1000
 CHUNK_COMBINE_UNDER_N_CHARS = 500
+CHUNK_OVERLAP = RAG_CHUNK_OVERLAP  # depuis config.py (actuellement 50)
 
 CHUNKS_ARTEFACTS = {
     "ivac_2025_003",
@@ -135,7 +136,13 @@ def extraire_chunks(chemin: str, pages_exclure: list) -> list:
     )
     chunks_valides = []
     for chunk in chunks_raw:
+        chunk.text = re.sub(r'(\w)- ([a-zàâéèêëîïôùûü])', r'\1\2', chunk.text)
         texte = chunk.text.strip()
+        # Recolle les césures de mots mal reconstruites par Unstructured
+        # (ex: "avan- tages" -> "avantages"). Cible uniquement un tiret
+        # collé à la lettre précédente, suivi d'un espace puis d'une
+        # minuscule -- pour ne pas toucher à la ponctuation légitime
+        # (tirets cadratins, énumérations).
         if any(kw.lower() in texte.lower() for kw in KEYWORDS_EXCLUSION):
             continue
         premier_mot = texte.split()[0] if texte.split() else ""
