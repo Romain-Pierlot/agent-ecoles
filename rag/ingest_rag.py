@@ -187,7 +187,7 @@ def construire_metadata(chunk, source: dict) -> dict:
 
 def main():
     print("=== INGESTION RAG AGENT-ECOLES v8 ===")
-    print("=== Unstructured + chunks manuels + sources vulgarisation ===\n")
+    print("=== Unstructured + chunks manuels + sources accessibles ===\n")
 
     chroma_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

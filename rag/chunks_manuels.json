@@ -288,7 +288,7 @@
     }
   },
   {
-    "id": "ivac_vulgaire_000",
+    "id": "ivac_accessible_000",
     "contenu": "Les indicateurs de valeur ajoutée des collèges (IVAC) sont une batterie d'indicateurs qui visent à évaluer l'action propre de chaque collège pour faire réussir les élèves qu'il accueille, en termes de réussite au diplôme national du brevet (DNB) et d'accompagnement tout au long de sa scolarité au collège. Ils sont calculés pour la première fois pour la session 2022 du DNB.\n\nLes IVAC permettent un diagnostic qui va au-delà de celui qui peut être fait à partir des seuls taux de réussite bruts à l'examen. Pour donner une image de l'apport de chaque collège, le calcul statistique s'efforce d'éliminer l'incidence des facteurs de réussite scolaire extérieurs au collège, pour essayer de conserver ce qui est dû à son action propre. Pour juger de l'efficacité d'un collège, la réussite de chacun de ses élèves doit ainsi être comparée à celle des élèves comparables scolarisés dans des collèges comparables.",
     "metadata": {
       "dc_title": "Indicateurs de valeur ajoutée des collèges (IVAC) — Description officielle",
@@ -298,13 +298,13 @@
       "dc_type": "description_dataset",
       "dc_source": "https://data.education.gouv.fr/explore/assets/fr-en-indicateurs-valeur-ajoutee-colleges/",
       "chunk_domaine": "ivac",
-      "dc_niveau": "vulgarisation",
+      "dc_niveau": "accessible",
       "chunk_page": "1",
       "chunk_titre_section": "Définition et objectifs des IVAC"
     }
   },
   {
-    "id": "ivac_vulgaire_001",
+    "id": "ivac_accessible_001",
     "contenu": "Pour chaque collège, la valeur ajoutée correspond à la différence entre les résultats obtenus et les résultats qui étaient attendus, compte tenu des caractéristiques scolaires et sociodémographiques des élèves accueillis. L'analyse combine des facteurs individuels des élèves (âge et sexe, score obtenu aux évaluations à l'entrée en sixième, profil social) et des facteurs liés à la structure de l'établissement (pourcentage de filles, part d'élèves en retard scolaire, profil social et score moyen obtenu aux évaluations de sixième).\n\nLa valeur ajoutée est une approche relative et non pas absolue. Si la valeur ajoutée est positive, on a tout lieu de penser que l'établissement a plus fait réussir ses élèves que ce qui était prévu, au vu du profil des élèves qu'il accueillait. Si elle est négative, cela signifie que les résultats de l'établissement sont inférieurs à la moyenne des résultats des établissements qui lui ressemblent.",
     "metadata": {
       "dc_title": "Indicateurs de valeur ajoutée des collèges (IVAC) — Description officielle",
@@ -314,13 +314,13 @@
       "dc_type": "description_dataset",
       "dc_source": "https://data.education.gouv.fr/explore/assets/fr-en-indicateurs-valeur-ajoutee-colleges/",
       "chunk_domaine": "ivac",
-      "dc_niveau": "vulgarisation",
+      "dc_niveau": "accessible",
       "chunk_page": "1",
       "chunk_titre_section": "Calcul et interprétation de la valeur ajoutée"
     }
   },
   {
-    "id": "ivac_vulgaire_002",
+    "id": "ivac_accessible_002",
     "contenu": "Conditions de publication et précautions d'usage des IVAC\n\nLes résultats bruts sont calculés dès lors que le nombre de candidats présents en série générale est supérieur ou égal à 20. Pour que les valeurs ajoutées soient calculées, il est nécessaire qu'au moins 40 élèves soient présents en série générale. La valeur ajoutée n'est pas calculée si les scores aux évaluations de sixième sont retrouvés pour moins de 75 % des candidats.\n\nLes IVAC ne constituent pas un classement officiel des collèges. Ils visent à évaluer la capacité d'un établissement à accompagner la progression de ses élèves par rapport à leur profil sociodémographique et scolaire initial. Ils sont destinés à servir d'outils de pilotage pédagogique et de transparence, et non à établir des palmarès entre établissements. Une valeur ajoutée négative ne signifie pas que les élèves régressent — elle signifie que les résultats sont inférieurs à ce qui était attendu compte tenu du profil des élèves. Seule l'analyse combinée de l'ensemble des indicateurs donne une image juste d'un établissement.",
     "metadata": {
       "dc_title": "Indicateurs de valeur ajoutée des collèges (IVAC) — Description officielle",
@@ -330,13 +330,13 @@
       "dc_type": "description_dataset",
       "dc_source": "https://data.education.gouv.fr/explore/assets/fr-en-indicateurs-valeur-ajoutee-colleges/",
       "chunk_domaine": "ivac",
-      "dc_niveau": "vulgarisation",
+      "dc_niveau": "accessible",
       "chunk_page": "1",
       "chunk_titre_section": "Conditions de publication et précautions d'usage des IVAC"
     }
   },
   {
-    "id": "ips_vulgaire_000",
+    "id": "ips_accessible_000",
     "contenu": "L'indice de position sociale (IPS) d'un établissement scolaire est un indicateur calculé par la DEPP. Ce dernier résume les conditions socio-économiques et culturelles des familles des élèves accueillis dans l'établissement. L'IPS permet ainsi de rendre compte des disparités sociales existantes entre établissements et à l'intérieur de ces mêmes établissements.\n\nQuel est le niveau social moyen d'un établissement scolaire ? Quel est le degré d'hétérogénéité sociale des élèves qu'il accueille ? Comment comparer cet établissement à un autre, du point de vue de leur situation sociale ? L'indice de position sociale (IPS) est un outil construit par la DEPP pour répondre à ce type de questions.",
     "metadata": {
       "dc_title": "L'indice de position sociale (IPS) — Page officielle DEPP",
@@ -346,13 +346,13 @@
       "dc_type": "page_officielle",
       "dc_source": "https://www.education.gouv.fr/depp/l-indice-de-position-sociale-ips-357755",
       "chunk_domaine": "ips",
-      "dc_niveau": "vulgarisation",
+      "dc_niveau": "accessible",
       "chunk_page": "1",
       "chunk_titre_section": "Définition et objectif de l'IPS"
     }
   },
   {
-    "id": "ips_vulgaire_001",
+    "id": "ips_accessible_001",
     "contenu": "Méthodologie de l'IPS\n\nLes valeurs de l'IPS représentent les conditions socio-économiques et culturelles moyennes des professions. Elles sont déterminées à partir des valeurs de référence des catégories socio-professionnelles des parents ou du parent de l'élève. Elles peuvent être calculées pour chaque établissement scolaire. Il en résulte un indicateur statistique qui permet de rendre compte de la composition sociale de l'établissement.\n\nL'IPS d'un élève correspond à la valeur de référence du croisement des PCS de ses deux parents. L'IPS moyen d'un collège est la moyenne des IPS de l'ensemble des élèves qu'il accueille. Les valeurs d'IPS varient de 45 à 185 : plus l'IPS est élevé, plus les conditions familiales sont favorables à l'apprentissage. Il existe 1 600 combinaisons possibles de PCS père et mère.",
     "metadata": {
       "dc_title": "L'indice de position sociale (IPS) — Page officielle DEPP",
@@ -362,13 +362,13 @@
       "dc_type": "page_officielle",
       "dc_source": "https://www.education.gouv.fr/depp/l-indice-de-position-sociale-ips-357755",
       "chunk_domaine": "ips",
-      "dc_niveau": "vulgarisation",
+      "dc_niveau": "accessible",
       "chunk_page": "1",
       "chunk_titre_section": "Méthodologie de l'IPS"
     }
   },
   {
-    "id": "ips_vulgaire_002",
+    "id": "ips_accessible_002",
     "contenu": "Précautions d'usage de l'IPS\n\nL'IPS n'est pas en lui-même une mesure directe des revenus ou du niveau d'éducation des parents. Il résume des conditions socio-économiques et culturelles moyennes associées à chaque catégorie socioprofessionnelle. Un IPS élevé signifie que, en moyenne, les familles qui ressemblent à celle de l'élève ont des conditions plus favorables à l'apprentissage — pas nécessairement que la famille de cet élève précis est plus avantagée.\n\nIl convient de ne pas surinterpréter des écarts de 3 points d'IPS moyen entre deux collèges : la marge d'erreur de mesure est de l'ordre de plus ou moins 3 points. L'IPS mesure le contexte social d'un établissement, pas sa qualité pédagogique. Un collège avec un IPS faible peut très bien avoir une excellente valeur ajoutée — c'est-à-dire faire mieux réussir ses élèves que ce qu'on attendrait compte tenu de leur profil social.\n\nMise à jour 2023 : grâce à une meilleure remontée des professions des deux parents dans le secteur privé sous contrat, l'IPS de ces établissements reflète mieux leur profil social. Du fait de cette évolution, la comparabilité 2022-2023 n'est pas assurée pour les établissements privés sous contrat.",
     "metadata": {
       "dc_title": "L'indice de position sociale (IPS) — Page officielle DEPP",
@@ -378,7 +378,7 @@
       "dc_type": "page_officielle",
       "dc_source": "https://www.education.gouv.fr/depp/l-indice-de-position-sociale-ips-357755",
       "chunk_domaine": "ips",
-      "dc_niveau": "vulgarisation",
+      "dc_niveau": "accessible",
       "chunk_page": "1",
       "chunk_titre_section": "Précautions d'usage de l'IPS"
     }

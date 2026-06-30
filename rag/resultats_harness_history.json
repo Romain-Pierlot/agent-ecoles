@@ -271,5 +271,30 @@
     "cout_total_dollars": 0.004553,
     "avec_reranker": false,
     "fichier_detail": "/Users/romainpierlot/agent-ecoles/rag/resultats/resultats_harness_20260630_152740_baseline.json"
+  },
+  {
+    "run_id": "20260630_182956_baseline",
+    "date": "2026-06-30 18:31:01",
+    "nb_questions": 6,
+    "modele_llm": "gpt-4o-mini",
+    "modele_embedding": "text-embedding-3-small",
+    "k_production": 5,
+    "recall_k3": 0.6389,
+    "recall_k5": 0.7778,
+    "recall_k10": 0.9167,
+    "precision_k3": 0.5,
+    "precision_k5": 0.3667,
+    "precision_k10": 0.2167,
+    "mrr_k3": 0.6389,
+    "mrr_k5": 0.6389,
+    "mrr_k10": 0.6627,
+    "faithfulness": 1.0,
+    "answer_relevance": 0.8,
+    "answer_correctness": 0.8833,
+    "latence_retrieval_moy_ms": 154,
+    "latence_generation_moy_ms": 3568,
+    "cout_total_dollars": 0.004537,
+    "avec_reranker": false,
+    "fichier_detail": "/Users/romainpierlot/agent-ecoles/rag/resultats/resultats_harness_20260630_182956_baseline.json"
   }
 ]
