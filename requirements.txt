@@ -22,3 +22,6 @@ streamlit
 
 # Monitoring
 langsmith
+
+# Re-ranking
+sentence-transformers

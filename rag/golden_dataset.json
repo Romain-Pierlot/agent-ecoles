@@ -7,12 +7,16 @@
       "À quoi servent les indicateurs de valeur ajoutée des collèges ?"
     ],
     "reponse_reference": "Les indicateurs de valeur ajoutée des collèges (IVAC) évaluent ce que chaque collège apporte réellement à ses élèves, au-delà de leur profil d'entrée. Quatre indicateurs sont calculés : la note moyenne aux épreuves écrites du DNB, le taux de réussite, le taux d'accès de la 6ème à la 3ème et la part d'élèves présents à l'examen. Ils permettent un diagnostic plus précis que les seuls taux de réussite bruts pour évaluer la valeur ajoutée de chaque collège.",
-    "chunks_attendus": ["ivac_vulgaire_001", "ivac_2025_manual_page4", "ivac_2025_manual_000"],
+    "chunks_attendus": [
+      "ivac_vulgaire_000",
+      "ivac_2025_manual_000",
+      "ivac_vulgaire_002"
+    ],
     "position_minimale": 2,
     "type": "conceptuel",
     "domaine": "ivac",
     "difficulte": "facile",
-    "notes": "Question d'entrée sur les IVAC. Chunk page4 indispensable pour les 4 indicateurs avec taux d'accès de la 6ème à la 3ème."
+    "notes": "chunks_attendus corrigés — ivac_vulgaire_001 et ivac_2025_manual_page4 retirés (mauvais match sémantique avec la question). Dette technique : query expansion sur les acronymes à implémenter dans le pipeline."
   },
   {
     "id": "GD_RAG_002",
@@ -22,7 +26,11 @@
       "Peut-on dire qu'un collège est bon juste parce qu'il a un bon taux de réussite ?"
     ],
     "reponse_reference": "Pas nécessairement. Un bon taux de réussite peut s'expliquer par le profil des élèves accueillis plutôt que par la qualité pédagogique du collège — c'est notamment le cas dans certains collèges privés qui pratiquent une sélection à l'entrée, comme le souligne le rapport de la Cour des comptes de 2023. Pour évaluer ce qu'un collège apporte vraiment à ses élèves, il faut regarder sa valeur ajoutée (IVAC), qui compare ses résultats à ceux attendus compte tenu du profil de ses élèves.",
-    "chunks_attendus": ["ccomptes_2023_prive_000", "ivac_vulgaire_000", "ivac_vulgaire_001"],
+    "chunks_attendus": [
+      "ccomptes_2023_prive_000",
+      "ivac_vulgaire_000",
+      "ivac_vulgaire_001"
+    ],
     "position_minimale": 2,
     "type": "nuance",
     "domaine": "ivac",
@@ -37,7 +45,10 @@
       "Qu'est-ce qui entre dans le calcul de la valeur ajoutée d'un collège ?"
     ],
     "reponse_reference": "La valeur ajoutée d'un collège est la différence entre ses résultats constatés au diplôme national du brevet (DNB) et ses résultats attendus, compte tenu du profil scolaire et sociodémographique des élèves accueillis. Elle est calculée pour deux indicateurs : le taux de réussite au DNB et la note moyenne aux épreuves écrites. Si la valeur ajoutée est positive, le collège a fait mieux réussir ses élèves que ce qui était prévu au vu de leur profil.",
-    "chunks_attendus": ["ivac_vulgaire_001", "ivac_2025_manual_005"],
+    "chunks_attendus": [
+      "ivac_vulgaire_001",
+      "ivac_2025_manual_005"
+    ],
     "position_minimale": 2,
     "type": "conceptuel",
     "domaine": "ivac",
@@ -52,11 +63,50 @@
       "Comment on peut vérifier si un collège aide vraiment les élèves à avancer ?"
     ],
     "reponse_reference": "Il faut regarder la valeur ajoutée (IVAC), qui indique si les résultats des élèves sont meilleurs que ce qui était prévu selon leur profil scolaire et social. Si la valeur ajoutée est positive, le collège a fait mieux réussir ses élèves que ce qu'on attendait au vu de leur profil d'entrée.",
-    "chunks_attendus": ["ivac_vulgaire_001", "ivac_vulgaire_002"],
+    "chunks_attendus": [
+      "ivac_vulgaire_001",
+      "ivac_2025_manual_005"
+    ],
     "position_minimale": 2,
     "type": "conceptuel",
     "domaine": "ivac",
     "difficulte": "moyen",
-    "notes": "Question proche de GD_RAG_003 mais angle parent — focus sur l'interprétation plutôt que le calcul."
+    "notes": "chunks_attendus corrigés — ivac_vulgaire_002 retiré (hors sujet). Question incomplète : le lien entre VA et progression réelle des élèves nécessite une source externe (OCDE, recherche académique). À enrichir avant Passe 2."
+  },
+  {
+    "id": "GD_RAG_005",
+    "question": "C'est quoi le taux de réussite attendu ?",
+    "reformulations": [
+      "Qu'est-ce qu'on entend par taux attendu pour un collège ?",
+      "Comment on calcule ce qu'un collège devrait obtenir au brevet ?"
+    ],
+    "reponse_reference": "Le taux de réussite attendu, c'est ce qu'un collège aurait dû obtenir au brevet si ses élèves avaient eu les mêmes résultats que des élèves comparables ailleurs en France. La DEPP calcule pour chaque élève une probabilité de réussite en fonction de son âge, de son niveau scolaire à l'entrée en sixième, de son origine sociale et de son sexe. Le taux attendu du collège, c'est la moyenne de ces probabilités individuelles. C'est ce chiffre qu'on compare ensuite au taux réel pour calculer la valeur ajoutée. Ce modèle ne s'applique qu'au brevet général, pas à la série professionnelle.",
+    "chunks_attendus": [
+      "ivac_2025_manual_005",
+      "ivac_2025_manual_000"
+    ],
+    "position_minimale": 1,
+    "type": "conceptuel",
+    "domaine": "ivac",
+    "difficulte": "moyen",
+    "notes": "Question pivot — le taux attendu est le concept qui déverrouille toute la logique de la VA. Préciser que le modèle ne couvre pas la série professionnelle."
+  },
+  {
+    "id": "GD_RAG_006",
+    "question": "Qu'est-ce que le taux d'accès de la 6ème à la 3ème mesure exactement ?",
+    "reformulations": [
+      "À quoi sert le taux d'accès dans les indicateurs d'un collège ?",
+      "Comment est calculé le taux d'accès sixième-troisième ?"
+    ],
+    "reponse_reference": "Le taux d'accès mesure la probabilité qu'un élève entrant en sixième atteigne la troisième dans le même collège. C'est le produit de trois taux intermédiaires : sixième-cinquième, cinquième-quatrième, quatrième-troisième. Les redoublants sont exclus du calcul. Ce n'est pas le suivi d'une vraie cohorte dans le temps — on observe ce que les élèves présents à chaque niveau sont devenus d'une année sur l'autre. C'est ce qu'on appelle une cohorte fictive. Cet indicateur est publié en valeur brute uniquement, sans valeur ajoutée associée.",
+    "chunks_attendus": [
+      "ivac_2025_manual_003",
+      "ivac_2025_manual_page4"
+    ],
+    "position_minimale": 1,
+    "type": "conceptuel",
+    "domaine": "ivac",
+    "difficulte": "moyen",
+    "notes": "Chunk manual_003 très dense — formule + cohorte fictive + gestion des déménagements. Réponse volontairement limitée à la méthode, pas à l'interprétation (dette documentaire : trouver source sur l'interprétation concrète)."
   }
 ]
