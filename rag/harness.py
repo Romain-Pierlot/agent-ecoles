@@ -28,6 +28,7 @@ HISTORY_PATH = Path(__file__).parent / "resultats_harness_history.json"
 K_VALUES = [3, 5, 10]
 K_PRODUCTION = 5
 TESTER_RERANKER = False  # Mettre à True pour comparer avec/sans re-ranker (ralentit le run)
+TESTER_NO_RAG_LONGCONTEXT = False  # Comparer RAG vs no-RAG vs long-context
 
 # Coût GPT-4o-mini en dollars par token (mai 2025)
 COUT_INPUT_PER_TOKEN = 0.00000015   # $0.15 / 1M tokens
@@ -156,6 +157,89 @@ Tu réponds uniquement à partir du contexte fourni.
 Si le contexte ne contient pas l'information, dis-le clairement."""
 
     prompt_user = f"""Contexte :
+{contexte}
+
+Question : {question}"""
+
+    debut = time.time()
+    response = client_openai.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {"role": "system", "content": prompt_system},
+            {"role": "user", "content": prompt_user}
+        ],
+        temperature=0
+    )
+    latence_ms = int((time.time() - debut) * 1000)
+
+    reponse = response.choices[0].message.content
+    tokens_prompt = response.usage.prompt_tokens
+    tokens_completion = response.usage.completion_tokens
+    cout = (tokens_prompt * COUT_INPUT_PER_TOKEN) + (tokens_completion * COUT_OUTPUT_PER_TOKEN)
+
+    return reponse, latence_ms, tokens_prompt, tokens_completion, cout
+
+
+# ============================================================
+# GENERATION — CONFIGURATIONS DE COMPARAISON (no-RAG / long-context)
+# ============================================================
+
+def generer_reponse_no_rag(client_openai, question):
+    """Génère une réponse sans aucun contexte injecté — LLM nu sur ses connaissances."""
+    prompt_system = "Tu es un assistant qui répond aux questions sur l'éducation en France."
+
+    debut = time.time()
+    response = client_openai.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {"role": "system", "content": prompt_system},
+            {"role": "user", "content": question}
+        ],
+        temperature=0
+    )
+    latence_ms = int((time.time() - debut) * 1000)
+
+    reponse = response.choices[0].message.content
+    tokens_prompt = response.usage.prompt_tokens
+    tokens_completion = response.usage.completion_tokens
+    cout = (tokens_prompt * COUT_INPUT_PER_TOKEN) + (tokens_completion * COUT_OUTPUT_PER_TOKEN)
+
+    return reponse, latence_ms, tokens_prompt, tokens_completion, cout
+
+
+_pdfs_longcontext_cache = None
+
+def charger_pdfs_longcontext():
+    """Charge et concatène le texte brut des 4 PDFs sources (mise en cache après le premier appel)."""
+    global _pdfs_longcontext_cache
+    if _pdfs_longcontext_cache is not None:
+        return _pdfs_longcontext_cache
+
+    from unstructured.partition.pdf import partition_pdf
+
+    fichiers = [
+        "rag/sources/Depp_Guide_méthodologique_IVAC_2025.pdf-515492.pdf",
+        "rag/sources/EF-90-chap-01-construction-d-un-indice-de-position-sociale-des-eleves-pdfa.pdf",
+        "rag/sources/Indice de position sociale (IPS) _ actualisation 2022-476864.pdf",
+        "rag/sources/NI 23.16-364089_IPS.pdf",
+    ]
+
+    textes = []
+    for fichier in fichiers:
+        elements = partition_pdf(fichier)
+        texte = "\n".join(e.text for e in elements if e.text)
+        textes.append(texte)
+
+    _pdfs_longcontext_cache = "\n\n=== DOCUMENT SUIVANT ===\n\n".join(textes)
+    return _pdfs_longcontext_cache
+
+
+def generer_reponse_longcontext(client_openai, question):
+    """Génère une réponse avec les 4 PDFs sources entiers injectés en contexte, sans chunking ni retrieval."""
+    contexte = charger_pdfs_longcontext()
+
+    prompt_system = "Tu es un assistant qui répond aux questions à partir des documents fournis."
+    prompt_user = f"""Documents :
 {contexte}
 
 Question : {question}"""
@@ -353,6 +437,75 @@ def evaluer_question(collection, client_openai, question_data, avec_reranker=Fal
     }
 
 
+def evaluer_question_comparatif(client_openai, question_data, mode):
+    """
+    Évalue une question avec une configuration de comparaison (no_rag ou longcontext).
+    Pas de retrieval -- uniquement Answer Relevance et Answer Correctness.
+    """
+    question = question_data["question"]
+    reponse_reference = question_data["reponse_reference"]
+
+    if mode == "no_rag":
+        reponse, latence, tokens_prompt, tokens_completion, cout_gen = generer_reponse_no_rag(
+            client_openai, question
+        )
+    elif mode == "longcontext":
+        reponse, latence, tokens_prompt, tokens_completion, cout_gen = generer_reponse_longcontext(
+            client_openai, question
+        )
+    else:
+        raise ValueError(f"Mode inconnu : {mode}")
+
+    relevance, cout_relevance = judge_answer_relevance(client_openai, question, reponse)
+    correctness, cout_correctness = judge_answer_correctness(
+        client_openai, question, reponse, reponse_reference
+    )
+
+    cout_total = cout_gen + cout_relevance + cout_correctness
+
+    return {
+        "id": question_data["id"],
+        "question": question,
+        "reponse_produite": reponse,
+        "answer_relevance": relevance,
+        "answer_correctness": correctness,
+        "latence_ms": latence,
+        "tokens_prompt": tokens_prompt,
+        "tokens_completion": tokens_completion,
+        "cout_dollars": round(cout_total, 6)
+    }
+
+
+def lancer_run_comparatif(client_openai, golden_dataset, mode, label):
+    """Lance un run complet en mode no_rag ou longcontext sur tout le golden dataset."""
+    print(f"\n=== COMPARATIF — {label} ===")
+
+    resultats = []
+    for i, question_data in enumerate(golden_dataset):
+        print(f"[{i+1}/{len(golden_dataset)}] {question_data['id']}...")
+        resultat = evaluer_question_comparatif(client_openai, question_data, mode)
+        resultats.append(resultat)
+
+    moy_relevance = round(sum(r["answer_relevance"]["score"] for r in resultats) / len(resultats), 4)
+    moy_correctness = round(sum(r["answer_correctness"]["score"] for r in resultats) / len(resultats), 4)
+    cout_total = round(sum(r["cout_dollars"] for r in resultats), 6)
+    latence_moy = round(sum(r["latence_ms"] for r in resultats) / len(resultats))
+
+    print(f"  Answer Relevance   : {moy_relevance}")
+    print(f"  Answer Correctness : {moy_correctness}")
+    print(f"  Coût total         : ${cout_total}")
+    print(f"  Latence moyenne    : {latence_moy}ms")
+
+    return {
+        "mode": mode,
+        "answer_relevance": moy_relevance,
+        "answer_correctness": moy_correctness,
+        "cout_total_dollars": cout_total,
+        "latence_moy_ms": latence_moy,
+        "details": resultats
+    }
+
+
 def calculer_agregats(resultats_questions):
     """Calcule les moyennes globales sur toutes les questions."""
     n = len(resultats_questions)
@@ -508,6 +661,17 @@ def main():
             b, r = agregats_baseline[cle], agregats_rerank[cle]
             delta = round(r - b, 4)
             print(f"{nom:<20} {b:<12} {r:<12} {delta:+.4f}")
+
+    if TESTER_NO_RAG_LONGCONTEXT:
+        agregats_no_rag = lancer_run_comparatif(client_openai, golden_dataset, mode="no_rag", label="NO-RAG (LLM nu)")
+        agregats_longcontext = lancer_run_comparatif(client_openai, golden_dataset, mode="longcontext", label="LONG-CONTEXT (PDFs entiers)")
+
+        print(f"\n\n=== COMPARATIF FINAL : RAG vs NO-RAG vs LONG-CONTEXT ===")
+        print(f"{'Metrique':<22} {'RAG (nous)':<14} {'No-RAG':<14} {'Long-context':<14}")
+        print(f"{'Answer Relevance':<22} {agregats_baseline['answer_relevance']:<14} {agregats_no_rag['answer_relevance']:<14} {agregats_longcontext['answer_relevance']:<14}")
+        print(f"{'Answer Correctness':<22} {agregats_baseline['answer_correctness']:<14} {agregats_no_rag['answer_correctness']:<14} {agregats_longcontext['answer_correctness']:<14}")
+        print(f"{'Cout total ($)':<22} {agregats_baseline['cout_total_dollars']:<14} {agregats_no_rag['cout_total_dollars']:<14} {agregats_longcontext['cout_total_dollars']:<14}")
+        print(f"{'Latence moy (ms)':<22} {'-':<14} {agregats_no_rag['latence_moy_ms']:<14} {agregats_longcontext['latence_moy_ms']:<14}")
 
     print(f"\nHistorique mis à jour : {HISTORY_PATH}")
 
