@@ -851,3 +851,47 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : bascule complète sans cadrage — jugée risquée pour un profil non-développeur dont l'objectif est la compréhension, pas seulement la livraison. Révise la position prise en S3.D16 (maintien du chat, refusé alors car "Claude Code ne résout pas davantage le problème") — le contexte a changé : le goulot d'étranglement identifié en session 3 était la perte de contexte entre sessions, celui identifié en session 7 est la friction du copier-coller de fichiers volumineux au sein même d'une session active.
 
 **Conséquence** : `CLAUDE.md` et les documents de transition de session sont volontairement exclus du suivi git (`.gitignore`) — fichiers de méthode de travail personnelle, pas des artefacts du projet à exposer publiquement sur le repo GitHub.
+
+## S8.1 — Correction de la recherche par nom trop permissive sur les noms composés (clôture de la dette S7.5)
+
+**Décision** : `rechercher_etablissements_par_nom()` garde le `LIKE` SQL comme filtre large (recall), mais ajoute un filtrage Python en sortie qui ne conserve que les candidats dont le nom nettoyé (minuscules, sans accents, sans préfixe institutionnel Collège/Collège privé/École/CLG) correspond exactement au nom recherché nettoyé de la même façon.
+
+**Pourquoi** : vérifié empiriquement sur "Saint-Joseph" — 191 candidats bruts via `LIKE`, dont seulement 146 sont de vrais homonymes ("Collège Saint-Joseph" / "Collège privé Saint-Joseph") ; le reste (45) était des noms composés différents ("Saint-Joseph de Cluny", "Saint-Joseph La Salle"...) qui gonflaient artificiellement le nombre de candidats affiché à l'utilisateur.
+
+**Conséquence** : ajout de `_normaliser_nom()` et de la constante `PREFIXES_INSTITUTIONNELS` (limitée aux 4 préfixes ayant un poids statistique réel sur l'ensemble des collèges — vérifié avant d'élargir, cf. S8.2).
+
+## S8.2 — Portée du nettoyage des noms limitée aux préfixes à poids statistique réel
+
+**Décision** : liste de préfixes retenue = Collège, Collège privé, École/Ecole, CLG (fréquence ≥10 sur l'ensemble des collèges). Les préfixes plus rares (Institution, Institut, Centre, Ensemble, Cours, Annexe...) ne sont pas traités.
+
+**Pourquoi** : vérification empirique sur l'ensemble des établissements de type Collège avant de trancher — ces préfixes rares (2 à 5 occurrences chacun) risquent de faire partie du nom distinctif réel de l'établissement plutôt que d'être un simple équivalent de "Collège" ; les traiter sans plus de vérification aurait été une généralisation non fondée.
+
+**Rejeté** : liste exhaustive de tous les préfixes observés — jugée trop risquée (sur-nettoyage potentiel) pour un gain marginal.
+
+**Conséquence** : limite documentée, pas une dette cachée — à revoir seulement si un cas concret avec un autre préfixe se présente.
+
+## S8.3 — Retrait du préfixe institutionnel du nom recherché avant la requête SQL (pas seulement des candidats)
+
+**Problème découvert en test** : le LLM du router extrait parfois le nom en gardant le mot "collège" (ex: "collège Saint-Joseph" plutôt que "Saint-Joseph"). Le `LIKE` construit à partir de cette chaîne exige une sous-chaîne continue, donc "Collège privé Saint-Joseph" n'est jamais retrouvé (le mot "privé" casse la continuité) — 108 candidats au lieu de 146 selon que le LLM garde ou non "collège".
+
+**Décision** : `_retirer_prefixe_recherche()` retire le même préfixe institutionnel du nom recherché avant de construire le `LIKE`, sans toucher aux accents/casse du reste (pour ne pas casser la recherche sur les noms accentués).
+
+**Pourquoi** : la fiabilité de la recherche ne doit pas dépendre d'un aléa d'extraction LLM — cohérent avec le principe templating vs LLM déjà établi.
+
+**Conséquence** : validé par test (146 candidats identiques que "collège" soit gardé ou non par le LLM) et par un test de non-régression sur un nom accentué réel en base.
+
+## S8.4 — Extension du filtre d'exclusion SEGPA au motif "SEGPA"
+
+**Problème découvert en creusant S8.1** : le filtre existant (`NOT LIKE '%Section d%'`) laissait passer 27 lignes commençant directement par "SEGPA" (ex: "SEGPA du Collège privé Saint-Joseph La Salle").
+
+**Décision** : ajout de `AND nom NOT LIKE '%SEGPA%'` à la requête.
+
+**Conséquence** : les 27 lignes concernées sont désormais exclues, cohérent avec l'intention originale de S7.2.
+
+## S8.5 — Correction d'un bug de saisie vide dans l'entonnoir de désambiguïsation
+
+**Problème découvert en test** : appuyer sur Entrée sans rien taper à l'étape département ou ville était interprété par `interpreter_precision()` comme une recherche par ville avec valeur vide — et une chaîne vide est une sous-chaîne de n'importe quel nom de commune, donc **tous** les candidats passaient le filtre silencieusement. Conséquence observée en test réel : la saisie vide faisait croire au filtrage qu'il avait réussi, jusqu'à afficher la liste complète des 146 candidats un par un.
+
+**Décision** : `interpreter_precision()` reconnaît maintenant explicitement une saisie vide comme un type "invalide" à part, pour lequel `filtrer_candidats_par_precision()` retourne une liste vide — ça réactive le mécanisme de nouvelle tentative déjà prévu (message "Aucune correspondance", compteur 3 tentatives max) au lieu de l'ignorer.
+
+**Conséquence** : validé par test automatisé et par test manuel réel (le message "Aucune correspondance... tentative 1/3" puis "2/3" s'affiche désormais correctement).

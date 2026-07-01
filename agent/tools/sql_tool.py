@@ -3,6 +3,8 @@
 import sqlite3
 import os
 import sys
+import re
+import unicodedata
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -195,6 +197,55 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
 SEUIL_CANDIDATS_AVANT_PRECISION = 5
 
 
+PREFIXES_INSTITUTIONNELS = [
+    "college prive",
+    "college",
+    "ecole",
+    "clg",
+]
+
+
+def _normaliser_nom(nom: str) -> str:
+    """
+    Nettoie un nom d'établissement pour comparaison stricte : minuscules,
+    sans accents, sans préfixe institutionnel générique (Collège, Collège
+    privé, École, CLG), espaces multiples réduits.
+
+    Objectif : distinguer un vrai homonyme ("Collège Saint-Joseph" ==
+    "Collège privé Saint-Joseph" une fois nettoyés) d'un nom composé qui
+    contient juste la même chaîne ("Collège Saint-Joseph de Cluny" reste
+    différent après nettoyage).
+    """
+    nom = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
+    nom = nom.lower().strip()
+    for prefixe in PREFIXES_INSTITUTIONNELS:
+        if nom.startswith(prefixe + " "):
+            nom = nom[len(prefixe):].strip()
+            break
+    return re.sub(r"\s+", " ", nom)
+
+
+def _retirer_prefixe_recherche(nom: str) -> str:
+    """
+    Retire un préfixe institutionnel générique (Collège, Collège privé,
+    École, CLG) en tête du nom recherché, sans toucher aux accents ni à la
+    casse du reste du texte — la recherche SQL (LIKE) doit rester capable
+    de retrouver les noms réels en base, qui gardent leurs accents.
+
+    Corrige un cas réel observé : le LLM du router extrait parfois le nom
+    en gardant le mot "collège" (ex: "collège Saint-Joseph" au lieu de
+    "Saint-Joseph"), ce qui empêchait la recherche LIKE de retrouver les
+    établissements "Collège privé X" (le mot "privé" casse la continuité
+    de la sous-chaîne recherchée).
+    """
+    nom = nom.strip()
+    nom_comparable = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii").lower()
+    for prefixe in PREFIXES_INSTITUTIONNELS:
+        if nom_comparable.startswith(prefixe + " "):
+            return nom[len(prefixe):].strip()
+    return nom
+
+
 def rechercher_etablissements_par_nom(noms: list[str], type_etablissement: str = "Collège") -> dict:
     """
     Résout une liste de noms d'établissements en candidats potentiels.
@@ -203,9 +254,21 @@ def rechercher_etablissements_par_nom(noms: list[str], type_etablissement: str =
     correspondant à un nom donné est une recherche déterministe, pas une
     tâche d'interprétation de texte libre (cf. principe templating vs LLM).
 
-    Exclut les SEGPA/sections rattachées (nom contient "Section d'enseignement")
-    — ce sont des sous-structures internes à un collège, pas des établissements
-    comparables entre eux pour un parent qui compare deux collèges.
+    Exclut les SEGPA/sections rattachées (nom contient "Section d'enseignement"
+    ou "SEGPA") — ce sont des sous-structures internes à un collège, pas des
+    établissements comparables entre eux pour un parent qui compare deux
+    collèges.
+
+    Le préfixe institutionnel du nom recherché (Collège/Collège privé/École/
+    CLG) est retiré avant la recherche (cf. _retirer_prefixe_recherche) —
+    évite que la recherche dépende de si le LLM a gardé ou non ce mot en
+    l'extrayant de la question.
+
+    Le LIKE SQL sert de filtre large (recall) ; un filtrage Python en sortie
+    ne garde que les candidats dont le nom nettoyé (cf. _normaliser_nom)
+    correspond exactement au nom recherché nettoyé — élimine les noms
+    composés qui contiennent la chaîne recherchée sans être un homonyme réel
+    (ex: recherche "Saint-Joseph" ne doit pas remonter "Saint-Joseph de Cluny").
 
     Retourne : {
         "success": bool,
@@ -222,15 +285,21 @@ def rechercher_etablissements_par_nom(noms: list[str], type_etablissement: str =
         conn.row_factory = sqlite3.Row
         try:
             for nom in noms:
+                nom_recherche = _retirer_prefixe_recherche(nom)
                 rows = conn.execute("""
                     SELECT uai, nom, commune, code_departement, secteur
                     FROM etablissements
                     WHERE nom LIKE ?
                       AND type_etablissement = ?
                       AND nom NOT LIKE '%Section d%'
+                      AND nom NOT LIKE '%SEGPA%'
                     ORDER BY nom
-                """, (f"%{nom}%", type_etablissement)).fetchall()
-                resultats[nom] = [dict(row) for row in rows]
+                """, (f"%{nom_recherche}%", type_etablissement)).fetchall()
+                nom_cherche_normalise = _normaliser_nom(nom)
+                resultats[nom] = [
+                    dict(row) for row in rows
+                    if _normaliser_nom(row["nom"]) == nom_cherche_normalise
+                ]
         finally:
             conn.close()
         return {"success": True, "resultats": resultats, "error": None}
@@ -243,12 +312,23 @@ def interpreter_precision(saisie: str) -> dict:
     Détermine le type de précision saisie par l'utilisateur, sans appel LLM —
     simple règle de format. Seulement 2 formats acceptés (V0, décision
     volontairement restreinte, pas de code postal) :
+    - vide (ou uniquement des espaces) -> invalide
     - 2 chiffres -> département
     - sinon      -> recherche par nom de ville
 
-    Retourne : {"type": "departement"|"ville", "valeur": str}
+    Une saisie vide doit être rejetée explicitement (type "invalide") plutôt
+    que de tomber dans le cas "ville" avec une valeur vide : une chaîne vide
+    est une sous-chaîne de n'importe quel nom de commune, donc un filtrage
+    par ville avec valeur vide matcherait silencieusement tous les candidats
+    au lieu de signaler une saisie non reconnue (bug réel observé en test :
+    appuyer sur Entrée sans rien taper faisait croire au filtrage qu'il avait
+    réussi, jusqu'à afficher la liste complète des 146 candidats).
+
+    Retourne : {"type": "departement"|"ville"|"invalide", "valeur": str}
     """
     s = saisie.strip()
+    if not s:
+        return {"type": "invalide", "valeur": s}
     if s.isdigit() and len(s) == 2:
         return {"type": "departement", "valeur": s}
     return {"type": "ville", "valeur": s}
@@ -260,8 +340,14 @@ def filtrer_candidats_par_precision(candidats: list[dict], saisie: str) -> list[
     selon une précision saisie par l'utilisateur (département ou ville).
     Filtrage en mémoire sur les candidats déjà obtenus — pas une nouvelle requête
     de recherche par nom, pas d'appel LLM.
+
+    Une saisie invalide (vide) retourne une liste vide plutôt que la liste
+    complète — laisse le mécanisme de nouvelle tentative (déjà prévu côté
+    appelant) se déclencher correctement au lieu d'avancer silencieusement.
     """
     precision = interpreter_precision(saisie)
+    if precision["type"] == "invalide":
+        return []
     if precision["type"] == "departement":
         return [c for c in candidats if c.get("code_departement") == precision["valeur"]]
     # Recherche par ville : comparaison insensible à la casse, sous-chaîne
