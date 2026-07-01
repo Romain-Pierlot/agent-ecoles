@@ -1,4 +1,4 @@
-"""graph_router.py — V3 : load_dotenv() explicite en premier (fix LangSmith EU)"""
+"""graph_router.py — V4 : ajout du chemin comparaison_etablissements_nommes"""
 
 from dotenv import load_dotenv
 load_dotenv()  # DOIT être appelé avant tout import LangGraph/LangSmith, pour
@@ -11,7 +11,7 @@ from openai import OpenAI
 from langsmith.wrappers import wrap_openai
 
 from agent.tools.rag_tool import search_rag
-from agent.tools.sql_tool import recherche_sql
+from agent.tools.sql_tool import recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision
 from agent.tools.geo_tool import recherche_geo
 
 from config import LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS
@@ -30,6 +30,9 @@ class AgentState(TypedDict):
     resultats_rag: Optional[dict]
     reponse_finale: Optional[str]
     tours_agent: int
+    noms_etablissements: Optional[list]
+    resolution_noms: Optional[dict]
+    uai_resolus: Optional[list]
 
 
 CATEGORIES = [
@@ -42,7 +45,7 @@ ROUTER_TOOL_SCHEMA = {
     "type": "function",
     "function": {
         "name": "classifier_question",
-        "description": "Classifie la question utilisateur et extrait sa zone géographique en un seul passage.",
+        "description": "Classifie la question utilisateur et extrait sa zone géographique et ses noms d'établissements en un seul passage.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -55,8 +58,13 @@ ROUTER_TOOL_SCHEMA = {
                     "type": "string",
                     "description": "La zone géographique extraite si zone_detectee=true, sinon chaîne vide.",
                 },
+                "noms_etablissements": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Noms d'établissements explicitement cités dans la question (ex: 'Victor Hugo', 'Jean Moulin'), uniquement pertinent si categorie=comparaison_etablissements_nommes. Liste vide sinon.",
+                },
             },
-            "required": ["categorie", "zone_detectee", "zone"],
+            "required": ["categorie", "zone_detectee", "zone", "noms_etablissements"],
         },
     },
 }
@@ -75,64 +83,11 @@ def noeud_router(state: AgentState) -> AgentState:
     )
     args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
     state["categorie"] = args["categorie"]
-    # Zone géographique extraite en même temps que la classification —
-    # évite un second appel LLM séparé (gain de latence).
+    # Zone géographique et noms d'établissements extraits en même temps que
+    # la classification — évite des appels LLM séparés (gain de latence).
     state["zone_geo"] = args["zone"] if args.get("zone_detectee") else None
+    state["noms_etablissements"] = args.get("noms_etablissements") or []
     return state
-
-
-EXTRACTION_ZONE_SCHEMA = {
-    "type": "function",
-    "function": {
-        "name": "extraire_zone",
-        "description": "Extrait la zone géographique géocodable d'une question.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "zone_detectee": {
-                    "type": "boolean",
-                    "description": "true si une zone géocodable (ville, adresse, code postal, département) est identifiable",
-                },
-                "zone": {
-                    "type": "string",
-                    "description": "La zone extraite (vide si zone_detectee=false)",
-                },
-            },
-            "required": ["zone_detectee", "zone"],
-        },
-    },
-}
-
-
-def extraire_zone_geo(question: str) -> str | None:
-    """
-    Isole la zone géographique (ville, adresse, code postal) d'une question
-    complète. Utilise le function calling (sortie structurée) plutôt qu'une
-    comparaison de texte libre — évite toute fragilité liée à la ponctuation
-    ou au format exact de la réponse du LLM.
-
-    Retourne la zone extraite (str), ou None si aucune zone géocodable.
-    """
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": (
-                "Extrais la zone géographique géocodable mentionnée dans la "
-                "question (ville, adresse, code postal, département). "
-                "Un nom de région touristique informel (ex: 'Côte d'Opale') "
-                "n'est pas géocodable : zone_detectee=false dans ce cas."
-            )},
-            {"role": "user", "content": question},
-        ],
-        tools=[EXTRACTION_ZONE_SCHEMA],
-        tool_choice={"type": "function", "function": {"name": "extraire_zone"}},
-        temperature=0,
-    )
-    import json as _json
-    args = _json.loads(response.choices[0].message.tool_calls[0].function.arguments)
-    if not args.get("zone_detectee"):
-        return None
-    return args["zone"]
 
 
 def noeud_geo(state: AgentState) -> AgentState:
@@ -152,6 +107,73 @@ def noeud_geo(state: AgentState) -> AgentState:
     return state
 
 
+def noeud_resolution_noms(state: AgentState) -> AgentState:
+    """
+    Résout les noms d'établissements en UAI. Lookup SQL déterministe (pas de
+    LLM). Ne choisit JAMAIS un candidat par défaut en cas d'ambiguïté —
+    route systématiquement vers clarification_noms dans ce cas.
+
+    Si une zone géographique a déjà été extraite par le router (ex: "le
+    collège Victor Hugo à Nantes"), on l'applique comme pré-filtre AVANT
+    l'entonnoir interactif département/ville — pas besoin de redemander une
+    info déjà donnée dans la question.
+
+    Si ce pré-filtre par zone ne retourne AUCUN candidat, on ne se rabat
+    JAMAIS silencieusement sur la liste complète (ce serait ignorer une
+    contrainte explicite de l'utilisateur) : on marque explicitement le nom
+    comme "zone_sans_resultat" pour que clarification_noms formule le bon
+    message ("aucun Jean Moulin à Perpignan, précise une autre zone").
+    """
+    noms = state.get("noms_etablissements") or []
+    if not noms:
+        state["resolution_noms"] = {
+            "success": False, "resultats": {}, "zones_sans_resultat": {},
+            "error": "Aucun nom d'établissement identifié dans la question.",
+        }
+        state["uai_resolus"] = None
+        return state
+
+    resolution = rechercher_etablissements_par_nom(noms)
+
+    if not resolution.get("success"):
+        state["resolution_noms"] = resolution
+        state["uai_resolus"] = None
+        return state
+
+    zone_geo = state.get("zone_geo")
+    zones_sans_resultat = {}
+
+    if zone_geo:
+        for nom, candidats in resolution["resultats"].items():
+            if len(candidats) <= 1:
+                continue  # déjà résolu ou introuvable, la zone n'a rien à filtrer
+            filtres = filtrer_candidats_par_precision(candidats, zone_geo)
+            if not filtres:
+                # La zone donnée ne correspond à aucun candidat pour ce nom —
+                # on le signale explicitement, on ne l'ignore pas en silence.
+                zones_sans_resultat[nom] = zone_geo
+            else:
+                resolution["resultats"][nom] = filtres
+
+    resolution["zones_sans_resultat"] = zones_sans_resultat
+    state["resolution_noms"] = resolution
+
+    if zones_sans_resultat:
+        state["uai_resolus"] = None
+        return state
+
+    uai_resolus = []
+    for nom, candidats in resolution["resultats"].items():
+        if len(candidats) != 1:
+            # 0 ou 2+ candidats : ambigu ou introuvable, jamais de choix par défaut
+            state["uai_resolus"] = None
+            return state
+        uai_resolus.append(candidats[0]["uai"])
+
+    state["uai_resolus"] = uai_resolus
+    return state
+
+
 def noeud_sql(state: AgentState) -> AgentState:
     uai_filtre = None
     if state.get("resultats_geo") and state["resultats_geo"].get("success"):
@@ -159,6 +181,8 @@ def noeud_sql(state: AgentState) -> AgentState:
         if not uai_filtre:
             state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
             return state
+    elif state.get("uai_resolus"):
+        uai_filtre = state["uai_resolus"]
     state["resultats_sql"] = recherche_sql(state["question"], uai_filtre=uai_filtre)
     return state
 
@@ -277,6 +301,49 @@ def noeud_clarification_geo(state: AgentState) -> AgentState:
     return state
 
 
+def noeud_clarification_noms(state: AgentState) -> AgentState:
+    """
+    Appelé quand un nom d'établissement est ambigu (plusieurs candidats),
+    introuvable (zéro candidat), ou quand la zone donnée dans la question ne
+    correspond à aucun candidat. Ne choisit jamais un résultat par défaut,
+    et ne substitue jamais silencieusement une zone différente de celle
+    demandée — le message distingue explicitement ces 3 cas.
+    """
+    resolution = state.get("resolution_noms") or {}
+    candidats_par_nom = resolution.get("resultats", {})
+    zones_sans_resultat = resolution.get("zones_sans_resultat", {})
+
+    if not candidats_par_nom:
+        state["reponse_finale"] = (
+            "Je n'ai pas identifié d'établissement nommé dans ta question. "
+            "Peux-tu préciser le nom du ou des établissements à comparer ?"
+        )
+        return state
+
+    morceaux = []
+    for nom, candidats in candidats_par_nom.items():
+        if nom in zones_sans_resultat:
+            zone = zones_sans_resultat[nom]
+            morceaux.append(
+                f"Aucun établissement nommé « {nom} » n'a été trouvé pour « {zone} ». "
+                f"Précise une autre ville ou un autre département."
+            )
+        elif len(candidats) == 0:
+            morceaux.append(f"Aucun établissement nommé « {nom} » n'a été trouvé dans les données.")
+        elif len(candidats) > 1:
+            lignes = "\n".join(
+                f"  {i + 1}. {c['nom']} — {c['commune']} ({c['secteur']})"
+                for i, c in enumerate(candidats)
+            )
+            morceaux.append(f"Plusieurs établissements correspondent à « {nom} » :\n{lignes}")
+
+    state["reponse_finale"] = (
+        "\n\n".join(morceaux)
+        + "\n\nPeux-tu préciser lequel tu veux (numéro, ville ou département) ?"
+    )
+    return state
+
+
 def _generer_intro_template(resultats_geo, nb_affiches):
     """Intro 100% template — insertion de chiffres, aucune génération LLM."""
     if resultats_geo and resultats_geo.get("success"):
@@ -285,6 +352,8 @@ def _generer_intro_template(resultats_geo, nb_affiches):
         if nb_affiches < total:
             return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} présentant les meilleurs résultats :"
         return f"Voici les établissements trouvés autour de {zone} :"
+    if nb_affiches == 1:
+        return "Voici les informations pour l'établissement demandé :"
     return "Voici les résultats trouvés :"
 
 
@@ -368,20 +437,29 @@ def router_apres_geo(state: AgentState) -> str:
     return "clarification_geo"
 
 
+def router_apres_resolution_noms(state: AgentState) -> str:
+    """Après resolution_noms : tout résolu sans ambiguïté -> sql_tool, sinon -> clarification."""
+    if state.get("uai_resolus"):
+        return "sql_tool"
+    return "clarification_noms"
+
+
 def construire_graphe():
     graph = StateGraph(AgentState)
     graph.add_node("router", noeud_router)
     graph.add_node("geo_tool", noeud_geo)
+    graph.add_node("resolution_noms", noeud_resolution_noms)
     graph.add_node("sql_tool", noeud_sql)
     graph.add_node("rag_tool", noeud_rag)
     graph.add_node("agent_react", noeud_agent_react)
     graph.add_node("clarification_geo", noeud_clarification_geo)
+    graph.add_node("clarification_noms", noeud_clarification_noms)
     graph.add_node("synthese", noeud_synthese)
 
     graph.set_entry_point("router")
     graph.add_conditional_edges("router", router_vers_chemin, {
         "recherche_geo_classement": "geo_tool",
-        "comparaison_etablissements_nommes": "sql_tool",
+        "comparaison_etablissements_nommes": "resolution_noms",
         "recherche_geo_comparaison": "geo_tool",
         "question_methodologique": "rag_tool",
         "recherche_geo_methodologique": "geo_tool",
@@ -391,8 +469,13 @@ def construire_graphe():
         "sql_tool": "sql_tool",
         "clarification_geo": "clarification_geo",
     })
+    graph.add_conditional_edges("resolution_noms", router_apres_resolution_noms, {
+        "sql_tool": "sql_tool",
+        "clarification_noms": "clarification_noms",
+    })
     graph.add_edge("sql_tool", "synthese")
     graph.add_edge("clarification_geo", END)
+    graph.add_edge("clarification_noms", END)
     graph.add_edge("rag_tool", "synthese")
     graph.add_edge("agent_react", "synthese")
     graph.add_edge("synthese", END)
@@ -403,8 +486,9 @@ if __name__ == "__main__":
     app = construire_graphe()
     resultat = app.invoke({
         "question": "C'est quoi l'IPS ?", "dc_niveau": "accessible",
-        "categorie": None, "resultats_geo": None, "resultats_sql": None,
+        "categorie": None, "zone_geo": None, "resultats_geo": None, "resultats_sql": None,
         "resultats_rag": None, "reponse_finale": None, "tours_agent": 0,
+        "noms_etablissements": [], "resolution_noms": None, "uai_resolus": None,
     })
     print("Catégorie :", resultat["categorie"])
     print("Réponse :", resultat["reponse_finale"])

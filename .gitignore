@@ -48,3 +48,10 @@ audit_chunks_rapport.csv
 
 # Résultats de runs du harness (générés, pas du code source)
 rag/resultats/
+
+# Fichiers de configuration et de suivi de session — usage local uniquement
+CLAUDE.md
+docs/document_transition_session*.md
+
+# Résultats de benchmark ponctuels — pas du code source, pas reproductible tel quel
+contexte_benchmark_lyon.json

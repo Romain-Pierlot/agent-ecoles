@@ -1,4 +1,4 @@
-"""sql_tool.py — Outil Text-to-SQL pour EduScope (V4 — placeholder UAI, pas de recopie LLM)"""
+"""sql_tool.py — Outil Text-to-SQL pour EduScope (V7 — précision limitée à ville/département, code postal retiré)"""
 
 import sqlite3
 import os
@@ -106,8 +106,8 @@ CONTRAINTE OBLIGATOIRE : la requête doit systématiquement inclure
 WHERE e.uai IN ({UAI_LIST})
 Écris EXACTEMENT le texte {UAI_LIST} tel quel (avec les accolades) — ne
 remplace pas ce texte par une liste d'UAI, ce sera fait automatiquement après.
-Ces établissements ont déjà été présélectionnés géographiquement — ne refais
-pas de filtre par commune."""
+Ces établissements ont déjà été présélectionnés — ne refais pas de filtre
+par commune ou par nom."""
 
     messages = [
         {"role": "system", "content": f"""Tu es un expert SQL spécialisé dans les données éducatives françaises.
@@ -189,6 +189,96 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     }
 
 
+# Seuil au-delà duquel on ne liste plus les candidats mais on demande une
+# précision géographique (département ou ville). Au-delà de 5 options, une
+# liste numérotée devient inexploitable pour l'utilisateur.
+SEUIL_CANDIDATS_AVANT_PRECISION = 5
+
+
+def rechercher_etablissements_par_nom(noms: list[str], type_etablissement: str = "Collège") -> dict:
+    """
+    Résout une liste de noms d'établissements en candidats potentiels.
+
+    Lookup SQL direct (LIKE), AUCUN appel LLM : trouver les établissements
+    correspondant à un nom donné est une recherche déterministe, pas une
+    tâche d'interprétation de texte libre (cf. principe templating vs LLM).
+
+    Exclut les SEGPA/sections rattachées (nom contient "Section d'enseignement")
+    — ce sont des sous-structures internes à un collège, pas des établissements
+    comparables entre eux pour un parent qui compare deux collèges.
+
+    Retourne : {
+        "success": bool,
+        "resultats": { nom_recherche: [ {uai, nom, commune, code_departement, secteur}, ... ] },
+        "error": str | None
+    }
+    """
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    resultats = {}
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            for nom in noms:
+                rows = conn.execute("""
+                    SELECT uai, nom, commune, code_departement, secteur
+                    FROM etablissements
+                    WHERE nom LIKE ?
+                      AND type_etablissement = ?
+                      AND nom NOT LIKE '%Section d%'
+                    ORDER BY nom
+                """, (f"%{nom}%", type_etablissement)).fetchall()
+                resultats[nom] = [dict(row) for row in rows]
+        finally:
+            conn.close()
+        return {"success": True, "resultats": resultats, "error": None}
+    except Exception as e:
+        return {"success": False, "resultats": {}, "error": str(e)}
+
+
+def interpreter_precision(saisie: str) -> dict:
+    """
+    Détermine le type de précision saisie par l'utilisateur, sans appel LLM —
+    simple règle de format. Seulement 2 formats acceptés (V0, décision
+    volontairement restreinte, pas de code postal) :
+    - 2 chiffres -> département
+    - sinon      -> recherche par nom de ville
+
+    Retourne : {"type": "departement"|"ville", "valeur": str}
+    """
+    s = saisie.strip()
+    if s.isdigit() and len(s) == 2:
+        return {"type": "departement", "valeur": s}
+    return {"type": "ville", "valeur": s}
+
+
+def filtrer_candidats_par_precision(candidats: list[dict], saisie: str) -> list[dict]:
+    """
+    Filtre une liste de candidats déjà résolus (via rechercher_etablissements_par_nom)
+    selon une précision saisie par l'utilisateur (département ou ville).
+    Filtrage en mémoire sur les candidats déjà obtenus — pas une nouvelle requête
+    de recherche par nom, pas d'appel LLM.
+    """
+    precision = interpreter_precision(saisie)
+    if precision["type"] == "departement":
+        return [c for c in candidats if c.get("code_departement") == precision["valeur"]]
+    # Recherche par ville : comparaison insensible à la casse, sous-chaîne
+    valeur_normalisee = precision["valeur"].strip().lower()
+    return [c for c in candidats if valeur_normalisee in (c.get("commune") or "").lower()]
+
+
 if __name__ == "__main__":
     r1 = recherche_sql("Quels sont les meilleurs collèges publics à Lyon ?")
     print(f"success={r1['success']} | {r1['nb_resultats']} résultats")
+
+    r2 = rechercher_etablissements_par_nom(["Victor Hugo"])
+    candidats = r2["resultats"].get("Victor Hugo", [])
+    print(f"success={r2['success']} | {len(candidats)} candidats pour 'Victor Hugo' (SEGPA exclues)")
+
+    filtres = filtrer_candidats_par_precision(candidats, "31")
+    print(f"Après filtrage département 31 : {len(filtres)} candidats")
+
+    filtres_ville = filtrer_candidats_par_precision(candidats, "Nantes")
+    print(f"Après filtrage ville 'Nantes' : {len(filtres_ville)} candidats")
