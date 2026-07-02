@@ -983,6 +983,18 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : nouveau fichier `prompts/agent_react_system_prompt.py`. Validé par test sur un cas hors-sujet (refus honnête sans appel d'outil inutile) et un cas complexe multi-zones (tableau correctement formaté avec badges VA, conclusion nuancée). Latence élevée sur ce chemin (~45s sur le cas multi-zones) — attendu et accepté pour l'instant, chemin réservé aux cas trop complexes pour les chemins déterministes. Affichage progressif pendant l'attente identifié comme besoin pour le futur chantier Streamlit (roadmap), pas réalisable sans interface aujourd'hui.
 
+## S8.13 — Garde-fou déterministe : demande de classement à échelle non gérée mal classée en `question_methodologique`
+
+**Problème découvert en construisant la batterie de tests de l'agent ReAct** : "Quel est le meilleur collège de France ?" classée en `question_methodologique` (zone non détectée, correctement — mais catégorie de repli incorrecte). Même phénomène que S8.9 (`question_methodologique` agit comme catégorie "par défaut" quand rien d'autre ne colle), mais sur un déclencheur différent de celui déjà corrigé (pas de nouvelle preuve que le fix de température/exemple de S8.9 couvre ce cas).
+
+**Impact réel vérifié** : cette classification appelle `rag_tool` sur une requête sans rapport avec le corpus (guides méthodologiques DEPP, pas un palmarès national) — réponse vide ou incohérente plutôt qu'une clarification utile sur le périmètre du produit (pas de recherche à l'échelle nationale).
+
+**Décision** : garde-fou déterministe dans `noeud_router` (pas un nouveau réglage de prompt) : si `categorie == question_methodologique`, qu'aucune zone n'est détectée, ET que la question contient un mot superlatif ("meilleur(s)/meilleure(s)", "pire(s)"), bascule vers `non_reconnu`. Volontairement restreint aux superlatifs — "classement" est exclu du déclencheur (peut légitimement désigner le concept lui-même, ex: "est-ce que le classement des collèges est fiable en général ?", vérifié : reste bien en `question_methodologique`).
+
+**Pourquoi un garde-fou en code plutôt qu'un prompt** : deux épisodes le même jour (Bordeaux instable après resserrement de `comparaison_etablissements_nommes`/`non_reconnu`, cf. S8.9) ont montré qu'une modification de prompt sur une catégorie peut déstabiliser une autre catégorie de façon imprévisible. Un garde-fou en code, borné à une condition précise (`categorie == question_methodologique AND zone_geo is None AND mot superlatif`), ne peut affecter que ce cas exact.
+
+**Conséquence** : `test_router_classification.py` étendu à 11 cas (4 cas limites ajoutés pour la batterie de tests de l'agent). 11/11 validés, y compris re-vérification manuelle de la variante "pire" et de l'absence de faux positif sur une vraie question conceptuelle contenant "classement".
+
 ## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
 
 **Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.

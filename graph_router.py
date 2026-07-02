@@ -5,6 +5,7 @@ load_dotenv()  # DOIT être appelé avant tout import LangGraph/LangSmith, pour
                 # que LANGSMITH_ENDPOINT soit lu correctement dès le départ.
 
 import json
+import re
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from openai import OpenAI
@@ -86,6 +87,13 @@ ROUTER_TOOL_SCHEMA = {
 }
 
 
+# Mots signalant une demande de classement concret ("le meilleur X") plutôt
+# qu'une question de concept — volontairement restreint aux superlatifs sans
+# ambiguïté ("classement" est exclu : peut aussi désigner le concept lui-même,
+# ex: "est-ce que le classement des collèges est fiable ?", légitimement méthodologique).
+_MOTS_SUPERLATIFS = re.compile(r"\b(meilleurs?|meilleures?|pires?)\b", re.IGNORECASE)
+
+
 def noeud_router(state: AgentState) -> AgentState:
     response = client.chat.completions.create(
         model=LLM_MODEL, temperature=0,
@@ -114,6 +122,21 @@ def noeud_router(state: AgentState) -> AgentState:
     # propre, juste des zones), on bascule vers non_reconnu -> agent ReAct,
     # seul chemin capable de gérer une comparaison multi-zones non prévue.
     if state["categorie"] == Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES and not state["noms_etablissements"]:
+        state["categorie"] = Categorie.NON_RECONNU
+
+    # Garde-fou déterministe : question_methodologique sert de catégorie
+    # "par défaut" un peu trop attractive pour le LLM du router dès qu'aucune
+    # zone/nom n'est détecté (déjà observé une première fois avec la
+    # classification non_reconnu, cf. S8.9). Si aucune zone n'est détectée ET
+    # que la question contient un mot superlatif ("meilleur", "pire"...), ce
+    # n'est pas une question de concept/méthodologie mais une demande de
+    # classement à une échelle non gérée (ex: "le meilleur collège de
+    # France") -> non_reconnu, laisse l'agent ReAct clarifier le périmètre.
+    if (
+        state["categorie"] == Categorie.QUESTION_METHODOLOGIQUE
+        and state["zone_geo"] is None
+        and _MOTS_SUPERLATIFS.search(state["question"])
+    ):
         state["categorie"] = Categorie.NON_RECONNU
 
     return state
