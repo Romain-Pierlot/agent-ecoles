@@ -19,6 +19,7 @@ from config import (
     Categorie, SecteurSouhaite, Secteur,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
+from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
 
 client = wrap_openai(OpenAI())  # rend chaque appel visible dans LangSmith (tokens, latence par appel)
 
@@ -105,6 +106,16 @@ def noeud_router(state: AgentState) -> AgentState:
     state["noms_etablissements"] = args.get("noms_etablissements") or []
     state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
+
+    # Garde-fou déterministe (pas un patch de prompt) : comparaison_etablissements_nommes
+    # exige par définition au moins un nom propre cité. Si le LLM choisit cette
+    # catégorie sans avoir extrait de nom (incohérence interne observée en test,
+    # ex: "compare le meilleur collège de Lyon et de Marseille" — pas de nom
+    # propre, juste des zones), on bascule vers non_reconnu -> agent ReAct,
+    # seul chemin capable de gérer une comparaison multi-zones non prévue.
+    if state["categorie"] == Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES and not state["noms_etablissements"]:
+        state["categorie"] = Categorie.NON_RECONNU
+
     return state
 
 
@@ -226,11 +237,154 @@ def noeud_rag(state: AgentState) -> AgentState:
     return state
 
 
+AGENT_TOOLS_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "recherche_geo",
+            "description": "Trouve les collèges dans un rayon autour d'une ville ou adresse.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "adresse_ou_ville": {"type": "string", "description": "Ville, adresse ou code postal."},
+                },
+                "required": ["adresse_ou_ville"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recherche_sql",
+            "description": "Interroge les données chiffrées des collèges (résultats, scores, VA) à partir d'une question en langage naturel.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "description": "La question, reformulée si besoin pour cibler précisément la donnée recherchée."},
+                },
+                "required": ["question"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recherche_rag",
+            "description": "Cherche une explication méthodologique dans les documents de référence (définition d'un indicateur, méthode de calcul, précautions d'interprétation).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "requete": {"type": "string", "description": "La question ou le concept à rechercher."},
+                },
+                "required": ["requete"],
+            },
+        },
+    },
+]
+
+
+def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
+    """
+    Dispatch vers la fonction Python réelle correspondant à l'outil choisi
+    par l'agent. Appelle directement les fonctions des outils (pas les
+    nœuds noeud_geo/noeud_sql/noeud_rag) : ces nœuds écrivent dans le state
+    partagé du graphe, conçu pour les chemins déterministes à un seul appel
+    — l'agent, lui, peut appeler plusieurs outils dans un ordre libre, ses
+    résultats vivent dans l'historique de conversation local à la boucle,
+    pas dans le state partagé.
+    """
+    if nom_outil == "recherche_geo":
+        return recherche_geo(arguments["adresse_ou_ville"])
+    if nom_outil == "recherche_sql":
+        resultat = recherche_sql(arguments["question"])
+        # Enrichit avec un tableau déjà formaté (même fonction de templating
+        # que les chemins déterministes) — l'agent ne doit jamais recalculer
+        # lui-même un score ou une VA, ni improviser sa propre mise en forme
+        # d'un badge : cohérent avec le principe templating vs LLM du projet.
+        lignes = resultat.get("resultats", []) if resultat.get("success") else []
+        tableau = _generer_tableau_depuis_lignes(lignes)
+        if tableau:
+            contient_va = "badge_va" in json.dumps(lignes, default=str)
+            bloc = (
+                tableau
+                + _generer_explication_score_template(True)
+                + _generer_explication_va_template(contient_va)
+            )
+            resultat["tableau_formate"] = _ajouter_nuance_privee_si_besoin(bloc, resultat)
+        return resultat
+    if nom_outil == "recherche_rag":
+        return search_rag(arguments["requete"])
+    return {"success": False, "error": f"Outil inconnu : {nom_outil}"}
+
+
 def noeud_agent_react(state: AgentState) -> AgentState:
-    state["tours_agent"] = 0
-    while state["tours_agent"] < AGENT_MAX_TOURS:
-        state["tours_agent"] += 1
-        break  # TODO : vraie boucle de décision, session dédiée
+    """
+    Boucle ReAct : à chaque tour, le LLM décide d'appeler un outil de plus
+    ou de répondre directement. Pas de chemin fixe — c'est précisément le
+    rôle de ce nœud (cf. S1.5/S2.15 : agent à décision dynamique pour les
+    questions trop complexes/combinées pour un workflow codé, ou hors du
+    périmètre des 3 autres catégories).
+
+    Génère sa propre réponse finale directement (state["reponse_finale"]),
+    sans repasser par noeud_synthese : ce nœud suppose une forme fixe de
+    resultats_sql produite par un seul appel déterministe, incompatible
+    avec des appels multiples dans un ordre libre.
+    """
+    messages = [
+        {"role": "system", "content": AGENT_REACT_SYSTEM_PROMPT},
+        {"role": "user", "content": state["question"]},
+    ]
+
+    for tour in range(AGENT_MAX_TOURS):
+        state["tours_agent"] = tour + 1
+        response = client.chat.completions.create(
+            model=LLM_MODEL, temperature=0,
+            messages=messages,
+            tools=AGENT_TOOLS_SCHEMA,
+            tool_choice="auto",
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        message = response.choices[0].message
+
+        if not message.tool_calls:
+            # Pas d'appel d'outil : le LLM a choisi de répondre directement.
+            state["reponse_finale"] = message.content
+            return state
+
+        messages.append({
+            "role": "assistant",
+            "content": message.content,
+            "tool_calls": [
+                {
+                    "id": tc.id, "type": "function",
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                }
+                for tc in message.tool_calls
+            ],
+        })
+        for tool_call in message.tool_calls:
+            nom_outil = tool_call.function.name
+            arguments = json.loads(tool_call.function.arguments)
+            resultat = _executer_outil_agent(nom_outil, arguments)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(resultat, ensure_ascii=False, default=str),
+            })
+
+    # Plafond de tours atteint sans réponse finale — dernier appel forcé,
+    # sans outil disponible, pour obtenir une réponse avec ce qui a déjà
+    # été trouvé plutôt que de laisser la boucle sans réponse.
+    messages.append({
+        "role": "user",
+        "content": "Réponds maintenant avec les informations déjà obtenues, sans appeler d'autre outil.",
+    })
+    response = client.chat.completions.create(
+        model=LLM_MODEL, temperature=0,
+        messages=messages,
+        timeout=LLM_TIMEOUT_SECONDS,
+    )
+    state["reponse_finale"] = response.choices[0].message.content
     return state
 
 
@@ -591,7 +745,7 @@ def construire_graphe():
     graph.add_edge("clarification_geo", END)
     graph.add_edge("clarification_noms", END)
     graph.add_edge("rag_tool", "synthese")
-    graph.add_edge("agent_react", "synthese")
+    graph.add_edge("agent_react", END)  # réponse générée directement par l'agent, pas de re-templating
     graph.add_edge("synthese", END)
     return graph.compile()
 

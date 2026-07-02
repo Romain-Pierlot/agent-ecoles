@@ -969,6 +969,20 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : 7 fichiers modifiés, comportement final identique vérifié par re-test complet (classification 7/7 sur 3 runs, pipelines Bordeaux/méthodologique/comparaison tous intacts).
 
+## S8.12 — Squelette de l'agent ReAct (dernier nœud du router)
+
+**Décision** : boucle de décision dynamique (`noeud_agent_react`) — à chaque tour, le LLM choisit d'appeler un outil (`recherche_geo`, `recherche_sql`, `recherche_rag`) ou de répondre directement, jusqu'à `AGENT_MAX_TOURS` (5). Génère sa propre réponse finale, sans repasser par `noeud_synthese` (arête `agent_react → END` directe) — celui-ci suppose une forme de données fixe, incompatible avec des appels multiples en ordre libre.
+
+**Pourquoi bypasser noeud_synthese** : conçu pour les 3 chemins déterministes à un seul appel SQL ; un agent qui peut appeler plusieurs outils dans un ordre imprévisible ne produit pas une forme de données compatible avec ce templating.
+
+**Décision complémentaire — réutilisation du templating existant** : l'outil `recherche_sql` mis à disposition de l'agent renvoie un champ `tableau_formate` pré-généré (mêmes fonctions que les chemins déterministes : tableau, explication du score, badge VA, avertissement secteur privé). Corrige un problème observé en test : sans ça, l'agent affichait les valeurs de VA brutes non expliquées au lieu du badge positif/neutre/négatif. Cohérent avec le principe templating vs LLM déjà établi.
+
+**Bug de routage trouvé et corrigé en testant** : "Compare le meilleur collège de Lyon et le meilleur collège de Marseille" était classée `comparaison_etablissements_nommes` alors que le router extrayait lui-même une liste de noms vide — incohérence interne. Garde-fou déterministe ajouté dans `noeud_router` (pas un patch de prompt, pour éviter le risque déjà observé aujourd'hui de déstabiliser d'autres cas) : si cette catégorie est choisie sans nom extrait, bascule automatique vers `non_reconnu`.
+
+**Limite résiduelle connue, non corrigée** : quand l'agent doit combiner plusieurs appels `recherche_sql` (ex: comparaison multi-zones, un appel par zone), chaque appel ne renvoie qu'un `tableau_formate` partiel (une zone à la fois) — l'agent doit les fusionner lui-même pour présenter un tableau combiné, ce qui le pousse à résumer chaque résultat en puces avant le tableau final (redondance de style, pas d'erreur de données). Tentative de correction par prompt jugée à rendement décroissant — laissé tel quel, à réévaluer après la batterie de tests si ça se révèle gênant sur plusieurs cas.
+
+**Conséquence** : nouveau fichier `prompts/agent_react_system_prompt.py`. Validé par test sur un cas hors-sujet (refus honnête sans appel d'outil inutile) et un cas complexe multi-zones (tableau correctement formaté avec badges VA, conclusion nuancée). Latence élevée sur ce chemin (~45s sur le cas multi-zones) — attendu et accepté pour l'instant, chemin réservé aux cas trop complexes pour les chemins déterministes. Affichage progressif pendant l'attente identifié comme besoin pour le futur chantier Streamlit (roadmap), pas réalisable sans interface aujourd'hui.
+
 ## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
 
 **Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.
