@@ -3,6 +3,7 @@
 # La vérité est dans le code. Toutes les constantes ici.
 # ============================================================
 import os
+from enum import StrEnum
 
 # Racine du projet — ancré sur ce fichier, jamais sur le répertoire courant
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -54,3 +55,38 @@ LANGSMITH_PROJECT = "agent-ecoles"
 
 # --- Géolocalisation ---
 GEO_RAYON_DEFAUT_KM = 10       # Rayon par défaut si non précisé par l'utilisateur
+
+
+# --- Router : catégories de question (ensemble fermé -> enum, pas des chaînes libres) ---
+class Categorie(StrEnum):
+    RECHERCHE_GEO_CLASSEMENT = "recherche_geo_classement"
+    COMPARAISON_ETABLISSEMENTS_NOMMES = "comparaison_etablissements_nommes"
+    QUESTION_METHODOLOGIQUE = "question_methodologique"
+    NON_RECONNU = "non_reconnu"
+
+
+class SecteurSouhaite(StrEnum):
+    """Secteur demandé par l'utilisateur dans sa question (extrait par le router)."""
+    PUBLIC = "public"
+    PRIVE = "prive"
+    INDIFFERENT = "indifferent"
+
+
+class Secteur(StrEnum):
+    """Valeurs du secteur telles que stockées dans la table etablissements — distinct de SecteurSouhaite."""
+    PUBLIC = "Public"
+    PRIVE = "Privé"
+
+
+# --- Synthèse de réponse (graph_router.py) ---
+MAX_LIGNES_SYNTHESE = 15        # limite de sécurité — évite d'envoyer des centaines de lignes au LLM de synthèse
+SPLIT_SECTEUR_N = 10            # nombre d'établissements par secteur affichés quand le secteur n'est pas précisé
+
+# --- Résolution de noms d'établissements (sql_tool.py) ---
+SEUIL_CANDIDATS_AVANT_PRECISION = 5   # au-delà, l'entonnoir de désambiguïsation demande une précision géo
+PREFIXES_INSTITUTIONNELS = [
+    "college prive",
+    "college",
+    "ecole",
+    "clg",
+]

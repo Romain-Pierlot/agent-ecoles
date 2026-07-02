@@ -1,4 +1,4 @@
-"""graph_router.py — V4 : ajout du chemin comparaison_etablissements_nommes"""
+"""graph_router.py — Router LangGraph : classification de la question, orchestration des outils (geo/sql/rag), synthèse de la réponse finale."""
 
 from dotenv import load_dotenv
 load_dotenv()  # DOIT être appelé avant tout import LangGraph/LangSmith, pour
@@ -14,7 +14,10 @@ from agent.tools.rag_tool import search_rag
 from agent.tools.sql_tool import recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision, rechercher_top_par_secteur
 from agent.tools.geo_tool import recherche_geo
 
-from config import LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS
+from config import (
+    LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
+    Categorie, SecteurSouhaite, Secteur,
+)
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 
 client = wrap_openai(OpenAI())  # rend chaque appel visible dans LangSmith (tokens, latence par appel)
@@ -23,9 +26,10 @@ client = wrap_openai(OpenAI())  # rend chaque appel visible dans LangSmith (toke
 class AgentState(TypedDict):
     question: str
     dc_niveau: str
-    categorie: Optional[str]
+    categorie: Optional[Categorie]
     zone_geo: Optional[str]
-    secteur_souhaite: Optional[str]
+    secteur_souhaite: Optional[SecteurSouhaite]
+    nuance_methodologique_demandee: bool
     resultats_geo: Optional[dict]
     resultats_sql: Optional[dict]
     resultats_rag: Optional[dict]
@@ -36,21 +40,19 @@ class AgentState(TypedDict):
     uai_resolus: Optional[list]
 
 
-CATEGORIES = [
-    "recherche_geo_classement", "comparaison_etablissements_nommes",
-    "question_methodologique",
-    "recherche_geo_methodologique", "non_reconnu",
-]
-
 ROUTER_TOOL_SCHEMA = {
     "type": "function",
     "function": {
         "name": "classifier_question",
-        "description": "Classifie la question utilisateur et extrait sa zone géographique et ses noms d'établissements en un seul passage.",
+        "description": (
+            "Classifie la question utilisateur et extrait sa zone géographique, ses noms "
+            "d'établissements, le secteur souhaité et le besoin de nuance méthodologique, "
+            "en un seul passage."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
-                "categorie": {"type": "string", "enum": CATEGORIES},
+                "categorie": {"type": "string", "enum": [c.value for c in Categorie]},
                 "zone_detectee": {
                     "type": "boolean",
                     "description": "true si la question mentionne une zone géographique géocodable (ville, adresse, code postal, département). Un nom de région touristique informel (ex: Côte d'Opale) compte comme false.",
@@ -66,11 +68,18 @@ ROUTER_TOOL_SCHEMA = {
                 },
                 "secteur_souhaite": {
                     "type": "string",
-                    "enum": ["public", "prive", "indifferent"],
+                    "enum": [s.value for s in SecteurSouhaite],
                     "description": "Secteur souhaité si mentionné explicitement dans la question (\"collèges publics\", \"écoles privées\"...). \"indifferent\" si non précisé, ou si public ET privé sont explicitement demandés ensemble.",
                 },
+                "nuance_methodologique_demandee": {
+                    "type": "boolean",
+                    "description": "true si la question demande aussi, en plus d'une recherche géo ou d'une comparaison nommée, une nuance ou explication méthodologique (ex: \"est-ce fiable ?\", \"comment c'est calculé ?\"). false si la question ne porte que sur les données brutes.",
+                },
             },
-            "required": ["categorie", "zone_detectee", "zone", "noms_etablissements", "secteur_souhaite"],
+            "required": [
+                "categorie", "zone_detectee", "zone", "noms_etablissements",
+                "secteur_souhaite", "nuance_methodologique_demandee",
+            ],
         },
     },
 }
@@ -88,12 +97,14 @@ def noeud_router(state: AgentState) -> AgentState:
         timeout=LLM_TIMEOUT_SECONDS,
     )
     args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
-    state["categorie"] = args["categorie"]
-    # Zone géographique et noms d'établissements extraits en même temps que
-    # la classification — évite des appels LLM séparés (gain de latence).
+    # Catégorie, zone géographique, noms d'établissements, secteur et nuance
+    # méthodologique extraits en un seul appel LLM fusionné — évite des
+    # appels séparés (gain de latence).
+    state["categorie"] = Categorie(args["categorie"])
     state["zone_geo"] = args["zone"] if args.get("zone_detectee") else None
     state["noms_etablissements"] = args.get("noms_etablissements") or []
-    state["secteur_souhaite"] = args.get("secteur_souhaite") or "indifferent"
+    state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
+    state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
     return state
 
 
@@ -188,13 +199,13 @@ def noeud_sql(state: AgentState) -> AgentState:
         if not uai_filtre:
             state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
             return state
-        if state.get("secteur_souhaite") == "indifferent":
+        if state.get("secteur_souhaite") == SecteurSouhaite.INDIFFERENT:
             # Secteur non précisé sur un chemin géo : split déterministe top N
             # public / top N privé (cf. rechercher_top_par_secteur) plutôt que
             # de laisser le Text-to-SQL général produire un classement global
             # où le privé écrase mécaniquement le public (score plus élevé en
             # moyenne, lié au biais de sélection à l'entrée).
-            resultat_split = rechercher_top_par_secteur(uai_filtre, n=10)
+            resultat_split = rechercher_top_par_secteur(uai_filtre, n=SPLIT_SECTEUR_N)
             state["resultats_sql"] = {
                 "success": resultat_split["success"],
                 "split_secteur": True,
@@ -284,6 +295,76 @@ def _generer_tableaux_split_secteur(resultats_sql):
     return f"**Établissements publics**\n\n{bloc_public}\n\n**Établissements privés**\n\n{bloc_prive}"
 
 
+def _zone_affichage(resultats_geo):
+    """Nom de zone à afficher dans l'intro — factorisé, utilisé par les deux variantes d'intro."""
+    if resultats_geo and resultats_geo.get("success"):
+        return resultats_geo.get("adresse_normalisee", "la zone recherchée")
+    return "la zone recherchée"
+
+
+def _generer_intro_template(resultats_geo, nb_affiches):
+    """Intro 100% template — insertion de chiffres, aucune génération LLM."""
+    if resultats_geo and resultats_geo.get("success"):
+        total = resultats_geo.get("nb_etablissements", 0)
+        zone = _zone_affichage(resultats_geo)
+        if nb_affiches < total:
+            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} présentant les meilleurs résultats :"
+        return f"Voici les établissements trouvés autour de {zone} :"
+    if nb_affiches == 1:
+        return "Voici les informations pour l'établissement demandé :"
+    return "Voici les résultats trouvés :"
+
+
+def _generer_intro_split_template(resultats_geo, nb_public, nb_prive):
+    """Intro 100% template pour le cas split public/privé — aucune génération LLM."""
+    zone = _zone_affichage(resultats_geo)
+    return (
+        f"Voici les {nb_public} meilleurs établissements publics et les {nb_prive} "
+        f"meilleurs établissements privés trouvés autour de {zone}, affichés séparément "
+        f"pour représenter les deux secteurs équitablement :"
+    )
+
+
+def _preparer_affichage_resultats(resultats_sql, resultats_geo):
+    """
+    Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
+    en gérant les deux formats possibles (classement normal, ou split
+    public/privé). Centralise ce branchement à un seul endroit plutôt que
+    de le répéter à chaque étape de noeud_synthese.
+
+    Retourne (tableau: str|None, intro: str).
+    """
+    if resultats_sql and resultats_sql.get("split_secteur"):
+        tableau = _generer_tableaux_split_secteur(resultats_sql)
+        nb_public = len(resultats_sql.get("public", []))
+        nb_prive = len(resultats_sql.get("prive", []))
+        intro = _generer_intro_split_template(resultats_geo, nb_public, nb_prive)
+        return tableau, intro
+
+    tableau = _generer_tableau_etablissements(resultats_sql)
+    nb_affiches = len(resultats_sql.get("resultats", [])) if resultats_sql else 0
+    intro = _generer_intro_template(resultats_geo, nb_affiches)
+    return tableau, intro
+
+
+def _generer_explication_score_template(tableau_contient_score):
+    """Explication du score 100% template — texte fixe, condition simple."""
+    if not tableau_contient_score:
+        return ""
+    return ("\n\nLe score combine le taux de réussite (60%) et la note à l'écrit (40%), "
+            "comparés aux autres établissements de la même année — ce n'est pas une "
+            "note absolue.")
+
+
+def _generer_explication_va_template(tableau_contient_va):
+    """Explication VA 100% template — texte fixe, condition simple."""
+    if not tableau_contient_va:
+        return ""
+    return ("\n\nLa VA (valeur ajoutée) compare les résultats réels de l'établissement "
+            "à ceux attendus compte tenu du profil de ses élèves — un badge positif "
+            "signifie que l'établissement fait mieux que prévu.")
+
+
 SYNTHESE_SYSTEM_PROMPT = """
 Ton unique rôle : synthétiser en 1-2 phrases les chunks RAG fournis, pour
 apporter une nuance méthodologique à la réponse. Tu n'es appelé QUE quand
@@ -299,7 +380,59 @@ Règles strictes :
 """
 
 
-MAX_LIGNES_SYNTHESE = 15  # limite de sécurité — évite d'envoyer des centaines de lignes au LLM de synthèse
+def _generer_nuance_rag(question, resultats_rag):
+    """
+    Appelle le LLM pour synthétiser une nuance méthodologique à partir des
+    chunks RAG fournis — seule tâche légitime pour un LLM dans la synthèse
+    (interprétation de texte non structuré). Chaîne vide si aucun chunk
+    pertinent n'a été trouvé (pas d'appel LLM dans ce cas : latence ~0,
+    coût ~0, pas de risque d'hallucination sur cette partie de la réponse).
+    """
+    chunks_rag = (resultats_rag or {}).get("chunks", []) if resultats_rag else []
+    if not chunks_rag:
+        return ""
+
+    contexte = {"question": question, "resultats_rag": resultats_rag}
+    response = client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {"role": "system", "content": SYNTHESE_SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(contexte, ensure_ascii=False, default=str)},
+        ],
+        timeout=LLM_TIMEOUT_SECONDS,
+    )
+    return "\n\n" + response.choices[0].message.content
+
+
+NUANCE_PRIVE = (
+    "\n\n⚠️ Précision importante : ce n'est pas un classement officiel. "
+    "Les établissements privés peuvent pratiquer une sélection à l'entrée, "
+    "ce qui peut influencer leurs résultats indépendamment de la qualité "
+    "pédagogique."
+)
+
+
+def _etablissement_prive_present(resultats_sql):
+    """Détecte un établissement privé dans les résultats, quel que soit le format (normal ou split)."""
+    if not resultats_sql:
+        return False
+    if resultats_sql.get("split_secteur"):
+        return len(resultats_sql.get("prive", [])) > 0
+    lignes = resultats_sql.get("resultats", [])
+    return any(row.get("secteur") == Secteur.PRIVE for row in lignes)
+
+
+def _ajouter_nuance_privee_si_besoin(reponse, resultats_sql):
+    """
+    Garde-fou en code (pas seulement en prompt) : si au moins un établissement
+    privé figure dans les résultats SQL (non tronqués — le biais de sélection
+    reste valable même si l'établissement privé n'est pas dans les lignes
+    affichées), la nuance est ajoutée systématiquement, que le LLM l'ait
+    fait ou non.
+    """
+    if _etablissement_prive_present(resultats_sql) and NUANCE_PRIVE.strip() not in reponse:
+        return reponse + NUANCE_PRIVE
+    return reponse
 
 
 def _tronquer_resultats_sql(resultats_sql):
@@ -316,25 +449,6 @@ def _tronquer_resultats_sql(resultats_sql):
     copie["nb_resultats_total_reel"] = len(lignes)
     copie["note"] = f"Affichage limité à {MAX_LIGNES_SYNTHESE} résultats sur {len(lignes)} trouvés."
     return copie
-
-
-def _tronquer_resultats_geo(resultats_geo):
-    """
-    resultats_geo sert uniquement à donner un chiffre de contexte (nombre total
-    dans la zone) — on ne garde AUCUN détail d'établissement individuel, pour
-    éviter tout risque de citation hors-contexte par le LLM de synthèse (cf.
-    hallucination "Collège Raoul Follereau" détectée en test).
-    """
-    if not resultats_geo or not resultats_geo.get("success"):
-        return resultats_geo
-    return {
-        "success": True,
-        "adresse_normalisee": resultats_geo.get("adresse_normalisee"),
-        "rayon_km": resultats_geo.get("rayon_km"),
-        "nb_etablissements": resultats_geo.get("nb_etablissements"),
-        # Volontairement : pas de clé "etablissements" — le détail individuel
-        # n'a rien à faire dans la synthèse, seul le chiffre total est utile.
-    }
 
 
 def noeud_clarification_geo(state: AgentState) -> AgentState:
@@ -392,95 +506,14 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
     return state
 
 
-def _generer_intro_template(resultats_geo, nb_affiches):
-    """Intro 100% template — insertion de chiffres, aucune génération LLM."""
-    if resultats_geo and resultats_geo.get("success"):
-        total = resultats_geo.get("nb_etablissements", 0)
-        zone = resultats_geo.get("adresse_normalisee", "la zone recherchée")
-        if nb_affiches < total:
-            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} présentant les meilleurs résultats :"
-        return f"Voici les établissements trouvés autour de {zone} :"
-    if nb_affiches == 1:
-        return "Voici les informations pour l'établissement demandé :"
-    return "Voici les résultats trouvés :"
-
-
-def _generer_intro_split_template(resultats_geo, nb_public, nb_prive):
-    """Intro 100% template pour le cas split public/privé — aucune génération LLM."""
-    zone = "la zone recherchée"
-    if resultats_geo and resultats_geo.get("success"):
-        zone = resultats_geo.get("adresse_normalisee", zone)
-    return (
-        f"Voici les {nb_public} meilleurs établissements publics et les {nb_prive} "
-        f"meilleurs établissements privés trouvés autour de {zone}, affichés séparément "
-        f"pour représenter les deux secteurs équitablement :"
-    )
-
-
-def _generer_explication_score_template(tableau_contient_score):
-    """Explication du score 100% template — texte fixe, condition simple."""
-    if not tableau_contient_score:
-        return ""
-    return ("\n\nLe score combine le taux de réussite (60%) et la note à l'écrit (40%), "
-            "comparés aux autres établissements de la même année — ce n'est pas une "
-            "note absolue.")
-
-
-def _generer_explication_va_template(tableau_contient_va):
-    """Explication VA 100% template — texte fixe, condition simple."""
-    if not tableau_contient_va:
-        return ""
-    return ("\n\nLa VA (valeur ajoutée) compare les résultats réels de l'établissement "
-            "à ceux attendus compte tenu du profil de ses élèves — un badge positif "
-            "signifie que l'établissement fait mieux que prévu.")
-
-
 def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
-    resultats_rag = state.get("resultats_rag")
-    split_secteur = bool(resultats_sql_tronques and resultats_sql_tronques.get("split_secteur"))
 
-    if split_secteur:
-        tableau = _generer_tableaux_split_secteur(resultats_sql_tronques)
-        nb_affiches = len(resultats_sql_tronques.get("public", [])) + len(resultats_sql_tronques.get("prive", []))
-    else:
-        tableau = _generer_tableau_etablissements(resultats_sql_tronques)
-        nb_affiches = len(resultats_sql_tronques.get("resultats", [])) if resultats_sql_tronques else 0
+    tableau, intro = _preparer_affichage_resultats(resultats_sql_tronques, state.get("resultats_geo"))
     tableau_contient_va = tableau is not None and "badge_va" in json.dumps(resultats_sql_tronques or {})
 
-    # Y a-t-il vraiment du contenu RAG à interpréter ? Seul cas où un LLM
-    # a une tâche légitime — nuancer du texte non structuré. Sinon, tout
-    # est template : pas d'appel LLM du tout (latence ~0, coût ~0, pas
-    # de risque d'hallucination sur cette partie de la réponse).
-    chunks_rag = (resultats_rag or {}).get("chunks", []) if resultats_rag else []
+    texte_nuance_rag = _generer_nuance_rag(state["question"], state.get("resultats_rag"))
 
-    if chunks_rag:
-        # Cas avec RAG : le LLM ne fait QUE la nuance méthodologique,
-        # jamais l'intro ni le tableau (déjà générés en template).
-        contexte = {
-            "question": state["question"],
-            "resultats_rag": resultats_rag,
-        }
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": SYNTHESE_SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(contexte, ensure_ascii=False, default=str)},
-            ],
-            timeout=LLM_TIMEOUT_SECONDS,
-        )
-        texte_nuance_rag = "\n\n" + response.choices[0].message.content
-    else:
-        texte_nuance_rag = ""
-
-    if split_secteur:
-        intro = _generer_intro_split_template(
-            state.get("resultats_geo"),
-            len(resultats_sql_tronques.get("public", [])),
-            len(resultats_sql_tronques.get("prive", [])),
-        )
-    else:
-        intro = _generer_intro_template(state.get("resultats_geo"), nb_affiches)
     explication_score = _generer_explication_score_template(tableau is not None)
     explication_va = _generer_explication_va_template(tableau_contient_va)
 
@@ -489,24 +522,7 @@ def noeud_synthese(state: AgentState) -> AgentState:
         reponse += "\n\n" + tableau
     reponse += texte_nuance_rag + explication_score + explication_va
 
-    # Garde-fou en code (pas seulement en prompt) : si au moins un établissement
-    # privé figure dans les résultats SQL, la nuance est ajoutée systématiquement,
-    # que le LLM l'ait fait ou non.
-    resultats_bruts = state.get("resultats_sql") or {}
-    if resultats_bruts.get("split_secteur"):
-        au_moins_un_prive = len(resultats_bruts.get("prive", [])) > 0
-    else:
-        lignes = resultats_bruts.get("resultats", [])
-        au_moins_un_prive = any(row.get("secteur") == "Privé" for row in lignes)
-
-    NUANCE_PRIVE = (
-        "\n\n⚠️ Précision importante : ce n'est pas un classement officiel. "
-        "Les établissements privés peuvent pratiquer une sélection à l'entrée, "
-        "ce qui peut influencer leurs résultats indépendamment de la qualité "
-        "pédagogique."
-    )
-    if au_moins_un_prive and NUANCE_PRIVE.strip() not in reponse:
-        reponse += NUANCE_PRIVE
+    reponse = _ajouter_nuance_privee_si_besoin(reponse, state.get("resultats_sql"))
 
     state["reponse_finale"] = reponse
     return state
@@ -514,6 +530,7 @@ def noeud_synthese(state: AgentState) -> AgentState:
 
 def router_vers_chemin(state: AgentState) -> str:
     return state["categorie"]
+
 
 def router_apres_geo(state: AgentState) -> str:
     """Après geo_tool : succès -> sql_tool, échec -> clarification directe (jamais sql_tool en silence)."""
@@ -527,6 +544,17 @@ def router_apres_resolution_noms(state: AgentState) -> str:
     if state.get("uai_resolus"):
         return "sql_tool"
     return "clarification_noms"
+
+
+def router_apres_sql(state: AgentState) -> str:
+    """
+    Après sql_tool : si la question demande aussi une nuance méthodologique
+    (signal indépendant de la catégorie de base — géo ou noms), passer par
+    rag_tool avant la synthèse. Sinon, synthèse directe.
+    """
+    if state.get("nuance_methodologique_demandee"):
+        return "rag_tool"
+    return "synthese"
 
 
 def construire_graphe():
@@ -543,11 +571,10 @@ def construire_graphe():
 
     graph.set_entry_point("router")
     graph.add_conditional_edges("router", router_vers_chemin, {
-        "recherche_geo_classement": "geo_tool",
-        "comparaison_etablissements_nommes": "resolution_noms",
-        "question_methodologique": "rag_tool",
-        "recherche_geo_methodologique": "geo_tool",
-        "non_reconnu": "agent_react",
+        Categorie.RECHERCHE_GEO_CLASSEMENT: "geo_tool",
+        Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES: "resolution_noms",
+        Categorie.QUESTION_METHODOLOGIQUE: "rag_tool",
+        Categorie.NON_RECONNU: "agent_react",
     })
     graph.add_conditional_edges("geo_tool", router_apres_geo, {
         "sql_tool": "sql_tool",
@@ -557,7 +584,10 @@ def construire_graphe():
         "sql_tool": "sql_tool",
         "clarification_noms": "clarification_noms",
     })
-    graph.add_edge("sql_tool", "synthese")
+    graph.add_conditional_edges("sql_tool", router_apres_sql, {
+        "rag_tool": "rag_tool",
+        "synthese": "synthese",
+    })
     graph.add_edge("clarification_geo", END)
     graph.add_edge("clarification_noms", END)
     graph.add_edge("rag_tool", "synthese")

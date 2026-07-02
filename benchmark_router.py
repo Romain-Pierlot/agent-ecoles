@@ -18,8 +18,7 @@ QUESTION_TEST = "Quels sont les meilleurs collèges à Lyon ?"
 
 CATEGORIES = [
     "recherche_geo_classement", "comparaison_etablissements_nommes",
-    "question_methodologique",
-    "recherche_geo_methodologique", "non_reconnu",
+    "question_methodologique", "non_reconnu",
 ]
 
 ROUTER_SYSTEM_PROMPT = """
@@ -32,7 +31,6 @@ catégories suivantes, et extrais sa zone géographique si présente.
 - comparaison_etablissements_nommes : comparaison d'établissements nommés.
 - question_methodologique : question sur un concept/indicateur, sans donnée
   chiffrée sur un établissement précis.
-- recherche_geo_methodologique : recherche géo + question méthodologique.
 - non_reconnu : aucune catégorie ci-dessus ne correspond clairement.
 """
 

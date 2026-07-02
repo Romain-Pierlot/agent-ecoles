@@ -10,7 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config import DB_PATH, LLM_MODEL, LLM_MAX_RETRIES, SQL_TIMEOUT_SECONDS
+from config import (
+    DB_PATH, LLM_MODEL, LLM_MAX_RETRIES, SQL_TIMEOUT_SECONDS,
+    Secteur, SecteurSouhaite, SEUIL_CANDIDATS_AVANT_PRECISION, PREFIXES_INSTITUTIONNELS,
+)
 
 client = OpenAI()
 
@@ -233,7 +236,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
 
             placeholders = ",".join("?" for _ in uai_filtre)
             resultats_par_secteur = {}
-            for secteur, cle in (("Public", "public"), ("Privé", "prive")):
+            for secteur_db, cle in ((Secteur.PUBLIC, SecteurSouhaite.PUBLIC), (Secteur.PRIVE, SecteurSouhaite.PRIVE)):
                 rows = conn.execute(f"""
                     SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
                            v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
@@ -247,27 +250,13 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
                       AND s.session = ?
                     ORDER BY s.score_principal DESC
                     LIMIT ?
-                """, (*uai_filtre, secteur, type_etablissement, session, n)).fetchall()
-                resultats_par_secteur[cle] = [dict(row) for row in rows]
+                """, (*uai_filtre, secteur_db.value, type_etablissement, session, n)).fetchall()
+                resultats_par_secteur[cle.value] = [dict(row) for row in rows]
         finally:
             conn.close()
         return {"success": True, "session_utilisee": session, "error": None, **resultats_par_secteur}
     except Exception as e:
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
-
-
-# Seuil au-delà duquel on ne liste plus les candidats mais on demande une
-# précision géographique (département ou ville). Au-delà de 5 options, une
-# liste numérotée devient inexploitable pour l'utilisateur.
-SEUIL_CANDIDATS_AVANT_PRECISION = 5
-
-
-PREFIXES_INSTITUTIONNELS = [
-    "college prive",
-    "college",
-    "ecole",
-    "clg",
-]
 
 
 def _normaliser_nom(nom: str) -> str:

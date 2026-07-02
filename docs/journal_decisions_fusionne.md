@@ -942,6 +942,33 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : `graph_router.py`, `prompts/router_system_prompt.py`. Point de vigilance noté pour plus tard : `noeud_synthese` (appel LLM de nuance RAG) n'a pas non plus de température fixée — pas de risque fonctionnel identifié (sortie déjà très contrainte par son prompt système), donc traité comme piste facultative plutôt que bug à corriger.
 
+## S8.10 — Généralisation du signal de nuance méthodologique (remplace `recherche_geo_methodologique`)
+
+**Problème découvert** : en questionnant pourquoi seule la combinaison géo+méthodologie avait une catégorie dédiée, vérification empirique : "Compare le collège Saint-Joseph et Victor Hugo à Nantes, et est-ce que leur VA est fiable ?" était classée en `comparaison_etablissements_nommes` sans jamais déclencher `rag_tool` — la partie méthodologique de la question était silencieusement ignorée. Angle mort de la conception initiale des catégories, pas un choix délibéré.
+
+**Décision** : suppression de `recherche_geo_methodologique` comme catégorie. Extraction d'un signal indépendant `nuance_methodologique_demandee` (booléen) dans le même appel LLM fusionné que le reste. `router_apres_sql` route vers `rag_tool` avant `synthese` dès que ce signal est vrai, quelle que soit la catégorie de base (géo ou noms).
+
+**Pourquoi** : sépare deux dimensions indépendantes (quelle donnée récupérer / faut-il une nuance méthodologique en plus) plutôt que de les combiner dans des catégories dédiées — évite une explosion combinatoire si d'autres combinaisons apparaissent plus tard (ex: ajout futur des lycées).
+
+**Rejeté** : garder une catégorie dédiée par combinaison (aurait nécessité `comparaison_etablissements_nommes_methodologique` en plus, et toute future combinaison à multiplier).
+
+**Conséquence** : `noeud_synthese` (déjà générique — composait tableau + nuance RAG sans modification nécessaire) fonctionne désormais pour les deux combinaisons. Validé par test sur les deux cas (géo+méthodo, noms+méthodo).
+
+## S8.11 — Refactor de qualité de code (enums, constantes centralisées, découpage de `noeud_synthese`)
+
+**Contexte** : à l'occasion de S8.10, décision de traiter aussi les défauts de structure accumulés au fil de la construction du router (code additif session après session, jamais réorganisé, hérité d'itérations par copier-coller en chat plutôt que Claude Code).
+
+**Décision** :
+- `Categorie`, `SecteurSouhaite`, `Secteur` : enums Python (`StrEnum`) dans `config.py`, remplaçant les chaînes libres répétées à plusieurs endroits (risque de faute de frappe silencieuse en cas de renommage).
+- Constantes éparpillées (`MAX_LIGNES_SYNTHESE`, `SPLIT_SECTEUR_N`, `SEUIL_CANDIDATS_AVANT_PRECISION`, `PREFIXES_INSTITUTIONNELS`) centralisées dans `config.py`, y compris une copie dupliquée trouvée dans `test_comparaison_noms.py`.
+- `noeud_synthese()` (~75 lignes, 6 responsabilités mélangées) découpée en fonctions nommées à responsabilité unique.
+- Suppression de `_tronquer_resultats_geo()` (code mort confirmé — jamais appelée).
+- Docstrings obsolètes mis à jour.
+
+**Pourquoi** : cohérent avec l'objectif du projet de disposer d'une base saine et évolutive.
+
+**Conséquence** : 7 fichiers modifiés, comportement final identique vérifié par re-test complet (classification 7/7 sur 3 runs, pipelines Bordeaux/méthodologique/comparaison tous intacts).
+
 ## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
 
 **Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.

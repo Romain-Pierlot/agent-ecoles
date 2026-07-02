@@ -17,18 +17,14 @@ Nantes") — cette zone est pré-filtrée en amont par noeud_resolution_noms
 3 tentatives max de saisie non reconnue avant d'abandonner le sous-parcours.
 
 Limitation V0 assumée : gère un seul nom ambigu à la fois.
-
-Dette technique connue (pas corrigée ici) : la recherche par nom (LIKE) est
-trop permissive sur les noms composés (ex: "Saint-Joseph" remonte aussi
-"Saint-Joseph de Cluny", "Saint-Joseph La Salle", etc.) — à traiter séparément.
 """
 
 from graph_router import construire_graphe, noeud_sql, noeud_synthese, AgentState
 from agent.tools.sql_tool import filtrer_candidats_par_precision, interpreter_precision
+from config import SEUIL_CANDIDATS_AVANT_PRECISION
 
 app = construire_graphe()
 
-SEUIL_CANDIDATS_AVANT_PRECISION = 5
 MAX_TENTATIVES = 3
 
 
