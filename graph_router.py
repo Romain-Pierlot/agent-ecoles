@@ -78,7 +78,7 @@ ROUTER_TOOL_SCHEMA = {
 
 def noeud_router(state: AgentState) -> AgentState:
     response = client.chat.completions.create(
-        model=LLM_MODEL,
+        model=LLM_MODEL, temperature=0,
         messages=[
             {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
             {"role": "user", "content": state["question"]},

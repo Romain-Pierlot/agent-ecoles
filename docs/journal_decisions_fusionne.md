@@ -926,6 +926,22 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : `agent/tools/sql_tool.py` (nouvelle fonction), `graph_router.py` (state, schéma d'extraction, branchement `noeud_sql`, affichage `noeud_synthese`), `prompts/router_system_prompt.py`. Validé par test bout en bout mené par l'utilisateur lui-même sur Bordeaux — le meilleur collège public réel de la zone (Émile Combes, score 86.60) apparaît désormais, alors qu'il était totalement absent de l'ancien affichage.
 
+## S8.9 — Correction du router : classification `non_reconnu` + température non fixée
+
+**Problème découvert** : "Mon fils a du mal à se concentrer, quel collège lui conviendrait ?" classée en `question_methodologique` au lieu de `non_reconnu`, de façon stable (3/3), avec l'ancien prompt à 5 comme à 6 catégories — confirmé non causé par la fusion S8.7.
+
+**Diagnostic initial** : description de `non_reconnu` purement négative ("aucune catégorie ne correspond"), sans exemple positif — signal plus faible pour le LLM qu'une catégorie décrite positivement.
+
+**Tentatives testées et écartées** : resserrer `question_methodologique` + exemple sur `non_reconnu` → corrige le cas ciblé mais déstabilise "Compare les collèges publics et privés autour de Bordeaux" (5/6). Resserrer aussi `comparaison_etablissements_nommes` en plus → aggrave l'instabilité (5/6 à chaque run, vers une catégorie différente à chaque fois).
+
+**Cause réelle identifiée** : le router n'avait jamais de `temperature` fixée (1.0 par défaut, aléatoire), contrairement au Text-to-SQL (`generer_sql`, `temperature=0` depuis la phase 1). Resserrer une frontière de décision entre catégories rend cet aléa visible.
+
+**Décision finale** : exemple ajouté à `non_reconnu` seul (sans toucher aux autres catégories) + `temperature=0` sur l'appel LLM du router.
+
+**Validé par test** : 6/6 sur 3 exécutions du script réel (`test_router_classification.py`), aucune régression.
+
+**Conséquence** : `graph_router.py`, `prompts/router_system_prompt.py`. Point de vigilance noté pour plus tard : `noeud_synthese` (appel LLM de nuance RAG) n'a pas non plus de température fixée — pas de risque fonctionnel identifié (sortie déjà très contrainte par son prompt système), donc traité comme piste facultative plutôt que bug à corriger.
+
 ## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
 
 **Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.

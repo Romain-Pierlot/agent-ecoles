@@ -11,7 +11,9 @@ catégories suivantes, et extrais sa zone géographique si présente.
 - question_methodologique : question sur un concept/indicateur, sans donnée
   chiffrée sur un établissement précis.
 - recherche_geo_methodologique : recherche géo + question méthodologique.
-- non_reconnu : aucune catégorie ci-dessus ne correspond clairement.
+- non_reconnu : aucune catégorie ci-dessus ne correspond clairement (ex:
+  conseil personnalisé sur le profil ou les besoins d'un enfant, question
+  sans lien avec les indicateurs du produit).
 
 Extrais aussi le secteur souhaité (secteur_souhaite) : "public" ou "prive"
 si la question le précise explicitement pour un seul des deux ("collèges
