@@ -12,7 +12,10 @@ from openai import OpenAI
 from langsmith.wrappers import wrap_openai
 
 from agent.tools.rag_tool import search_rag
-from agent.tools.sql_tool import recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision, rechercher_top_par_secteur
+from agent.tools.sql_tool import (
+    recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision,
+    rechercher_top_par_secteur, obtenir_evolution_etablissements,
+)
 from agent.tools.geo_tool import recherche_geo
 
 from config import (
@@ -32,6 +35,7 @@ class AgentState(TypedDict):
     zone_geo: Optional[str]
     secteur_souhaite: Optional[SecteurSouhaite]
     nuance_methodologique_demandee: bool
+    evolution_demandee: bool
     resultats_geo: Optional[dict]
     resultats_sql: Optional[dict]
     resultats_rag: Optional[dict]
@@ -77,10 +81,14 @@ ROUTER_TOOL_SCHEMA = {
                     "type": "boolean",
                     "description": "true si la question demande aussi, en plus d'une recherche géo ou d'une comparaison nommée, une nuance ou explication méthodologique (ex: \"est-ce fiable ?\", \"comment c'est calculé ?\"). false si la question ne porte que sur les données brutes.",
                 },
+                "evolution_demandee": {
+                    "type": "boolean",
+                    "description": "true si la question porte sur une évolution, une tendance ou une moyenne sur PLUSIEURS années/sessions (ex: \"sur les 3 dernières années\", \"évolution\", \"en moyenne depuis 2 ans\"). false si la question ne porte que sur la session la plus récente.",
+                },
             },
             "required": [
                 "categorie", "zone_detectee", "zone", "noms_etablissements",
-                "secteur_souhaite", "nuance_methodologique_demandee",
+                "secteur_souhaite", "nuance_methodologique_demandee", "evolution_demandee",
             ],
         },
     },
@@ -114,6 +122,7 @@ def noeud_router(state: AgentState) -> AgentState:
     state["noms_etablissements"] = args.get("noms_etablissements") or []
     state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
+    state["evolution_demandee"] = bool(args.get("evolution_demandee"))
 
     # Garde-fou déterministe (pas un patch de prompt) : comparaison_etablissements_nommes
     # exige par définition au moins un nom propre cité. Si le LLM choisit cette
@@ -262,6 +271,21 @@ def noeud_sql(state: AgentState) -> AgentState:
             return state
     elif state.get("uai_resolus"):
         uai_filtre = state["uai_resolus"]
+        if state.get("evolution_demandee"):
+            # Établissement(s) nommé(s) déjà résolus + question portant sur
+            # plusieurs années : requête déterministe (cf. obtenir_evolution_etablissements)
+            # plutôt que Text-to-SQL général — fragilité réelle observée sur
+            # cette combinaison précise (nom + zone + plusieurs années en une
+            # seule requête libre, cf. session 8).
+            resultat_evolution = obtenir_evolution_etablissements(uai_filtre)
+            state["resultats_sql"] = {
+                "success": resultat_evolution["success"],
+                "resultats": resultat_evolution["resultats"],
+                "nb_resultats": len(resultat_evolution["resultats"]),
+                "sessions_disponibles": resultat_evolution["sessions_disponibles"],
+                "error": resultat_evolution["error"],
+            }
+            return state
     state["resultats_sql"] = recherche_sql(state["question"], uai_filtre=uai_filtre)
     return state
 
@@ -488,6 +512,34 @@ def _generer_tableau_generique(lignes, sessions_disponibles=None):
     return tableau
 
 
+def _generer_moyennes_par_etablissement(lignes):
+    """
+    Calcule la moyenne du score (et taux/note quand disponibles) par
+    établissement, à partir de lignes couvrant plusieurs sessions — calcul
+    déterministe en Python, pas de LLM. Groupé par nom d'établissement pour
+    ne jamais mélanger les moyennes de deux établissements différents
+    (ex: comparaison de l'évolution de 2 collèges nommés en même temps).
+    """
+    par_etablissement = {}
+    for r in lignes:
+        par_etablissement.setdefault(r.get("nom", "?"), []).append(r)
+
+    blocs = []
+    for nom_etab, rows_etab in par_etablissement.items():
+        scores = [r["score_principal"] for r in rows_etab if isinstance(r.get("score_principal"), (int, float))]
+        if not scores:
+            continue
+        ligne = f"**{nom_etab}** — score moyen : {sum(scores) / len(scores):.2f} (sur {len(scores)} année(s))"
+        taux = [r["brevet_taux_reussite_general"] for r in rows_etab if isinstance(r.get("brevet_taux_reussite_general"), (int, float))]
+        if taux:
+            ligne += f", taux de réussite moyen : {sum(taux) / len(taux):.1f}%"
+        note = [r["brevet_note_ecrit_general"] for r in rows_etab if isinstance(r.get("brevet_note_ecrit_general"), (int, float))]
+        if note:
+            ligne += f", note écrit moyenne : {sum(note) / len(note):.1f}"
+        blocs.append(ligne)
+    return "\n\n".join(blocs)
+
+
 def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
     """Génère le tableau markdown depuis une liste de lignes déjà résolues — aucune génération LLM."""
     if not lignes:
@@ -497,8 +549,15 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
         # le template à colonnes fixes ne s'applique pas ici.
         return _generer_tableau_generique(lignes, sessions_disponibles)
 
-    entete = "| Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
-    separateur = "|---|---|---|---|---|---|\n"
+    # Colonne Session ajoutée seulement si présente (ex: évolution sur
+    # plusieurs années) — absente sur le tableau standard un-seul-an.
+    contient_session = "session" in lignes[0]
+    if contient_session:
+        entete = "| Session | Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
+        separateur = "|---|---|---|---|---|---|---|\n"
+    else:
+        entete = "| Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
+        separateur = "|---|---|---|---|---|---|\n"
     corps = ""
     for r in lignes:
         nom = r.get("nom", "?")
@@ -510,9 +569,22 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
         taux_str = f"{taux:.1f}" if isinstance(taux, (int, float)) else "?"
         note = r.get("brevet_note_ecrit_general")
         note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
-        corps += f"| {nom} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+        if contient_session:
+            corps += f"| {r.get('session', '?')} | {nom} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+        else:
+            corps += f"| {nom} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
 
-    return entete + separateur + corps
+    tableau = entete + separateur + corps
+    if contient_session:
+        # Si la question demande une moyenne, il faut afficher une vraie
+        # moyenne chiffrée, pas seulement le détail par année — affichée
+        # avant le tableau de détail.
+        moyennes = _generer_moyennes_par_etablissement(lignes)
+        if moyennes:
+            tableau = moyennes + "\n\n" + tableau
+    if sessions_disponibles and contient_session:
+        tableau += f"\n*Sur les {len(sessions_disponibles)} années disponibles en base : {', '.join(sessions_disponibles)}.*\n"
+    return tableau
 
 
 def _generer_tableau_etablissements(resultats_sql):

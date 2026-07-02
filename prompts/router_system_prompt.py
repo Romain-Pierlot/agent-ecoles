@@ -24,4 +24,9 @@ comparaison nommée, une nuance ou explication méthodologique
 (nuance_methodologique_demandee = true) — ex: "et leur classement est-il
 fiable ?", "comment ces indicateurs sont calculés ?". false si la question
 ne porte que sur les données brutes, sans demande d'explication en plus.
+
+Extrais aussi si la question porte sur une évolution, une tendance ou une
+moyenne sur PLUSIEURS années/sessions (evolution_demandee = true) — ex:
+"sur les 3 dernières années", "évolution", "en moyenne depuis 2 ans". false
+si la question ne porte que sur la session la plus récente.
 """

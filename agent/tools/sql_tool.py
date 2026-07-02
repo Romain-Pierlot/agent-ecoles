@@ -304,6 +304,72 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
 
 
+def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = None, type_etablissement: str = "Collège") -> dict:
+    """
+    Retourne les données chiffrées (score, taux, note, VA) d'une liste
+    d'établissements déjà résolue (par nom, cf. rechercher_etablissements_par_nom),
+    une ligne par (établissement, session) — utilisé pour une évolution ou
+    une moyenne sur plusieurs années.
+
+    Requête SQL déterministe, AUCUN appel LLM : une fois les établissements
+    identifiés (state["uai_resolus"]) et le besoin d'évolution détecté
+    (state["evolution_demandee"], extrait par le router), récupérer leur
+    historique par session est une règle fixe — le Text-to-SQL général
+    (recherche_sql) a montré une fragilité réelle sur cette combinaison
+    (nom + zone + plusieurs années en une seule requête libre, cf. session 8).
+
+    n_sessions=None -> toutes les sessions disponibles. Sinon, les
+    n_sessions les plus récentes.
+
+    Ne calcule pas de moyenne lui-même : retourne les données brutes par
+    session, une moyenne se calcule trivialement en Python à partir de ça
+    si besoin — pas la peine d'un deuxième chemin SQL pour ça.
+
+    Retourne : {
+        "success": bool,
+        "sessions_disponibles": [str, ...],
+        "resultats": [ {uai, nom, commune, secteur, session, score_principal,
+                         badge_va, brevet_taux_reussite_general,
+                         brevet_note_ecrit_general}, ... ],
+        "error": str | None
+    }
+    """
+    if not uai_filtre:
+        return {"success": True, "sessions_disponibles": [], "resultats": [], "error": None}
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            toutes_sessions = [
+                row["session"] for row in conn.execute("SELECT DISTINCT session FROM scores ORDER BY session")
+            ]
+            sessions_ciblees = toutes_sessions[-n_sessions:] if n_sessions else toutes_sessions
+
+            placeholders_uai = ",".join("?" for _ in uai_filtre)
+            placeholders_sessions = ",".join("?" for _ in sessions_ciblees)
+            rows = conn.execute(f"""
+                SELECT e.uai, e.nom, e.commune, e.secteur, s.session, s.score_principal, s.badge_va,
+                       v.brevet_taux_reussite_general, v.brevet_note_ecrit_general
+                FROM etablissements e
+                JOIN scores s ON e.uai = s.uai
+                JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+                WHERE e.uai IN ({placeholders_uai})
+                  AND e.type_etablissement = ?
+                  AND s.session IN ({placeholders_sessions})
+                ORDER BY e.nom, s.session DESC
+            """, (*uai_filtre, type_etablissement, *sessions_ciblees)).fetchall()
+            resultats = [dict(row) for row in rows]
+        finally:
+            conn.close()
+        return {"success": True, "sessions_disponibles": toutes_sessions, "resultats": resultats, "error": None}
+    except Exception as e:
+        return {"success": False, "sessions_disponibles": [], "resultats": [], "error": str(e)}
+
+
 def _normaliser_nom(nom: str) -> str:
     """
     Nettoie un nom d'établissement pour comparaison stricte : minuscules,
