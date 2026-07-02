@@ -97,7 +97,8 @@ RÈGLES IMPORTANTES :
   lignes d'établissement (pas une agrégation) — nécessaire à l'avertissement
   sur la sélection à l'entrée du privé, affiché en aval à partir de ce champ
 - Synonymes : école/établissement/collège → etablissements, résultats/notes → ivac,
-  classement/meilleur → ORDER BY score_principal DESC, social/milieu → ips_moyen
+  classement/meilleur → ORDER BY score_principal DESC, pire/moins bon → ORDER BY
+  score_principal ASC, social/milieu → ips_moyen
 - Critère de tri/classement : TOUJOURS score_principal (jamais un autre champ),
   y compris quand la question mentionne la VA comme critère ("le meilleur
   collège en tenant compte de la valeur ajoutée", "classe-les par valeur
@@ -239,17 +240,21 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     }
 
 
-def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège") -> dict:
+def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC") -> dict:
     """
-    Retourne séparément les n meilleurs établissements publics et les n
-    meilleurs établissements privés parmi une liste d'UAI déjà présélectionnée
-    (ex: par geo_tool), triés par score_principal.
+    Retourne séparément les n meilleurs (ou pires, cf. ordre) établissements
+    publics et privés parmi une liste d'UAI déjà présélectionnée (ex: par
+    geo_tool), triés par score_principal.
 
     Requête SQL déterministe, AUCUN appel LLM : une fois qu'on sait que
     l'utilisateur n'a précisé aucun secteur (cf. state["secteur_souhaite"]
     extrait par le router), "prendre le top n de chaque secteur" est une
     règle fixe, pas une tâche d'interprétation de texte libre — le Text-to-SQL
     général (recherche_sql) n'a pas sa place ici.
+
+    ordre="DESC" (défaut, meilleurs) ou "ASC" (pires) — jamais interpolé
+    depuis une chaîne fournie par l'appelant sans validation, pour éviter
+    toute injection SQL sur cette clause (cf. validation stricte ci-dessous).
 
     La session utilisée est la plus récente disponible dans la table scores,
     déterminée dynamiquement (jamais codée en dur, pour ne pas se périmer
@@ -267,6 +272,8 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     """
     if not uai_filtre:
         return {"success": True, "session_utilisee": None, "public": [], "prive": [], "error": None}
+    if ordre not in ("DESC", "ASC"):
+        return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": f"ordre invalide : {ordre}"}
 
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
@@ -293,7 +300,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
                       AND e.secteur = ?
                       AND e.type_etablissement = ?
                       AND s.session = ?
-                    ORDER BY s.score_principal DESC
+                    ORDER BY s.score_principal {ordre}
                     LIMIT ?
                 """, (*uai_filtre, secteur_db.value, type_etablissement, session, n)).fetchall()
                 resultats_par_secteur[cle.value] = [dict(row) for row in rows]

@@ -1096,3 +1096,20 @@ Appliqués de façon constante v3 à v6.
 **Garde-fou final, à la demande de l'utilisateur** : `MAX_ZONES_COMPAREES = 3` (config.py). Au-delà, `noeud_agent_react` bloque immédiatement (avant tout appel LLM) avec un message explicite invitant à reformuler — évite de payer le coût et la latence d'une tentative vouée à l'échec au-delà de la limite mesurée empiriquement.
 
 **Conséquence** : `config.py`, `graph_router.py`, `prompts/agent_react_system_prompt.py`. Validé sur 3 zones (fonctionne, 23-25s), 5 zones (bloqué en 2.5s, message clair), et non-régression complète (classification 11/11, hors-sujet, comparaison 2 zones, moyenne 1 zone).
+
+## S8.20 — Cahier de test end-to-end consolidé + bug "pire" trouvé et corrigé
+
+**Contexte** : cahier de test consolidé (`test_e2e_complet.py`, 22 cas — tous les chemins déterministes et variantes construits pendant la session, plus une série de cas limites/questions bancales demandée explicitement par l'utilisateur). 22/22 sans exception levée, mais relecture qualitative (pas juste "pas de crash") ayant révélé un bug réel, trompeur.
+
+**Bug trouvé** : "Quels sont les pires collèges publics à Lyon ?" affichait bien les données correctes (scores les plus bas de la zone) mais avec le texte "Voici les X présentant les **meilleurs** résultats" — activement trompeur, pas juste imprécis. Cause : `_generer_intro_template()` est un texte figé, indifférent au sens réel du tri effectué par le Text-to-SQL.
+
+**Bug plus grave trouvé en creusant** : le chemin split (`rechercher_top_par_secteur`, utilisé quand aucun secteur n'est précisé, cf. S8.8) n'avait **aucune option de tri ascendant** — une demande "pires collèges de Lyon" sans secteur précisé aurait donc affiché les MEILLEURS établissements (mauvaises données, pas juste un mauvais texte).
+
+**Décision** :
+- `rechercher_top_par_secteur()` accepte désormais un paramètre `ordre` ("DESC"/"ASC", validé strictement avant interpolation SQL).
+- Détection déterministe `_MOTS_PIRE` (sous-ensemble de `_MOTS_SUPERLATIFS`) — bascule l'ordre du split et adapte le texte d'intro dans les deux chemins (Text-to-SQL et split).
+- Règle explicite "pire/moins bon → ORDER BY score_principal ASC" ajoutée au `SCHEMA_PROMPT` du Text-to-SQL (même si son tri ASC pour "pire" s'est révélé fiable sans cette règle sur 3 essais — ajoutée pour la robustesse et la documentation, pas pour corriger un défaut observé).
+
+**Deuxième trou identifié, non corrigé (documenté)** : "Comment ont évolué les résultats des collèges de Lyon sur les 3 dernières années ?" (géo + évolution, SANS nom d'établissement) est silencieusement traité comme une question de classement standard (année en cours) — la demande d'évolution est ignorée sans aucun signal à l'utilisateur. On avait construit l'évolution seulement pour un établissement nommé (S8.17) ; jamais pour une zone géographique entière. Plan de résolution à discuter séparément.
+
+**Conséquence** : `agent/tools/sql_tool.py`, `graph_router.py`, nouveau fichier `test_e2e_complet.py`. Re-validé sur les 2 cas "pire" (secteur précisé et split) + non-régression complète (classification 11/11, cas "meilleurs" standards, split Bordeaux).

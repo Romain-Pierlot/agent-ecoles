@@ -106,6 +106,15 @@ _MOTS_SUPERLATIFS = re.compile(r"\b(meilleurs?|meilleures?|pires?)\b", re.IGNORE
 # la question plutôt qu'un champ de plus extrait par le LLM du router.
 _MOTS_AGREGATION = re.compile(r"\b(moyennes?)\b", re.IGNORECASE)
 
+# Sous-ensemble de _MOTS_SUPERLATIFS spécifique à "pire" — utilisé pour
+# adapter le sens du tri (ASC) et le texte d'intro en conséquence. Bug réel
+# trouvé en test (S8.20) : "pires collèges" affichait bien les pires
+# résultats via le Text-to-SQL général, mais l'intro disait quand même
+# "meilleurs résultats" (texte figé) ; et le chemin split (rechercher_top_par_secteur)
+# n'avait carrément pas d'option de tri ascendant, donc affichait les
+# meilleurs même quand les pires étaient demandés.
+_MOTS_PIRE = re.compile(r"\bpires?\b", re.IGNORECASE)
+
 
 def noeud_router(state: AgentState) -> AgentState:
     response = client.chat.completions.create(
@@ -305,10 +314,12 @@ def noeud_sql(state: AgentState) -> AgentState:
             # de laisser le Text-to-SQL général produire un classement global
             # où le privé écrase mécaniquement le public (score plus élevé en
             # moyenne, lié au biais de sélection à l'entrée).
-            resultat_split = rechercher_top_par_secteur(uai_filtre, n=SPLIT_SECTEUR_N)
+            ordre = "ASC" if _MOTS_PIRE.search(state["question"]) else "DESC"
+            resultat_split = rechercher_top_par_secteur(uai_filtre, n=SPLIT_SECTEUR_N, ordre=ordre)
             state["resultats_sql"] = {
                 "success": resultat_split["success"],
                 "split_secteur": True,
+                "ordre_pire": ordre == "ASC",
                 "public": resultat_split["public"],
                 "prive": resultat_split["prive"],
                 "session_utilisee": resultat_split["session_utilisee"],
@@ -772,25 +783,32 @@ def _zone_affichage(resultats_geo):
     return "la zone recherchée"
 
 
-def _generer_intro_template(resultats_geo, nb_affiches):
-    """Intro 100% template — insertion de chiffres, aucune génération LLM."""
+def _generer_intro_template(resultats_geo, nb_affiches, question=""):
+    """
+    Intro 100% template — insertion de chiffres, aucune génération LLM.
+    Le qualificatif ("meilleurs" vs "moins bons") reflète le tri réellement
+    demandé — bug réel corrigé (S8.20) : ce texte disait toujours "meilleurs
+    résultats", même en affichant les pires établissements demandés.
+    """
+    qualificatif = "présentant les moins bons résultats" if _MOTS_PIRE.search(question) else "présentant les meilleurs résultats"
     if resultats_geo and resultats_geo.get("success"):
         total = resultats_geo.get("nb_etablissements", 0)
         zone = _zone_affichage(resultats_geo)
         if nb_affiches < total:
-            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} présentant les meilleurs résultats :"
+            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} {qualificatif} :"
         return f"Voici les établissements trouvés autour de {zone} :"
     if nb_affiches == 1:
         return "Voici les informations pour l'établissement demandé :"
     return "Voici les résultats trouvés :"
 
 
-def _generer_intro_split_template(resultats_geo, nb_public, nb_prive):
+def _generer_intro_split_template(resultats_geo, nb_public, nb_prive, ordre_pire=False):
     """Intro 100% template pour le cas split public/privé — aucune génération LLM."""
     zone = _zone_affichage(resultats_geo)
+    qualificatif = "moins bons" if ordre_pire else "meilleurs"
     return (
-        f"Voici les {nb_public} meilleurs établissements publics et les {nb_prive} "
-        f"meilleurs établissements privés trouvés autour de {zone}, affichés séparément "
+        f"Voici les {nb_public} {qualificatif} établissements publics et les {nb_prive} "
+        f"{qualificatif} établissements privés trouvés autour de {zone}, affichés séparément "
         f"pour représenter les deux secteurs équitablement :"
     )
 
@@ -801,7 +819,7 @@ def _generer_intro_agregation_template(resultats_geo):
     return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone} :"
 
 
-def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None):
+def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, question=""):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
     en gérant les trois formats possibles (classement normal, split
@@ -819,12 +837,12 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
         tableau = _generer_tableaux_split_secteur(resultats_sql)
         nb_public = len(resultats_sql.get("public", []))
         nb_prive = len(resultats_sql.get("prive", []))
-        intro = _generer_intro_split_template(resultats_geo, nb_public, nb_prive)
+        intro = _generer_intro_split_template(resultats_geo, nb_public, nb_prive, resultats_sql.get("ordre_pire", False))
         return tableau, intro
 
     tableau = _generer_tableau_etablissements(resultats_sql)
     nb_affiches = len(resultats_sql.get("resultats", [])) if resultats_sql else 0
-    intro = _generer_intro_template(resultats_geo, nb_affiches)
+    intro = _generer_intro_template(resultats_geo, nb_affiches, question)
     return tableau, intro
 
 
@@ -1035,7 +1053,7 @@ def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
 
     tableau, intro = _preparer_affichage_resultats(
-        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite")
+        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state["question"]
     )
     # Forme "moyenne/agrégation" : la clé du score n'est pas "score_principal"
     # (c'est "score_moyen", agrégé) — _lignes_contiennent ne la détecterait
