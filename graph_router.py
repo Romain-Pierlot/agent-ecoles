@@ -37,7 +37,7 @@ class AgentState(TypedDict):
 
 CATEGORIES = [
     "recherche_geo_classement", "comparaison_etablissements_nommes",
-    "recherche_geo_comparaison", "question_methodologique",
+    "question_methodologique",
     "recherche_geo_methodologique", "non_reconnu",
 ]
 
@@ -460,7 +460,6 @@ def construire_graphe():
     graph.add_conditional_edges("router", router_vers_chemin, {
         "recherche_geo_classement": "geo_tool",
         "comparaison_etablissements_nommes": "resolution_noms",
-        "recherche_geo_comparaison": "geo_tool",
         "question_methodologique": "rag_tool",
         "recherche_geo_methodologique": "geo_tool",
         "non_reconnu": "agent_react",

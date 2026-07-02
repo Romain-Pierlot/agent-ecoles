@@ -895,3 +895,28 @@ Appliqués de façon constante v3 à v6.
 **Décision** : `interpreter_precision()` reconnaît maintenant explicitement une saisie vide comme un type "invalide" à part, pour lequel `filtrer_candidats_par_precision()` retourne une liste vide — ça réactive le mécanisme de nouvelle tentative déjà prévu (message "Aucune correspondance", compteur 3 tentatives max) au lieu de l'ignorer.
 
 **Conséquence** : validé par test automatisé et par test manuel réel (le message "Aucune correspondance... tentative 1/3" puis "2/3" s'affiche désormais correctement).
+
+## S8.6 — Formalisation détaillée de la formule de calcul du score (clarification de S1.3)
+
+**Contexte** : la pondération 60% taux de réussite / 40% note à l'écrit était déjà actée (S1.3), mais le mécanisme de normalisation qui précède cette pondération n'avait jamais été détaillé en français dans le journal — retrouvé dans `data/ingest.py` et reformulé aujourd'hui en préparant la conception du chemin recherche_geo_classement (répartition public/privé).
+
+**Formule exacte** (fonction `calculer_scores()`) : pour chaque session (année) séparément, parmi les établissements ayant un taux de réussite et une note à l'écrit renseignés :
+1. Normalisation min-max du taux de réussite : ramène chaque établissement sur une échelle de 0 (pire taux de l'année) à 1 (meilleur taux de l'année), relativement aux autres établissements de la même session.
+2. Même normalisation, indépendamment, pour la note à l'écrit.
+3. Score final = `(taux normalisé × 0.60 + note normalisée × 0.40) × 100`
+
+**Pourquoi une normalisation min-max par session (et pas une échelle fixe)** : le taux de réussite (%) et la note à l'écrit (/20) n'ont pas la même échelle brute — sans normalisation, le taux écraserait la note dans la pondération. Le faire par session plutôt qu'une bonne fois pour toutes évite qu'un collège soit comparé à un étalon devenu obsolète si le niveau global du brevet varie d'une année à l'autre.
+
+**Conséquence** : un score n'est comparable qu'entre établissements de la même session, jamais d'une année sur l'autre. Poids (`SCORE_POIDS_TAUX = 0.60`, `SCORE_POIDS_NOTE = 0.40`) et seuils VA (`VA_SEUIL_POSITIF = 2.0`, `VA_SEUIL_NEGATIF = -2.0`) définis dans `config.py`.
+
+## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
+
+**Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.
+
+**Décision** : suppression de `recherche_geo_comparaison` des catégories du router ; sa description est absorbée dans celle de `recherche_geo_classement`.
+
+**Pourquoi** : la seule différence envisageable aurait été cosmétique (formulation de l'intro), pas une différence de données ou de traitement — pas assez de valeur pour justifier deux catégories, avec le risque que le LLM du router hésite entre deux formulations proches ("meilleurs collèges de Lyon" vs "compare les collèges de Lyon"). Cohérent avec le principe déjà acté de ne pas construire pour un besoin hypothétique.
+
+**Validé par test** : `test_router_classification.py` (5/5 sur les cas concernés) et test bout en bout sur "Compare les collèges publics et privés autour de Bordeaux", correctement classée et traitée par le pipeline fusionné.
+
+**Conséquence** : 4 fichiers mis à jour (`graph_router.py`, `prompts/router_system_prompt.py`, `test_router_classification.py`, `benchmark_router.py`). A aussi révélé, en testant ce cas de comparaison public/privé, un angle mort pré-existant (non causé par cette fusion) sur la représentation des deux secteurs dans les résultats affichés — traité séparément (cf. entrée à venir).

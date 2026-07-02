@@ -18,7 +18,7 @@ QUESTION_TEST = "Quels sont les meilleurs collèges à Lyon ?"
 
 CATEGORIES = [
     "recherche_geo_classement", "comparaison_etablissements_nommes",
-    "recherche_geo_comparaison", "question_methodologique",
+    "question_methodologique",
     "recherche_geo_methodologique", "non_reconnu",
 ]
 
@@ -26,9 +26,10 @@ ROUTER_SYSTEM_PROMPT = """
 Tu classifies une question sur le choix de collège en France dans UNE des
 catégories suivantes, et extrais sa zone géographique si présente.
 
-- recherche_geo_classement : recherche géo avec tri par indicateur.
+- recherche_geo_classement : recherche géo avec tri par indicateur, ou
+  comparaison d'établissements dans une zone géographique (ex: "meilleurs
+  collèges de Lyon", "compare les collèges de Bordeaux").
 - comparaison_etablissements_nommes : comparaison d'établissements nommés.
-- recherche_geo_comparaison : recherche géo + comparaison.
 - question_methodologique : question sur un concept/indicateur, sans donnée
   chiffrée sur un établissement précis.
 - recherche_geo_methodologique : recherche géo + question méthodologique.

@@ -1,6 +1,6 @@
 """
 test_router_classification.py — Vérifie que le nœud router classe correctement
-un jeu de questions représentatif des 6 catégories définies.
+un jeu de questions représentatif des 5 catégories définies.
 
 N'appelle QUE le nœud router (pas geo/sql/rag) — test rapide et peu coûteux.
 """
@@ -10,7 +10,7 @@ from graph_router import noeud_router
 CAS_DE_TEST = [
     ("Quels sont les meilleurs collèges à Lyon ?", "recherche_geo_classement"),
     ("Compare le collège Victor Hugo et le collège Jean Moulin", "comparaison_etablissements_nommes"),
-    ("Compare les collèges publics et privés autour de Bordeaux", "recherche_geo_comparaison"),
+    ("Compare les collèges publics et privés autour de Bordeaux", "recherche_geo_classement"),
     ("C'est quoi l'IPS ?", "question_methodologique"),
     ("Quels collèges à Lyon, et est-ce que leur classement est fiable ?", "recherche_geo_methodologique"),
     ("Mon fils a du mal à se concentrer, quel collège lui conviendrait ?", "non_reconnu"),
