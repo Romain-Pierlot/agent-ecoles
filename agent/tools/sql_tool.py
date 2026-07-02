@@ -304,6 +304,76 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
 
 
+def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège") -> dict:
+    """
+    Calcule la moyenne du score/taux/note pour un ensemble d'établissements
+    déjà présélectionné (ex: par geo_tool) — moyenne globale (tous secteurs
+    confondus) ET détail par secteur (public/privé), calculées dans tous les
+    cas pour laisser l'affichage choisir quoi montrer selon que le secteur
+    est précisé ou non dans la question (pas de tableau détaillé par
+    établissement ici : c'est une agrégation statistique, pas une liste).
+
+    Requête SQL déterministe, AUCUN appel LLM. Session la plus récente
+    disponible, déterminée dynamiquement (jamais codée en dur).
+
+    Retourne : {
+        "success": bool,
+        "session_utilisee": str | None,
+        "global": {"nb_etablissements": int, "score_moyen": float, "taux_moyen": float, "note_moyenne": float} | None,
+        "public": { ... même structure ... } | None,
+        "prive": { ... même structure ... } | None,
+        "error": str | None
+    }
+    """
+    if not uai_filtre:
+        return {"success": True, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": None}
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            session = conn.execute("SELECT MAX(session) AS s FROM scores").fetchone()["s"]
+            if session is None:
+                return {"success": True, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": None}
+
+            placeholders = ",".join("?" for _ in uai_filtre)
+
+            def _moyenne(secteur_filtre: str = None):
+                filtre_secteur_sql = "AND e.secteur = ?" if secteur_filtre else ""
+                params = [*uai_filtre, type_etablissement, session]
+                if secteur_filtre:
+                    params.append(secteur_filtre)
+                row = conn.execute(f"""
+                    SELECT COUNT(*) AS nb_etablissements, AVG(s.score_principal) AS score_moyen,
+                           AVG(v.brevet_taux_reussite_general) AS taux_moyen,
+                           AVG(v.brevet_note_ecrit_general) AS note_moyenne
+                    FROM etablissements e
+                    JOIN scores s ON e.uai = s.uai
+                    JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+                    WHERE e.uai IN ({placeholders})
+                      AND e.type_etablissement = ?
+                      AND s.session = ?
+                      {filtre_secteur_sql}
+                """, params).fetchone()
+                if not row or not row["nb_etablissements"]:
+                    return None
+                return dict(row)
+
+            resultats = {
+                "global": _moyenne(),
+                "public": _moyenne(Secteur.PUBLIC.value),
+                "prive": _moyenne(Secteur.PRIVE.value),
+            }
+        finally:
+            conn.close()
+        return {"success": True, "session_utilisee": session, "error": None, **resultats}
+    except Exception as e:
+        return {"success": False, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": str(e)}
+
+
 def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = None, type_etablissement: str = "Collège") -> dict:
     """
     Retourne les données chiffrées (score, taux, note, VA) d'une liste

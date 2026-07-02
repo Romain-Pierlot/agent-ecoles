@@ -14,7 +14,7 @@ from langsmith.wrappers import wrap_openai
 from agent.tools.rag_tool import search_rag
 from agent.tools.sql_tool import (
     recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision,
-    rechercher_top_par_secteur, obtenir_evolution_etablissements,
+    rechercher_top_par_secteur, obtenir_evolution_etablissements, calculer_moyenne_etablissements,
 )
 from agent.tools.geo_tool import recherche_geo
 
@@ -101,6 +101,11 @@ ROUTER_TOOL_SCHEMA = {
 # ex: "est-ce que le classement des collèges est fiable ?", légitimement méthodologique).
 _MOTS_SUPERLATIFS = re.compile(r"\b(meilleurs?|meilleures?|pires?)\b", re.IGNORECASE)
 
+# Détection déterministe d'une demande de moyenne/agrégation sur une zone
+# géographique — même principe que _MOTS_SUPERLATIFS, un mot-clé simple sur
+# la question plutôt qu'un champ de plus extrait par le LLM du router.
+_MOTS_AGREGATION = re.compile(r"\b(moyennes?)\b", re.IGNORECASE)
+
 
 def noeud_router(state: AgentState) -> AgentState:
     response = client.chat.completions.create(
@@ -158,6 +163,19 @@ def noeud_router(state: AgentState) -> AgentState:
         and _MOTS_SUPERLATIFS.search(state["question"])
     ):
         state["categorie"] = Categorie.NON_RECONNU
+
+    # Garde-fou déterministe : même phénomène que ci-dessus, mais avec une
+    # zone détectée cette fois. "Moyenne des collèges publics à Lyon"
+    # ("zone" trouvée) tombait quand même dans question_methodologique au
+    # lieu de recherche_geo_classement, qui sait désormais calculer une
+    # moyenne déterministe sur une zone (cf. calculer_moyenne_etablissements,
+    # S8.18) — pas une question de concept.
+    if (
+        state["categorie"] == Categorie.QUESTION_METHODOLOGIQUE
+        and state["zone_geo"] is not None
+        and _MOTS_AGREGATION.search(state["question"])
+    ):
+        state["categorie"] = Categorie.RECHERCHE_GEO_CLASSEMENT
 
     return state
 
@@ -252,6 +270,22 @@ def noeud_sql(state: AgentState) -> AgentState:
         uai_filtre = [e["uai"] for e in state["resultats_geo"]["etablissements"]]
         if not uai_filtre:
             state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
+            return state
+        if _MOTS_AGREGATION.search(state["question"]):
+            # Moyenne/agrégation demandée sur une zone : requête déterministe
+            # (cf. calculer_moyenne_etablissements) plutôt que Text-to-SQL
+            # général — pas de tableau détaillé par établissement ici, c'est
+            # une agrégation statistique, pas une liste à afficher.
+            resultat_moyenne = calculer_moyenne_etablissements(uai_filtre)
+            state["resultats_sql"] = {
+                "success": resultat_moyenne["success"],
+                "agregation_geo": True,
+                "global": resultat_moyenne["global"],
+                "public": resultat_moyenne["public"],
+                "prive": resultat_moyenne["prive"],
+                "session_utilisee": resultat_moyenne["session_utilisee"],
+                "error": resultat_moyenne["error"],
+            }
             return state
         if state.get("secteur_souhaite") == SecteurSouhaite.INDIFFERENT:
             # Secteur non précisé sur un chemin géo : split déterministe top N
@@ -620,6 +654,45 @@ def _generer_tableaux_split_secteur(resultats_sql):
     return f"**Établissements publics**\n\n{bloc_public}\n\n**Établissements privés**\n\n{bloc_prive}"
 
 
+def _formater_stats_moyenne(stats, label):
+    """Une ligne de statistiques agrégées formatée pour un secteur ou une moyenne globale."""
+    if not stats:
+        return f"**{label}** : aucune donnée disponible dans cette zone."
+    nb = stats.get("nb_etablissements", 0)
+    score = stats.get("score_moyen")
+    taux = stats.get("taux_moyen")
+    note = stats.get("note_moyenne")
+    score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
+    taux_str = f"{taux:.1f}%" if isinstance(taux, (int, float)) else "?"
+    note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
+    return (
+        f"**{label}** (sur {nb} établissement(s)) : score moyen {score_str}, "
+        f"taux de réussite moyen {taux_str}, note écrit moyenne {note_str}"
+    )
+
+
+def _generer_moyennes_geo_template(resultats_sql, secteur_souhaite):
+    """
+    Génère le texte des moyennes agrégées sur une zone géographique — pas
+    de tableau détaillé par établissement, c'est une agrégation statistique.
+    Si le secteur est précisé, affiche uniquement ce secteur. Sinon, la
+    moyenne globale (tous secteurs confondus) en premier, puis le détail
+    public/privé en complément — la moyenne globale seule masquerait
+    l'écart réel entre secteurs (vérifié empiriquement, cf. journal S8.17).
+    """
+    if not resultats_sql or not resultats_sql.get("success"):
+        return None
+    if secteur_souhaite == SecteurSouhaite.PUBLIC:
+        return _formater_stats_moyenne(resultats_sql.get("public"), "Établissements publics")
+    if secteur_souhaite == SecteurSouhaite.PRIVE:
+        return _formater_stats_moyenne(resultats_sql.get("prive"), "Établissements privés")
+    blocs = [_formater_stats_moyenne(resultats_sql.get("global"), "Moyenne globale (tous secteurs confondus)")]
+    if resultats_sql.get("public") or resultats_sql.get("prive"):
+        blocs.append(_formater_stats_moyenne(resultats_sql.get("public"), "Établissements publics"))
+        blocs.append(_formater_stats_moyenne(resultats_sql.get("prive"), "Établissements privés"))
+    return "\n\n".join(blocs)
+
+
 def _zone_affichage(resultats_geo):
     """Nom de zone à afficher dans l'intro — factorisé, utilisé par les deux variantes d'intro."""
     if resultats_geo and resultats_geo.get("success"):
@@ -650,15 +723,26 @@ def _generer_intro_split_template(resultats_geo, nb_public, nb_prive):
     )
 
 
-def _preparer_affichage_resultats(resultats_sql, resultats_geo):
+def _generer_intro_agregation_template(resultats_geo):
+    """Intro 100% template pour le cas moyenne/agrégation sur une zone — aucune génération LLM."""
+    zone = _zone_affichage(resultats_geo)
+    return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone} :"
+
+
+def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
-    en gérant les deux formats possibles (classement normal, ou split
-    public/privé). Centralise ce branchement à un seul endroit plutôt que
-    de le répéter à chaque étape de noeud_synthese.
+    en gérant les trois formats possibles (classement normal, split
+    public/privé, ou moyenne/agrégation sur zone). Centralise ce branchement
+    à un seul endroit plutôt que de le répéter à chaque étape de noeud_synthese.
 
     Retourne (tableau: str|None, intro: str).
     """
+    if resultats_sql and resultats_sql.get("agregation_geo"):
+        tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite)
+        intro = _generer_intro_agregation_template(resultats_geo)
+        return tableau, intro
+
     if resultats_sql and resultats_sql.get("split_secteur"):
         tableau = _generer_tableaux_split_secteur(resultats_sql)
         nb_public = len(resultats_sql.get("public", []))
@@ -737,21 +821,34 @@ NUANCE_PRIVE = (
 )
 
 
-def _etablissement_prive_present(resultats_sql):
+def _etablissement_prive_present(resultats_sql, secteur_souhaite=None):
     """
-    Détecte un établissement privé dans les résultats, quel que soit le
-    format (normal ou split). Défensif : une ligne d'établissement (qui a
-    un "nom") sans champ "secteur" du tout (ex: Text-to-SQL ayant omis la
-    colonne malgré la règle du prompt) est traitée comme potentiellement
-    privée plutôt qu'ignorée — mieux vaut un avertissement affiché à tort
-    qu'un avertissement de sécurité manquant à tort sur un vrai
-    établissement privé. Les lignes d'agrégation (sans "nom", ex: une
-    moyenne) n'ont jamais de secteur par nature et ne déclenchent rien.
+    Détecte un établissement privé RÉELLEMENT AFFICHÉ dans les résultats,
+    quel que soit le format (normal, split, ou moyenne/agrégation sur zone).
+    Défensif : une ligne d'établissement (qui a un "nom") sans champ
+    "secteur" du tout (ex: Text-to-SQL ayant omis la colonne malgré la
+    règle du prompt) est traitée comme potentiellement privée plutôt
+    qu'ignorée — mieux vaut un avertissement affiché à tort qu'un
+    avertissement de sécurité manquant à tort sur un vrai établissement
+    privé. Les lignes d'agrégation générique (sans "nom", ex: une moyenne
+    calculée par le Text-to-SQL général) n'ont jamais de secteur par nature
+    et ne déclenchent rien.
+
+    Cas "moyenne/agrégation sur zone" (agregation_geo) : les stats "public"
+    et "prive" sont TOUJOURS calculées en interne (cf. calculer_moyenne_etablissements),
+    même quand secteur_souhaite=public ne fait afficher que le secteur
+    public — sans secteur_souhaite ici, l'avertissement apparaîtrait à tort
+    sur une réponse qui ne montre aucune donnée privée.
     """
     if not resultats_sql:
         return False
     if resultats_sql.get("split_secteur"):
         return len(resultats_sql.get("prive", [])) > 0
+    if resultats_sql.get("agregation_geo"):
+        if secteur_souhaite == SecteurSouhaite.PUBLIC:
+            return False
+        prive = resultats_sql.get("prive")
+        return bool(prive and prive.get("nb_etablissements", 0) > 0)
     lignes = resultats_sql.get("resultats", [])
     return any(
         "nom" in row and row.get("secteur", Secteur.PRIVE) == Secteur.PRIVE
@@ -759,15 +856,16 @@ def _etablissement_prive_present(resultats_sql):
     )
 
 
-def _ajouter_nuance_privee_si_besoin(reponse, resultats_sql):
+def _ajouter_nuance_privee_si_besoin(reponse, resultats_sql, secteur_souhaite=None):
     """
     Garde-fou en code (pas seulement en prompt) : si au moins un établissement
-    privé figure dans les résultats SQL (non tronqués — le biais de sélection
-    reste valable même si l'établissement privé n'est pas dans les lignes
-    affichées), la nuance est ajoutée systématiquement, que le LLM l'ait
-    fait ou non.
+    privé figure RÉELLEMENT dans ce qui est affiché (non tronqué — le biais
+    de sélection reste valable même si l'établissement privé n'est pas dans
+    les lignes affichées, sauf cas agregation_geo où le secteur peut être
+    explicitement filtré), la nuance est ajoutée systématiquement, que le
+    LLM l'ait fait ou non.
     """
-    if _etablissement_prive_present(resultats_sql) and NUANCE_PRIVE.strip() not in reponse:
+    if _etablissement_prive_present(resultats_sql, secteur_souhaite) and NUANCE_PRIVE.strip() not in reponse:
         return reponse + NUANCE_PRIVE
     return reponse
 
@@ -864,9 +962,16 @@ def _lignes_contiennent(resultats_sql, cle):
 def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
 
-    tableau, intro = _preparer_affichage_resultats(resultats_sql_tronques, state.get("resultats_geo"))
+    tableau, intro = _preparer_affichage_resultats(
+        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite")
+    )
+    # Forme "moyenne/agrégation" : la clé du score n'est pas "score_principal"
+    # (c'est "score_moyen", agrégé) — _lignes_contiennent ne la détecterait
+    # pas, donc court-circuit explicite : le score moyen est toujours
+    # affiché dès que ce type de tableau existe.
+    est_agregation_geo = bool(resultats_sql_tronques and resultats_sql_tronques.get("agregation_geo"))
     tableau_contient_va = _lignes_contiennent(resultats_sql_tronques, "badge_va")
-    tableau_contient_score = _lignes_contiennent(resultats_sql_tronques, "score_principal")
+    tableau_contient_score = est_agregation_geo or _lignes_contiennent(resultats_sql_tronques, "score_principal")
 
     texte_nuance_rag = _generer_nuance_rag(state["question"], state.get("resultats_rag"))
 
@@ -878,7 +983,7 @@ def noeud_synthese(state: AgentState) -> AgentState:
         reponse += "\n\n" + tableau
     reponse += texte_nuance_rag + explication_score + explication_va
 
-    reponse = _ajouter_nuance_privee_si_besoin(reponse, state.get("resultats_sql"))
+    reponse = _ajouter_nuance_privee_si_besoin(reponse, state.get("resultats_sql"), state.get("secteur_souhaite"))
 
     state["reponse_finale"] = reponse
     return state

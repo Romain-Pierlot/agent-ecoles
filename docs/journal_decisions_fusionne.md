@@ -1062,3 +1062,18 @@ Appliqués de façon constante v3 à v6.
 **Itération sur la moyenne** : la première version affichait seulement le détail année par année, sans moyenne chiffrée — corrigé après retour explicite de l'utilisateur ("si on demande une moyenne, il faut afficher une moyenne, sinon ça sert à rien"). Nouvelle fonction `_generer_moyennes_par_etablissement()` : moyennes de score/taux/note calculées séparément (jamais mélangées en un seul chiffre composite), groupées par établissement (jamais mélangées entre deux établissements différents comparés ensemble), affichées avant le tableau de détail. La VA n'est volontairement jamais moyennée — c'est un badge catégoriel (positif/neutre/négatif), pas une valeur continue.
 
 **Conséquence** : `agent/tools/sql_tool.py`, `graph_router.py`, `prompts/router_system_prompt.py`. Validé sur les deux cas concrets ayant motivé cette fonction (évolution 3 ans, moyenne 10 ans de Collège Chevreul à Lyon) et re-confirmé sans régression sur `test_router_classification.py` (11/11), la comparaison de noms standard et le split public/privé.
+
+## S8.18 — Fonction déterministe pour la moyenne/agrégation sur une zone géographique
+
+**Contexte** : deuxième volet annoncé en S8.17 — "géo + agrégation" (ex: moyenne du score de tous les collèges publics d'une ville), cette fois traité dans la foulée plutôt que reporté, à la demande explicite de l'utilisateur.
+
+**Décision** :
+- Nouvelle fonction déterministe `calculer_moyenne_etablissements()` (aucun appel LLM) — calcule TOUJOURS 3 jeux de statistiques (globale tous secteurs confondus, publique, privée) pour un ensemble d'établissements déjà présélectionné par géolocalisation, sur la session la plus récente. Pas de tableau détaillé par établissement pour ce cas : c'est une agrégation statistique, pas une liste.
+- Détection déterministe par mot-clé ("moyenne(s)") sur la question, même principe que `_MOTS_SUPERLATIFS` (S8.13) — pas un champ de plus extrait par le LLM du router.
+- Affichage conditionné à `secteur_souhaite` : si un secteur est précisé, seule sa moyenne s'affiche. Sinon (question vague, ex: "moyenne des collèges de Nantes"), la moyenne globale s'affiche en premier, puis le détail public/privé en complément — décision de l'utilisateur, corrigeant la proposition initiale de l'assistant (secteurs séparés uniquement) : "si la demande [porte] sur un secteur ou une ville... on doit faire la moyenne des deux en premier, [...] la moyenne publique et privée ensuite". Justifié empiriquement : moyenne globale à Lyon 74.9, mais publique 68.0 et privée 89.2 — la moyenne seule masque un écart réel.
+
+**Bug de routage trouvé en testant, même famille que S8.13** : "moyenne des collèges publics à Lyon" (zone détectée) tombait quand même en `question_methodologique` au lieu de `recherche_geo_classement`. Nouveau garde-fou déterministe symétrique à celui de S8.13, cette fois sur zone détectée + mot-clé "moyenne" → bascule vers `recherche_geo_classement`.
+
+**Deuxième bug trouvé en testant** : l'avertissement sur le secteur privé s'affichait même quand seul le secteur public était montré à l'écran (les stats "privé" sont toujours calculées en interne par la fonction, même non affichées). `_etablissement_prive_present()` et `_ajouter_nuance_privee_si_besoin()` étendues pour recevoir `secteur_souhaite` et ne déclencher l'avertissement que si une donnée privée est réellement affichée, pas seulement calculée.
+
+**Conséquence** : `agent/tools/sql_tool.py`, `graph_router.py`. Validé sur les 2 cas (secteur précisé, secteur indifférent) + non-régression complète (classification 11/11, évolution nommée, split Bordeaux, question méthodologique pure, avertissement privé correct dans les 4 configurations de secteur).
