@@ -74,13 +74,34 @@ TABLE referentiel_temporel
 
 RÈGLES IMPORTANTES :
 - Toujours filtrer WHERE type_etablissement = 'Collège' sauf demande explicite sur les lycées
-- Session la plus récente disponible : '2025'. Utiliser '2024' si '2025' manque
+- Session : TOUJOURS filtrer sur une session, même si la question ne précise
+  aucune année — ne JAMAIS laisser une requête sans filtre de session
+  (mélangerait plusieurs années incomparables entre elles, notamment pour
+  une moyenne). Par défaut, une seule session, la plus récente :
+  s.session = (SELECT MAX(session) FROM scores) — n'écris JAMAIS une année
+  en dur (elle se périmera). Seule exception : si la question demande
+  explicitement plusieurs années ou une évolution historique, utilise
+  s.session IN (...) sur les sessions concernées.
 - La commune est en MAJUSCULES — utiliser UPPER() ou LIKE '%LYON%'
+- Pour filtrer par nom d'établissement, utilise TOUJOURS LIKE '%...%' sur le
+  nom distinctif (sans le préfixe institutionnel "Collège"/"Collège privé"),
+  JAMAIS une égalité exacte (=) ni IN — les noms en base incluent ce préfixe,
+  qu'une correspondance exacte manquerait. Pour plusieurs noms, combine
+  plusieurs conditions LIKE avec OR.
+  Exemple correct   : WHERE (e.nom LIKE '%Chevreul%' OR e.nom LIKE '%Louise Michel%')
+  Exemple incorrect : WHERE e.nom IN ('Chevreul', 'Louise Michel')
 - La VA peut être NULL — toujours IS NOT NULL si filtrée
 - Toujours afficher le badge_va à côté du score
 - TOUJOURS inclure e.uai dans le SELECT (nécessaire pour la traçabilité en aval)
 - Synonymes : école/établissement/collège → etablissements, résultats/notes → ivac,
   classement/meilleur → ORDER BY score_principal DESC, social/milieu → ips_moyen
+- Critère de tri/classement : TOUJOURS score_principal (jamais un autre champ),
+  y compris quand la question mentionne la VA comme critère ("le meilleur
+  collège en tenant compte de la valeur ajoutée", "classe-les par valeur
+  ajoutée") — la VA n'est qu'un badge d'information affiché à côté du score,
+  jamais un critère de tri, même quand la question la cite explicitement.
+  Correct   : ORDER BY s.score_principal DESC
+  Incorrect : ORDER BY v.brevet_va_taux_reussite_general DESC
 
 EXEMPLES :
 Question: "Meilleurs collèges publics à Lyon"
@@ -91,7 +112,7 @@ SQL: SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
      JOIN scores s ON e.uai = s.uai
      JOIN ivac v ON e.uai = v.uai AND v.session = s.session
      WHERE e.commune LIKE '%LYON%' AND e.secteur = 'Public'
-       AND e.type_etablissement = 'Collège' AND s.session = '2024'
+       AND e.type_etablissement = 'Collège' AND s.session = (SELECT MAX(session) FROM scores)
      ORDER BY s.score_principal DESC LIMIT 10;
 
 TOUJOURS inclure badge_va, brevet_va_taux_reussite_general et
@@ -166,8 +187,28 @@ def executer_sql(sql: str) -> list[dict]:
         conn.close()
 
 
+def _sessions_disponibles() -> list[str]:
+    """
+    Sessions réellement présentes en base, triées par ordre croissant —
+    calculé en Python (déterministe), pas par le LLM Text-to-SQL. Permet à
+    l'appelant (agent, synthèse) de signaler explicitement un écart entre
+    une demande ("les 10 dernières années") et ce qui existe vraiment (ex:
+    seulement 4 sessions), plutôt que de présenter silencieusement une
+    moyenne calculée sur moins d'années que demandé.
+    """
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute("SELECT DISTINCT session FROM scores ORDER BY session").fetchall()
+        return [row[0] for row in rows]
+    finally:
+        conn.close()
+
+
 def recherche_sql(question: str, uai_filtre: list = None) -> dict:
-    """Retourne : {success, question, sql_genere, resultats, nb_resultats, error, tentatives}"""
+    """Retourne : {success, question, sql_genere, resultats, nb_resultats, sessions_disponibles, error, tentatives}"""
     historique_erreurs = []
     for tentative in range(1, LLM_MAX_RETRIES + 2):
         sql = generer_sql(question, historique_erreurs if historique_erreurs else None, uai_filtre)
@@ -176,6 +217,7 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
             return {
                 "success": True, "question": question, "sql_genere": sql,
                 "resultats": resultats, "nb_resultats": len(resultats),
+                "sessions_disponibles": _sessions_disponibles(),
                 "error": None, "tentatives": tentative
             }
         except Exception as e:

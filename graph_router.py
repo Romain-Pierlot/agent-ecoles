@@ -66,7 +66,7 @@ ROUTER_TOOL_SCHEMA = {
                 "noms_etablissements": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Noms d'établissements explicitement cités dans la question (ex: 'Victor Hugo', 'Jean Moulin'), uniquement pertinent si categorie=comparaison_etablissements_nommes. Liste vide sinon.",
+                    "description": "Noms propres d'établissements explicitement cités dans la question (ex: 'Victor Hugo', 'Jean Moulin', 'Chevreul'), quelle que soit la catégorie choisie — même une question sur un seul établissement nommé (pas une comparaison entre plusieurs) doit remplir ce champ. Liste vide seulement si aucun nom propre d'établissement n'est cité.",
                 },
                 "secteur_souhaite": {
                     "type": "string",
@@ -123,6 +123,17 @@ def noeud_router(state: AgentState) -> AgentState:
     # seul chemin capable de gérer une comparaison multi-zones non prévue.
     if state["categorie"] == Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES and not state["noms_etablissements"]:
         state["categorie"] = Categorie.NON_RECONNU
+
+    # Garde-fou déterministe symétrique au précédent : si un ou plusieurs
+    # noms propres d'établissements ont été extraits mais que la catégorie
+    # choisie n'est pas comparaison_etablissements_nommes (ex: une question
+    # sur UN SEUL établissement nommé, comme une évolution multi-années,
+    # n'est pas perçue comme une "comparaison" par le LLM), on bascule quand
+    # même vers cette catégorie -> passe par la résolution de nom fiable
+    # (rechercher_etablissements_par_nom) plutôt que de laisser le nom
+    # inexploité dans une autre catégorie qui ne sait pas le résoudre.
+    if state["noms_etablissements"] and state["categorie"] != Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES:
+        state["categorie"] = Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES
 
     # Garde-fou déterministe : question_methodologique sert de catégorie
     # "par défaut" un peu trop attractive pour le LLM du router dès qu'aucune
@@ -278,12 +289,35 @@ AGENT_TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
-            "name": "recherche_sql",
-            "description": "Interroge les données chiffrées des collèges (résultats, scores, VA) à partir d'une question en langage naturel.",
+            "name": "rechercher_etablissement_par_nom",
+            "description": "Résout un ou plusieurs noms d'établissements en identifiants uniques (UAI) fiables. À utiliser EN PREMIER dès qu'un ou plusieurs établissements sont désignés par leur nom, avant recherche_sql — plus fiable que de laisser recherche_sql deviner un nom depuis du texte libre.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "question": {"type": "string", "description": "La question, reformulée si besoin pour cibler précisément la donnée recherchée."},
+                    "noms": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Noms distinctifs à résoudre, sans le mot générique 'Collège' devant (ex: 'Chevreul', pas 'Collège Chevreul').",
+                    },
+                },
+                "required": ["noms"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recherche_sql",
+            "description": "Interroge les données chiffrées des collèges (résultats, scores, VA) à partir d'une question en langage naturel. Si un ou plusieurs UAI ont déjà été résolus (via rechercher_etablissement_par_nom ou recherche_geo), passe-les dans uai_filtre pour un filtrage fiable plutôt que de redécrire le nom ou la zone dans la question.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "description": "La question, reformulée si besoin pour cibler précisément la donnée recherchée (ex: la nuance temporelle : 'sur les 3 dernières années', 'en moyenne')."},
+                    "uai_filtre": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "UAI déjà résolus à utiliser comme filtre exact. Laisser vide si aucune résolution préalable.",
+                    },
                 },
                 "required": ["question"],
             },
@@ -318,8 +352,10 @@ def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
     """
     if nom_outil == "recherche_geo":
         return recherche_geo(arguments["adresse_ou_ville"])
+    if nom_outil == "rechercher_etablissement_par_nom":
+        return rechercher_etablissements_par_nom(arguments["noms"])
     if nom_outil == "recherche_sql":
-        resultat = recherche_sql(arguments["question"])
+        resultat = recherche_sql(arguments["question"], uai_filtre=arguments.get("uai_filtre") or None)
         # Enrichit avec un tableau déjà formaté (même fonction de templating
         # que les chemins déterministes) — l'agent ne doit jamais recalculer
         # lui-même un score ou une VA, ni improviser sa propre mise en forme
@@ -418,10 +454,48 @@ def _formater_badge_va(badge_va):
     return badge_va
 
 
-def _generer_tableau_depuis_lignes(lignes):
+def _generer_tableau_generique(lignes, sessions_disponibles=None):
+    """
+    Rendu générique quand les lignes SQL n'ont pas la forme standard
+    "établissement" (nom/secteur/score_principal...) — cas d'une requête
+    d'agrégation (AVG, COUNT...) qui ne retourne qu'une ou quelques valeurs
+    calculées. Affiche les colonnes réellement présentes plutôt que des "?"
+    pour des colonnes qui n'existent pas dans ce résultat.
+
+    Ajoute une note sur les sessions réellement couvertes par la base —
+    une agrégation (moyenne, total...) implique souvent une période, et le
+    nombre d'années disponibles peut être inférieur à ce qui a été demandé
+    (ex: "10 dernières années" alors que seules 4 sessions existent) sans
+    que ce soit signalé autrement.
+    """
+    if not lignes:
+        return None
+    colonnes = list(lignes[0].keys())
+    entete = "| " + " | ".join(colonnes) + " |\n"
+    separateur = "|" + "|".join(["---"] * len(colonnes)) + "|\n"
+    corps = ""
+    for r in lignes:
+        valeurs = []
+        for c in colonnes:
+            v = r.get(c)
+            if isinstance(v, float):
+                v = f"{v:.2f}"
+            valeurs.append(str(v) if v is not None else "?")
+        corps += "| " + " | ".join(valeurs) + " |\n"
+    tableau = entete + separateur + corps
+    if sessions_disponibles:
+        tableau += f"\n*Calculé sur les {len(sessions_disponibles)} années disponibles en base : {', '.join(sessions_disponibles)}.*\n"
+    return tableau
+
+
+def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
     """Génère le tableau markdown depuis une liste de lignes déjà résolues — aucune génération LLM."""
     if not lignes:
         return None
+    if "nom" not in lignes[0]:
+        # Forme non standard (ex: résultat d'agrégation type moyenne) —
+        # le template à colonnes fixes ne s'applique pas ici.
+        return _generer_tableau_generique(lignes, sessions_disponibles)
 
     entete = "| Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
     separateur = "|---|---|---|---|---|---|\n"
@@ -450,7 +524,9 @@ def _generer_tableau_etablissements(resultats_sql):
     """
     if not resultats_sql or not resultats_sql.get("success"):
         return None
-    return _generer_tableau_depuis_lignes(resultats_sql.get("resultats", []))
+    return _generer_tableau_depuis_lignes(
+        resultats_sql.get("resultats", []), resultats_sql.get("sessions_disponibles")
+    )
 
 
 def _generer_tableaux_split_secteur(resultats_sql):
@@ -683,15 +759,34 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
     return state
 
 
+def _lignes_contiennent(resultats_sql, cle):
+    """
+    Vérifie si les LIGNES de résultat (pas tout l'objet resultats_sql)
+    contiennent une colonne donnée — contrairement à une recherche sur le
+    JSON entier, insensible au fait que le texte de la requête SQL
+    elle-même (sql_genere) puisse mentionner ce nom sans que la colonne
+    soit réellement présente dans les lignes retournées (ex: AVG(score_principal)
+    renommé en "moyenne_score" ne contient plus la clé "score_principal").
+    """
+    if not resultats_sql:
+        return False
+    if resultats_sql.get("split_secteur"):
+        lignes = (resultats_sql.get("public") or []) + (resultats_sql.get("prive") or [])
+    else:
+        lignes = resultats_sql.get("resultats") or []
+    return bool(lignes) and cle in lignes[0]
+
+
 def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
 
     tableau, intro = _preparer_affichage_resultats(resultats_sql_tronques, state.get("resultats_geo"))
-    tableau_contient_va = tableau is not None and "badge_va" in json.dumps(resultats_sql_tronques or {})
+    tableau_contient_va = _lignes_contiennent(resultats_sql_tronques, "badge_va")
+    tableau_contient_score = _lignes_contiennent(resultats_sql_tronques, "score_principal")
 
     texte_nuance_rag = _generer_nuance_rag(state["question"], state.get("resultats_rag"))
 
-    explication_score = _generer_explication_score_template(tableau is not None)
+    explication_score = _generer_explication_score_template(tableau_contient_score)
     explication_va = _generer_explication_va_template(tableau_contient_va)
 
     reponse = intro
