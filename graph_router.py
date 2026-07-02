@@ -11,7 +11,7 @@ from openai import OpenAI
 from langsmith.wrappers import wrap_openai
 
 from agent.tools.rag_tool import search_rag
-from agent.tools.sql_tool import recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision
+from agent.tools.sql_tool import recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision, rechercher_top_par_secteur
 from agent.tools.geo_tool import recherche_geo
 
 from config import LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS
@@ -25,6 +25,7 @@ class AgentState(TypedDict):
     dc_niveau: str
     categorie: Optional[str]
     zone_geo: Optional[str]
+    secteur_souhaite: Optional[str]
     resultats_geo: Optional[dict]
     resultats_sql: Optional[dict]
     resultats_rag: Optional[dict]
@@ -63,8 +64,13 @@ ROUTER_TOOL_SCHEMA = {
                     "items": {"type": "string"},
                     "description": "Noms d'établissements explicitement cités dans la question (ex: 'Victor Hugo', 'Jean Moulin'), uniquement pertinent si categorie=comparaison_etablissements_nommes. Liste vide sinon.",
                 },
+                "secteur_souhaite": {
+                    "type": "string",
+                    "enum": ["public", "prive", "indifferent"],
+                    "description": "Secteur souhaité si mentionné explicitement dans la question (\"collèges publics\", \"écoles privées\"...). \"indifferent\" si non précisé, ou si public ET privé sont explicitement demandés ensemble.",
+                },
             },
-            "required": ["categorie", "zone_detectee", "zone", "noms_etablissements"],
+            "required": ["categorie", "zone_detectee", "zone", "noms_etablissements", "secteur_souhaite"],
         },
     },
 }
@@ -87,6 +93,7 @@ def noeud_router(state: AgentState) -> AgentState:
     # la classification — évite des appels LLM séparés (gain de latence).
     state["zone_geo"] = args["zone"] if args.get("zone_detectee") else None
     state["noms_etablissements"] = args.get("noms_etablissements") or []
+    state["secteur_souhaite"] = args.get("secteur_souhaite") or "indifferent"
     return state
 
 
@@ -181,6 +188,22 @@ def noeud_sql(state: AgentState) -> AgentState:
         if not uai_filtre:
             state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
             return state
+        if state.get("secteur_souhaite") == "indifferent":
+            # Secteur non précisé sur un chemin géo : split déterministe top N
+            # public / top N privé (cf. rechercher_top_par_secteur) plutôt que
+            # de laisser le Text-to-SQL général produire un classement global
+            # où le privé écrase mécaniquement le public (score plus élevé en
+            # moyenne, lié au biais de sélection à l'entrée).
+            resultat_split = rechercher_top_par_secteur(uai_filtre, n=10)
+            state["resultats_sql"] = {
+                "success": resultat_split["success"],
+                "split_secteur": True,
+                "public": resultat_split["public"],
+                "prive": resultat_split["prive"],
+                "session_utilisee": resultat_split["session_utilisee"],
+                "error": resultat_split["error"],
+            }
+            return state
     elif state.get("uai_resolus"):
         uai_filtre = state["uai_resolus"]
     state["resultats_sql"] = recherche_sql(state["question"], uai_filtre=uai_filtre)
@@ -207,6 +230,29 @@ def _formater_badge_va(badge_va):
     return badge_va
 
 
+def _generer_tableau_depuis_lignes(lignes):
+    """Génère le tableau markdown depuis une liste de lignes déjà résolues — aucune génération LLM."""
+    if not lignes:
+        return None
+
+    entete = "| Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
+    separateur = "|---|---|---|---|---|---|\n"
+    corps = ""
+    for r in lignes:
+        nom = r.get("nom", "?")
+        secteur = r.get("secteur", "?")
+        score = r.get("score_principal")
+        score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
+        va = _formater_badge_va(r.get("badge_va"))
+        taux = r.get("brevet_taux_reussite_general")
+        taux_str = f"{taux:.1f}" if isinstance(taux, (int, float)) else "?"
+        note = r.get("brevet_note_ecrit_general")
+        note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
+        corps += f"| {nom} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+
+    return entete + separateur + corps
+
+
 def _generer_tableau_etablissements(resultats_sql):
     """
     Génère le tableau markdown directement depuis les données SQL —
@@ -216,26 +262,26 @@ def _generer_tableau_etablissements(resultats_sql):
     """
     if not resultats_sql or not resultats_sql.get("success"):
         return None
-    lignes = resultats_sql.get("resultats", [])
-    if not lignes:
+    return _generer_tableau_depuis_lignes(resultats_sql.get("resultats", []))
+
+
+def _generer_tableaux_split_secteur(resultats_sql):
+    """
+    Génère deux tableaux markdown distincts (public / privé) plutôt qu'un
+    classement global — évite qu'un secteur soit mécaniquement absent de
+    l'affichage quand ses scores sont structurellement plus bas (cf. biais
+    de sélection à l'entrée du privé).
+    """
+    if not resultats_sql or not resultats_sql.get("success"):
+        return None
+    public = resultats_sql.get("public", [])
+    prive = resultats_sql.get("prive", [])
+    if not public and not prive:
         return None
 
-    entete = "| Nom | Secteur | Score | Taux de réussite | VA | Note écrit |\n"
-    separateur = "|---|---|---|---|---|---|\n"
-    corps = ""
-    for r in lignes:
-        nom = r.get("nom", "?")
-        secteur = r.get("secteur", "?")
-        score = r.get("score_principal")
-        score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
-        taux = r.get("brevet_taux_reussite_general")
-        taux_str = f"{taux:.1f}" if isinstance(taux, (int, float)) else "?"
-        va = _formater_badge_va(r.get("badge_va"))
-        note = r.get("brevet_note_ecrit_general")
-        note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
-        corps += f"| {nom} | {secteur} | {score_str} | {taux_str} | {va} | {note_str} |\n"
-
-    return entete + separateur + corps
+    bloc_public = _generer_tableau_depuis_lignes(public) or "Aucun établissement public trouvé dans cette zone."
+    bloc_prive = _generer_tableau_depuis_lignes(prive) or "Aucun établissement privé trouvé dans cette zone."
+    return f"**Établissements publics**\n\n{bloc_public}\n\n**Établissements privés**\n\n{bloc_prive}"
 
 
 SYNTHESE_SYSTEM_PROMPT = """
@@ -260,6 +306,8 @@ def _tronquer_resultats_sql(resultats_sql):
     """Limite le nombre de lignes envoyées en synthèse, avec mention du total réel."""
     if not resultats_sql or not resultats_sql.get("success"):
         return resultats_sql
+    if resultats_sql.get("split_secteur"):
+        return resultats_sql  # déjà plafonné à la source (top n par secteur)
     lignes = resultats_sql.get("resultats", [])
     if len(lignes) <= MAX_LIGNES_SYNTHESE:
         return resultats_sql
@@ -357,6 +405,27 @@ def _generer_intro_template(resultats_geo, nb_affiches):
     return "Voici les résultats trouvés :"
 
 
+def _generer_intro_split_template(resultats_geo, nb_public, nb_prive):
+    """Intro 100% template pour le cas split public/privé — aucune génération LLM."""
+    zone = "la zone recherchée"
+    if resultats_geo and resultats_geo.get("success"):
+        zone = resultats_geo.get("adresse_normalisee", zone)
+    return (
+        f"Voici les {nb_public} meilleurs établissements publics et les {nb_prive} "
+        f"meilleurs établissements privés trouvés autour de {zone}, affichés séparément "
+        f"pour représenter les deux secteurs équitablement :"
+    )
+
+
+def _generer_explication_score_template(tableau_contient_score):
+    """Explication du score 100% template — texte fixe, condition simple."""
+    if not tableau_contient_score:
+        return ""
+    return ("\n\nLe score combine le taux de réussite (60%) et la note à l'écrit (40%), "
+            "comparés aux autres établissements de la même année — ce n'est pas une "
+            "note absolue.")
+
+
 def _generer_explication_va_template(tableau_contient_va):
     """Explication VA 100% template — texte fixe, condition simple."""
     if not tableau_contient_va:
@@ -369,9 +438,14 @@ def _generer_explication_va_template(tableau_contient_va):
 def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
     resultats_rag = state.get("resultats_rag")
+    split_secteur = bool(resultats_sql_tronques and resultats_sql_tronques.get("split_secteur"))
 
-    tableau = _generer_tableau_etablissements(resultats_sql_tronques)
-    nb_affiches = len(resultats_sql_tronques.get("resultats", [])) if resultats_sql_tronques else 0
+    if split_secteur:
+        tableau = _generer_tableaux_split_secteur(resultats_sql_tronques)
+        nb_affiches = len(resultats_sql_tronques.get("public", [])) + len(resultats_sql_tronques.get("prive", []))
+    else:
+        tableau = _generer_tableau_etablissements(resultats_sql_tronques)
+        nb_affiches = len(resultats_sql_tronques.get("resultats", [])) if resultats_sql_tronques else 0
     tableau_contient_va = tableau is not None and "badge_va" in json.dumps(resultats_sql_tronques or {})
 
     # Y a-t-il vraiment du contenu RAG à interpréter ? Seul cas où un LLM
@@ -399,20 +473,31 @@ def noeud_synthese(state: AgentState) -> AgentState:
     else:
         texte_nuance_rag = ""
 
-    intro = _generer_intro_template(state.get("resultats_geo"), nb_affiches)
+    if split_secteur:
+        intro = _generer_intro_split_template(
+            state.get("resultats_geo"),
+            len(resultats_sql_tronques.get("public", [])),
+            len(resultats_sql_tronques.get("prive", [])),
+        )
+    else:
+        intro = _generer_intro_template(state.get("resultats_geo"), nb_affiches)
+    explication_score = _generer_explication_score_template(tableau is not None)
     explication_va = _generer_explication_va_template(tableau_contient_va)
 
     reponse = intro
     if tableau:
         reponse += "\n\n" + tableau
-    reponse += texte_nuance_rag + explication_va
+    reponse += texte_nuance_rag + explication_score + explication_va
 
     # Garde-fou en code (pas seulement en prompt) : si au moins un établissement
     # privé figure dans les résultats SQL, la nuance est ajoutée systématiquement,
     # que le LLM l'ait fait ou non.
     resultats_bruts = state.get("resultats_sql") or {}
-    lignes = resultats_bruts.get("resultats", [])
-    au_moins_un_prive = any(row.get("secteur") == "Privé" for row in lignes)
+    if resultats_bruts.get("split_secteur"):
+        au_moins_un_prive = len(resultats_bruts.get("prive", [])) > 0
+    else:
+        lignes = resultats_bruts.get("resultats", [])
+        au_moins_un_prive = any(row.get("secteur") == "Privé" for row in lignes)
 
     NUANCE_PRIVE = (
         "\n\n⚠️ Précision importante : ce n'est pas un classement officiel. "

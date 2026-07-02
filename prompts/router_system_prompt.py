@@ -12,4 +12,9 @@ catégories suivantes, et extrais sa zone géographique si présente.
   chiffrée sur un établissement précis.
 - recherche_geo_methodologique : recherche géo + question méthodologique.
 - non_reconnu : aucune catégorie ci-dessus ne correspond clairement.
+
+Extrais aussi le secteur souhaité (secteur_souhaite) : "public" ou "prive"
+si la question le précise explicitement pour un seul des deux ("collèges
+publics", "écoles privées"...), sinon "indifferent" — y compris si public
+ET privé sont explicitement demandés ensemble ("compare public et privé").
 """

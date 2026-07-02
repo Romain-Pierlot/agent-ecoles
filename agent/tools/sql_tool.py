@@ -191,6 +191,71 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     }
 
 
+def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège") -> dict:
+    """
+    Retourne séparément les n meilleurs établissements publics et les n
+    meilleurs établissements privés parmi une liste d'UAI déjà présélectionnée
+    (ex: par geo_tool), triés par score_principal.
+
+    Requête SQL déterministe, AUCUN appel LLM : une fois qu'on sait que
+    l'utilisateur n'a précisé aucun secteur (cf. state["secteur_souhaite"]
+    extrait par le router), "prendre le top n de chaque secteur" est une
+    règle fixe, pas une tâche d'interprétation de texte libre — le Text-to-SQL
+    général (recherche_sql) n'a pas sa place ici.
+
+    La session utilisée est la plus récente disponible dans la table scores,
+    déterminée dynamiquement (jamais codée en dur, pour ne pas se périmer
+    quand une nouvelle session de données arrive).
+
+    Retourne : {
+        "success": bool,
+        "session_utilisee": str | None,
+        "public": [ {uai, nom, commune, secteur, score_principal, badge_va,
+                     brevet_taux_reussite_general, brevet_note_ecrit_general,
+                     brevet_va_taux_reussite_general, brevet_va_note_ecrit_general}, ... ],
+        "prive": [ ... même structure ... ],
+        "error": str | None
+    }
+    """
+    if not uai_filtre:
+        return {"success": True, "session_utilisee": None, "public": [], "prive": [], "error": None}
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            session = conn.execute("SELECT MAX(session) AS s FROM scores").fetchone()["s"]
+            if session is None:
+                return {"success": True, "session_utilisee": None, "public": [], "prive": [], "error": None}
+
+            placeholders = ",".join("?" for _ in uai_filtre)
+            resultats_par_secteur = {}
+            for secteur, cle in (("Public", "public"), ("Privé", "prive")):
+                rows = conn.execute(f"""
+                    SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
+                           v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
+                           v.brevet_va_taux_reussite_general, v.brevet_va_note_ecrit_general
+                    FROM etablissements e
+                    JOIN scores s ON e.uai = s.uai
+                    JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+                    WHERE e.uai IN ({placeholders})
+                      AND e.secteur = ?
+                      AND e.type_etablissement = ?
+                      AND s.session = ?
+                    ORDER BY s.score_principal DESC
+                    LIMIT ?
+                """, (*uai_filtre, secteur, type_etablissement, session, n)).fetchall()
+                resultats_par_secteur[cle] = [dict(row) for row in rows]
+        finally:
+            conn.close()
+        return {"success": True, "session_utilisee": session, "error": None, **resultats_par_secteur}
+    except Exception as e:
+        return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
+
+
 # Seuil au-delà duquel on ne liste plus les candidats mais on demande une
 # précision géographique (département ou ville). Au-delà de 5 options, une
 # liste numérotée devient inexploitable pour l'utilisateur.

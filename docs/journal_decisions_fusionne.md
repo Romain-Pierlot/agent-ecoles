@@ -909,6 +909,23 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : un score n'est comparable qu'entre établissements de la même session, jamais d'une année sur l'autre. Poids (`SCORE_POIDS_TAUX = 0.60`, `SCORE_POIDS_NOTE = 0.40`) et seuils VA (`VA_SEUIL_POSITIF = 2.0`, `VA_SEUIL_NEGATIF = -2.0`) définis dans `config.py`.
 
+## S8.8 — Split déterministe public/privé quand le secteur n'est pas précisé, et explication du score ajoutée à l'affichage
+
+**Problème découvert en testant `recherche_geo_classement` sur "Compare les collèges publics et privés autour de Bordeaux"** : le classement global top 15 ne contenait qu'1 seul établissement public sur 15, alors que 36 publics existaient dans la zone (contre 14 privés) — pas un bug, un vrai écart de score entre secteurs (biais de sélection à l'entrée, déjà documenté dans l'avertissement affiché), mais qui rendait dans les faits le secteur public quasiment invisible dès qu'on ne filtrait pas explicitement dessus.
+
+**Décision** :
+- Le router extrait un signal supplémentaire (`secteur_souhaite` : `public`/`prive`/`indifferent`), dans le même appel LLM déjà utilisé pour la catégorie/zone/noms.
+- Secteur précisé explicitement → comportement inchangé (Text-to-SQL habituel, un seul secteur).
+- Secteur non précisé → nouvelle fonction déterministe `rechercher_top_par_secteur()` (aucun appel LLM), qui retourne séparément les 10 meilleurs établissements de chaque secteur, affichés en deux tableaux distincts et étiquetés plutôt qu'un classement mélangé.
+
+**Pourquoi une requête déterministe plutôt que de le déléguer au Text-to-SQL existant** : "prendre le top 10 de chaque secteur quand rien n'est précisé" est une règle fixe une fois l'ambiguïté résolue par le router — pas une tâche d'interprétation de texte libre. Fiabilité garantie à chaque appel, sans coût ni latence LLM supplémentaire, cohérent avec le principe templating vs LLM déjà établi.
+
+**Décision complémentaire** : ajout d'une explication courte et fixe du Score (même principe que celle déjà existante pour la VA), affichée systématiquement dès qu'un tableau de résultats est montré — jusqu'ici seule la VA était expliquée, alors que le Score (critère de tri principal) ne l'était jamais. Colonnes réordonnées (Score, VA, puis Taux/Note) pour rapprocher visuellement le score de sa nuance.
+
+**Gain de latence constaté en effet de bord** : mesure par étape sur le chemin split — router 2.02s, geo_tool 0.16s, sql_tool 0.00s (contre un appel Text-to-SQL LLM auparavant), synthese 0.00s. Total 2.18s contre 3.8s mesurés avant cette session sur le même type de question — quasiment divisé par 2, uniquement parce que le Text-to-SQL est devenu inutile sur ce chemin précis. Le goulot d'étranglement restant est l'appel LLM du router lui-même (~93% du temps) ; un benchmark multi-fournisseurs (`benchmark_router.py`) avait déjà été mené sur cet appel et n'avait montré aucune différence significative entre gpt-4o-mini, claude-haiku-4-5 et gemini-2.5-flash — pas de nouvelle piste à ce stade.
+
+**Conséquence** : `agent/tools/sql_tool.py` (nouvelle fonction), `graph_router.py` (state, schéma d'extraction, branchement `noeud_sql`, affichage `noeud_synthese`), `prompts/router_system_prompt.py`. Validé par test bout en bout mené par l'utilisateur lui-même sur Bordeaux — le meilleur collège public réel de la zone (Émile Combes, score 86.60) apparaît désormais, alors qu'il était totalement absent de l'ancien affichage.
+
 ## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
 
 **Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.
