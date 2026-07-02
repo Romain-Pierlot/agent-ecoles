@@ -1113,3 +1113,17 @@ Appliqués de façon constante v3 à v6.
 **Deuxième trou identifié, non corrigé (documenté)** : "Comment ont évolué les résultats des collèges de Lyon sur les 3 dernières années ?" (géo + évolution, SANS nom d'établissement) est silencieusement traité comme une question de classement standard (année en cours) — la demande d'évolution est ignorée sans aucun signal à l'utilisateur. On avait construit l'évolution seulement pour un établissement nommé (S8.17) ; jamais pour une zone géographique entière. Plan de résolution à discuter séparément.
 
 **Conséquence** : `agent/tools/sql_tool.py`, `graph_router.py`, nouveau fichier `test_e2e_complet.py`. Re-validé sur les 2 cas "pire" (secteur précisé et split) + non-régression complète (classification 11/11, cas "meilleurs" standards, split Bordeaux).
+
+## S8.21 — Détection "pire"/"moyenne" déplacée du mot-clé en dur vers l'extraction LLM
+
+**Contexte** : remarque de l'utilisateur après S8.20 — `_MOTS_PIRE` (regex `\bpires?\b`) ne couvre que le mot littéral "pire". Une question formulée avec un synonyme ("le plus mauvais", "en difficulté", "moins performant") ne serait jamais détectée. Même limite pour `_MOTS_AGREGATION` ("moyenne" seul, rate "en général", "globalement", "dans l'ensemble").
+
+**Décision** : remplacer ces deux regex par deux nouveaux champs extraits par le LLM du router, dans le même appel fusionné que les champs existants (secteur_souhaite, nuance_methodologique_demandee, evolution_demandee) — donc sans latence supplémentaire :
+- `ordre_souhaite` (enum "meilleur"/"pire"/"indifferent", nouveau `OrdreSouhaite` dans config.py) — remplace `_MOTS_SUPERLATIFS`/`_MOTS_PIRE`.
+- `agregation_demandee` (booléen) — remplace `_MOTS_AGREGATION`.
+
+**Pourquoi le LLM plutôt qu'une liste de mots-clés plus longue** : une liste de synonymes ne serait jamais exhaustive (nouvelle formulation = nouveau trou). Le LLM comprend nativement les reformulations. Contrairement aux régressions de prompt observées ailleurs cette session (modifications de la DESCRIPTION des catégories, avec effets de bord imprévisibles sur d'autres catégories), ceci est un champ additif dans le même schéma déjà validé — risque jugé plus faible, mais testé avec la même rigueur.
+
+**Validation** : extraction vérifiée directement sur des synonymes non couverts par l'ancienne regex — "les plus mauvais" → pire, "en difficulté" → pire, "globalement"/"en général" → agregation_demandee=true — tous corrects et propagés jusqu'à la réponse finale. Suite complète re-passée : classification 11/11, cahier de test end-to-end 22/22 sans régression (y compris le fix "pire" de S8.20, toujours correct).
+
+**Conséquence** : `config.py` (nouvel enum `OrdreSouhaite`), `graph_router.py` (suppression des 3 regex, ajout des 2 champs, module `re` retiré car plus utilisé), `prompts/router_system_prompt.py`.

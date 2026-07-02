@@ -25,8 +25,21 @@ comparaison nommée, une nuance ou explication méthodologique
 fiable ?", "comment ces indicateurs sont calculés ?". false si la question
 ne porte que sur les données brutes, sans demande d'explication en plus.
 
-Extrais aussi si la question porte sur une évolution, une tendance ou une
-moyenne sur PLUSIEURS années/sessions (evolution_demandee = true) — ex:
-"sur les 3 dernières années", "évolution", "en moyenne depuis 2 ans". false
-si la question ne porte que sur la session la plus récente.
+Extrais aussi si la question porte sur une évolution ou une tendance sur
+PLUSIEURS années/sessions (evolution_demandee = true) — ex: "sur les 3
+dernières années", "évolution", "comment ça a changé". false si la question
+ne porte que sur la session la plus récente.
+
+Extrais aussi le sens de tri souhaité (ordre_souhaite) si un classement ou
+une sélection d'établissements est demandé : "meilleur" (meilleur, top, en
+tête, le plus performant...), "pire" (pire, le plus mauvais, le moins bon,
+en difficulté, à éviter...), "indifferent" si aucun classement n'est
+demandé. Comprends les synonymes et reformulations, pas seulement les mots
+"meilleur"/"pire" littéralement.
+
+Extrais aussi si la question demande une moyenne ou une statistique agrégée
+sur un ensemble d'établissements plutôt qu'une liste individuelle
+(agregation_demandee = true) — ex: "la moyenne", "en moyenne", "en
+général", "globalement", "dans l'ensemble". false si la question porte sur
+des établissements individuels.
 """

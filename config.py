@@ -78,6 +78,18 @@ class Secteur(StrEnum):
     PRIVE = "Privé"
 
 
+class OrdreSouhaite(StrEnum):
+    """
+    Sens de tri demandé par l'utilisateur (extrait par le router, en LLM,
+    pas par mots-clés en dur) — remplace les regex _MOTS_SUPERLATIFS/_MOTS_PIRE
+    (S8.13/S8.20), qui ne couvraient que "meilleur"/"pire" littéralement et
+    ratent les synonymes ("le plus mauvais", "en difficulté", "moins bon"...).
+    """
+    MEILLEUR = "meilleur"
+    PIRE = "pire"
+    INDIFFERENT = "indifferent"
+
+
 # --- Synthèse de réponse (graph_router.py) ---
 MAX_LIGNES_SYNTHESE = 15        # limite de sécurité — évite d'envoyer des centaines de lignes au LLM de synthèse
 SPLIT_SECTEUR_N = 10            # nombre d'établissements par secteur affichés quand le secteur n'est pas précisé

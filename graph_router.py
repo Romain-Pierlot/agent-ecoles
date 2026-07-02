@@ -5,7 +5,6 @@ load_dotenv()  # DOIT être appelé avant tout import LangGraph/LangSmith, pour
                 # que LANGSMITH_ENDPOINT soit lu correctement dès le départ.
 
 import json
-import re
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from openai import OpenAI
@@ -20,7 +19,7 @@ from agent.tools.geo_tool import recherche_geo
 
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
-    MAX_ZONES_COMPAREES, Categorie, SecteurSouhaite, Secteur,
+    MAX_ZONES_COMPAREES, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
@@ -36,6 +35,8 @@ class AgentState(TypedDict):
     secteur_souhaite: Optional[SecteurSouhaite]
     nuance_methodologique_demandee: bool
     evolution_demandee: bool
+    ordre_souhaite: Optional[OrdreSouhaite]
+    agregation_demandee: bool
     resultats_geo: Optional[dict]
     resultats_sql: Optional[dict]
     resultats_rag: Optional[dict]
@@ -83,37 +84,26 @@ ROUTER_TOOL_SCHEMA = {
                 },
                 "evolution_demandee": {
                     "type": "boolean",
-                    "description": "true si la question porte sur une évolution, une tendance ou une moyenne sur PLUSIEURS années/sessions (ex: \"sur les 3 dernières années\", \"évolution\", \"en moyenne depuis 2 ans\"). false si la question ne porte que sur la session la plus récente.",
+                    "description": "true si la question porte sur une évolution, une tendance sur PLUSIEURS années/sessions (ex: \"sur les 3 dernières années\", \"évolution\"). false si la question ne porte que sur la session la plus récente.",
+                },
+                "ordre_souhaite": {
+                    "type": "string",
+                    "enum": [o.value for o in OrdreSouhaite],
+                    "description": "Sens du tri souhaité si un classement ou une sélection d'établissements est demandé : \"meilleur\" (meilleur, top, en tête, le plus performant...), \"pire\" (pire, le plus mauvais, le moins bon, en difficulté, à éviter...), \"indifferent\" si aucun classement n'est demandé.",
+                },
+                "agregation_demandee": {
+                    "type": "boolean",
+                    "description": "true si la question demande une moyenne ou une statistique agrégée sur un ensemble d'établissements (ex: \"la moyenne\", \"en moyenne\", \"en général\", \"globalement\", \"dans l'ensemble\") plutôt qu'une liste d'établissements individuels. false sinon.",
                 },
             },
             "required": [
                 "categorie", "zone_detectee", "zone", "noms_etablissements",
                 "secteur_souhaite", "nuance_methodologique_demandee", "evolution_demandee",
+                "ordre_souhaite", "agregation_demandee",
             ],
         },
     },
 }
-
-
-# Mots signalant une demande de classement concret ("le meilleur X") plutôt
-# qu'une question de concept — volontairement restreint aux superlatifs sans
-# ambiguïté ("classement" est exclu : peut aussi désigner le concept lui-même,
-# ex: "est-ce que le classement des collèges est fiable ?", légitimement méthodologique).
-_MOTS_SUPERLATIFS = re.compile(r"\b(meilleurs?|meilleures?|pires?)\b", re.IGNORECASE)
-
-# Détection déterministe d'une demande de moyenne/agrégation sur une zone
-# géographique — même principe que _MOTS_SUPERLATIFS, un mot-clé simple sur
-# la question plutôt qu'un champ de plus extrait par le LLM du router.
-_MOTS_AGREGATION = re.compile(r"\b(moyennes?)\b", re.IGNORECASE)
-
-# Sous-ensemble de _MOTS_SUPERLATIFS spécifique à "pire" — utilisé pour
-# adapter le sens du tri (ASC) et le texte d'intro en conséquence. Bug réel
-# trouvé en test (S8.20) : "pires collèges" affichait bien les pires
-# résultats via le Text-to-SQL général, mais l'intro disait quand même
-# "meilleurs résultats" (texte figé) ; et le chemin split (rechercher_top_par_secteur)
-# n'avait carrément pas d'option de tri ascendant, donc affichait les
-# meilleurs même quand les pires étaient demandés.
-_MOTS_PIRE = re.compile(r"\bpires?\b", re.IGNORECASE)
 
 
 def noeud_router(state: AgentState) -> AgentState:
@@ -137,6 +127,8 @@ def noeud_router(state: AgentState) -> AgentState:
     state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
+    state["ordre_souhaite"] = OrdreSouhaite(args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT)
+    state["agregation_demandee"] = bool(args.get("agregation_demandee"))
 
     # Garde-fou déterministe (pas un patch de prompt) : comparaison_etablissements_nommes
     # exige par définition au moins un nom propre cité. Si le LLM choisit cette
@@ -162,14 +154,16 @@ def noeud_router(state: AgentState) -> AgentState:
     # "par défaut" un peu trop attractive pour le LLM du router dès qu'aucune
     # zone/nom n'est détecté (déjà observé une première fois avec la
     # classification non_reconnu, cf. S8.9). Si aucune zone n'est détectée ET
-    # que la question contient un mot superlatif ("meilleur", "pire"...), ce
-    # n'est pas une question de concept/méthodologie mais une demande de
-    # classement à une échelle non gérée (ex: "le meilleur collège de
-    # France") -> non_reconnu, laisse l'agent ReAct clarifier le périmètre.
+    # qu'un tri est demandé (ordre_souhaite != indifferent — extrait par le
+    # LLM, robuste aux synonymes de "meilleur"/"pire", contrairement à
+    # l'ancienne regex _MOTS_SUPERLATIFS, cf. S8.21), ce n'est pas une
+    # question de concept/méthodologie mais une demande de classement à une
+    # échelle non gérée (ex: "le meilleur collège de France") -> non_reconnu,
+    # laisse l'agent ReAct clarifier le périmètre.
     if (
         state["categorie"] == Categorie.QUESTION_METHODOLOGIQUE
         and state["zone_geo"] is None
-        and _MOTS_SUPERLATIFS.search(state["question"])
+        and state["ordre_souhaite"] != OrdreSouhaite.INDIFFERENT
     ):
         state["categorie"] = Categorie.NON_RECONNU
 
@@ -178,11 +172,13 @@ def noeud_router(state: AgentState) -> AgentState:
     # ("zone" trouvée) tombait quand même dans question_methodologique au
     # lieu de recherche_geo_classement, qui sait désormais calculer une
     # moyenne déterministe sur une zone (cf. calculer_moyenne_etablissements,
-    # S8.18) — pas une question de concept.
+    # S8.18) — pas une question de concept. agregation_demandee extrait par
+    # le LLM (S8.21), robuste aux synonymes de "moyenne" ("en général",
+    # "globalement"...), contrairement à l'ancienne regex _MOTS_AGREGATION.
     if (
         state["categorie"] == Categorie.QUESTION_METHODOLOGIQUE
         and state["zone_geo"] is not None
-        and _MOTS_AGREGATION.search(state["question"])
+        and state["agregation_demandee"]
     ):
         state["categorie"] = Categorie.RECHERCHE_GEO_CLASSEMENT
 
@@ -292,7 +288,7 @@ def noeud_sql(state: AgentState) -> AgentState:
         if not uai_filtre:
             state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
             return state
-        if _MOTS_AGREGATION.search(state["question"]):
+        if state["agregation_demandee"]:
             # Moyenne/agrégation demandée sur une zone : requête déterministe
             # (cf. calculer_moyenne_etablissements) plutôt que Text-to-SQL
             # général — pas de tableau détaillé par établissement ici, c'est
@@ -314,7 +310,7 @@ def noeud_sql(state: AgentState) -> AgentState:
             # de laisser le Text-to-SQL général produire un classement global
             # où le privé écrase mécaniquement le public (score plus élevé en
             # moyenne, lié au biais de sélection à l'entrée).
-            ordre = "ASC" if _MOTS_PIRE.search(state["question"]) else "DESC"
+            ordre = "ASC" if state["ordre_souhaite"] == OrdreSouhaite.PIRE else "DESC"
             resultat_split = rechercher_top_par_secteur(uai_filtre, n=SPLIT_SECTEUR_N, ordre=ordre)
             state["resultats_sql"] = {
                 "success": resultat_split["success"],
@@ -783,14 +779,16 @@ def _zone_affichage(resultats_geo):
     return "la zone recherchée"
 
 
-def _generer_intro_template(resultats_geo, nb_affiches, question=""):
+def _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite=None):
     """
     Intro 100% template — insertion de chiffres, aucune génération LLM.
     Le qualificatif ("meilleurs" vs "moins bons") reflète le tri réellement
     demandé — bug réel corrigé (S8.20) : ce texte disait toujours "meilleurs
     résultats", même en affichant les pires établissements demandés.
+    ordre_souhaite vient du champ extrait par le LLM du router (S8.21),
+    robuste aux synonymes ("le plus mauvais", "en difficulté"...).
     """
-    qualificatif = "présentant les moins bons résultats" if _MOTS_PIRE.search(question) else "présentant les meilleurs résultats"
+    qualificatif = "présentant les moins bons résultats" if ordre_souhaite == OrdreSouhaite.PIRE else "présentant les meilleurs résultats"
     if resultats_geo and resultats_geo.get("success"):
         total = resultats_geo.get("nb_etablissements", 0)
         zone = _zone_affichage(resultats_geo)
@@ -819,7 +817,7 @@ def _generer_intro_agregation_template(resultats_geo):
     return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone} :"
 
 
-def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, question=""):
+def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
     en gérant les trois formats possibles (classement normal, split
@@ -842,7 +840,7 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
 
     tableau = _generer_tableau_etablissements(resultats_sql)
     nb_affiches = len(resultats_sql.get("resultats", [])) if resultats_sql else 0
-    intro = _generer_intro_template(resultats_geo, nb_affiches, question)
+    intro = _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite)
     return tableau, intro
 
 
@@ -1053,7 +1051,7 @@ def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
 
     tableau, intro = _preparer_affichage_resultats(
-        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state["question"]
+        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state.get("ordre_souhaite")
     )
     # Forme "moyenne/agrégation" : la clé du score n'est pas "score_principal"
     # (c'est "score_moyen", agrégé) — _lignes_contiennent ne la détecterait
