@@ -93,6 +93,9 @@ RÈGLES IMPORTANTES :
 - La VA peut être NULL — toujours IS NOT NULL si filtrée
 - Toujours afficher le badge_va à côté du score
 - TOUJOURS inclure e.uai dans le SELECT (nécessaire pour la traçabilité en aval)
+- TOUJOURS inclure e.secteur dans le SELECT dès que la requête retourne des
+  lignes d'établissement (pas une agrégation) — nécessaire à l'avertissement
+  sur la sélection à l'entrée du privé, affiché en aval à partir de ce champ
 - Synonymes : école/établissement/collège → etablissements, résultats/notes → ivac,
   classement/meilleur → ORDER BY score_principal DESC, social/milieu → ips_moyen
 - Critère de tri/classement : TOUJOURS score_principal (jamais un autre champ),

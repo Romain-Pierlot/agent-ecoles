@@ -909,6 +909,18 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : un score n'est comparable qu'entre établissements de la même session, jamais d'une année sur l'autre. Poids (`SCORE_POIDS_TAUX = 0.60`, `SCORE_POIDS_NOTE = 0.40`) et seuils VA (`VA_SEUIL_POSITIF = 2.0`, `VA_SEUIL_NEGATIF = -2.0`) définis dans `config.py`.
 
+## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
+
+**Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.
+
+**Décision** : suppression de `recherche_geo_comparaison` des catégories du router ; sa description est absorbée dans celle de `recherche_geo_classement`.
+
+**Pourquoi** : la seule différence envisageable aurait été cosmétique (formulation de l'intro), pas une différence de données ou de traitement — pas assez de valeur pour justifier deux catégories, avec le risque que le LLM du router hésite entre deux formulations proches ("meilleurs collèges de Lyon" vs "compare les collèges de Lyon"). Cohérent avec le principe déjà acté de ne pas construire pour un besoin hypothétique.
+
+**Validé par test** : `test_router_classification.py` (5/5 sur les cas concernés) et test bout en bout sur "Compare les collèges publics et privés autour de Bordeaux", correctement classée et traitée par le pipeline fusionné.
+
+**Conséquence** : 4 fichiers mis à jour (`graph_router.py`, `prompts/router_system_prompt.py`, `test_router_classification.py`, `benchmark_router.py`). A aussi révélé, en testant ce cas de comparaison public/privé, un angle mort pré-existant (non causé par cette fusion) sur la représentation des deux secteurs dans les résultats affichés — traité séparément (cf. S8.8).
+
 ## S8.8 — Split déterministe public/privé quand le secteur n'est pas précisé, et explication du score ajoutée à l'affichage
 
 **Problème découvert en testant `recherche_geo_classement` sur "Compare les collèges publics et privés autour de Bordeaux"** : le classement global top 15 ne contenait qu'1 seul établissement public sur 15, alors que 36 publics existaient dans la zone (contre 14 privés) — pas un bug, un vrai écart de score entre secteurs (biais de sélection à l'entrée, déjà documenté dans l'avertissement affiché), mais qui rendait dans les faits le secteur public quasiment invisible dès qu'on ne filtrait pas explicitement dessus.
@@ -1019,14 +1031,20 @@ Appliqués de façon constante v3 à v6.
 
 **Conséquence** : `graph_router.py`, `agent/tools/sql_tool.py`, `prompts/agent_react_system_prompt.py`, nouveau fichier `test_agent_react.py`. Re-validé intégralement après chaque changement : `test_router_classification.py` (11/11), `test_agent_react.py` (batterie complète), cas Bordeaux/méthodologique/comparaison de noms standard (non-régression confirmée).
 
-## S8.7 — Fusion de `recherche_geo_comparaison` dans `recherche_geo_classement`
+## S8.15 — Correction de l'ordre chronologique du journal (S8.7 déplacée)
 
-**Problème découvert en testant les chemins restants du router** : ces deux catégories routaient vers exactement le même pipeline (`geo_tool` → `sql_tool` → `synthese`), avec un texte de sortie strictement identique (`_generer_intro_template()` ne lit ni la question ni la catégorie) — malgré une intention de différenciation visible dans le prompt du router ("tri par indicateur" vs "+ comparaison"), jamais implémentée en pratique.
+**Problème découvert en documentant S8.14** : l'entrée S8.7 s'était retrouvée en fin de fichier au lieu de sa place chronologique entre S8.6 et S8.8, suite à une erreur d'édition dans une session précédente — jamais remarqué depuis, découvert en cherchant où insérer une nouvelle entrée.
 
-**Décision** : suppression de `recherche_geo_comparaison` des catégories du router ; sa description est absorbée dans celle de `recherche_geo_classement`.
+**Décision** : contenu déplacé à sa place correcte, pas de contenu perdu ni modifié — uniquement un problème d'ordre dans le fichier.
 
-**Pourquoi** : la seule différence envisageable aurait été cosmétique (formulation de l'intro), pas une différence de données ou de traitement — pas assez de valeur pour justifier deux catégories, avec le risque que le LLM du router hésite entre deux formulations proches ("meilleurs collèges de Lyon" vs "compare les collèges de Lyon"). Cohérent avec le principe déjà acté de ne pas construire pour un besoin hypothétique.
+## S8.16 — `e.secteur` parfois absent du SELECT Text-to-SQL : risque réel sur l'avertissement secteur privé
 
-**Validé par test** : `test_router_classification.py` (5/5 sur les cas concernés) et test bout en bout sur "Compare les collèges publics et privés autour de Bordeaux", correctement classée et traitée par le pipeline fusionné.
+**Problème signalé par l'utilisateur, initialement sous-évalué par l'assistant** : la colonne "Secteur" d'un tableau généré par l'agent affichait "?" dans un cas réel. Écarté à tort comme "cosmétique" — corrigé après que l'utilisateur a fait remarquer que ce n'en est pas un.
 
-**Conséquence** : 4 fichiers mis à jour (`graph_router.py`, `prompts/router_system_prompt.py`, `test_router_classification.py`, `benchmark_router.py`). A aussi révélé, en testant ce cas de comparaison public/privé, un angle mort pré-existant (non causé par cette fusion) sur la représentation des deux secteurs dans les résultats affichés — traité séparément (cf. entrée à venir).
+**Impact réel identifié en y regardant** : `e.secteur` n'était jamais une colonne obligatoire dans `SCHEMA_PROMPT` (contrairement à `e.uai`, déjà marqué "TOUJOURS inclure"). Une ligne d'établissement sans ce champ fait échouer silencieusement `_etablissement_prive_present()` (`row.get("secteur") == Secteur.PRIVE` sur un champ absent renvoie toujours faux) — risque concret de ne pas afficher l'avertissement sur la sélection à l'entrée du privé pour un établissement réellement privé.
+
+**Décision** :
+- Règle ajoutée à `SCHEMA_PROMPT`, avec la même formulation forte que la règle déjà existante sur `e.uai` : "TOUJOURS inclure e.secteur... dès que la requête retourne des lignes d'établissement".
+- Défense supplémentaire en code (pas seulement dans le prompt, cohérent avec la méthode de la session) : `_etablissement_prive_present()` traite maintenant une ligne d'établissement (qui a un "nom") sans champ "secteur" comme potentiellement privée par défaut plutôt que de l'ignorer — mieux vaut un avertissement affiché à tort qu'un avertissement de sécurité manquant à tort. Explicitement exclu des lignes d'agrégation (sans "nom"), qui n'ont jamais de secteur par nature et ne doivent pas déclencher l'avertissement.
+
+**Conséquence** : validé sur 3 exécutions consécutives (`e.secteur` toujours présent), et vérifié qu'aucun faux positif n'apparaît sur les résultats d'agrégation ni de régression sur le split public/privé déjà validé. Rappel de méthode retenu : un défaut affectant l'affichage d'un avertissement de sécurité n'est jamais "cosmétique", même s'il ressemble à un détail de présentation au premier regard.

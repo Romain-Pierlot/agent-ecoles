@@ -666,13 +666,25 @@ NUANCE_PRIVE = (
 
 
 def _etablissement_prive_present(resultats_sql):
-    """Détecte un établissement privé dans les résultats, quel que soit le format (normal ou split)."""
+    """
+    Détecte un établissement privé dans les résultats, quel que soit le
+    format (normal ou split). Défensif : une ligne d'établissement (qui a
+    un "nom") sans champ "secteur" du tout (ex: Text-to-SQL ayant omis la
+    colonne malgré la règle du prompt) est traitée comme potentiellement
+    privée plutôt qu'ignorée — mieux vaut un avertissement affiché à tort
+    qu'un avertissement de sécurité manquant à tort sur un vrai
+    établissement privé. Les lignes d'agrégation (sans "nom", ex: une
+    moyenne) n'ont jamais de secteur par nature et ne déclenchent rien.
+    """
     if not resultats_sql:
         return False
     if resultats_sql.get("split_secteur"):
         return len(resultats_sql.get("prive", [])) > 0
     lignes = resultats_sql.get("resultats", [])
-    return any(row.get("secteur") == Secteur.PRIVE for row in lignes)
+    return any(
+        "nom" in row and row.get("secteur", Secteur.PRIVE) == Secteur.PRIVE
+        for row in lignes
+    )
 
 
 def _ajouter_nuance_privee_si_besoin(reponse, resultats_sql):
