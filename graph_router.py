@@ -20,7 +20,7 @@ from agent.tools.geo_tool import recherche_geo
 
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
-    Categorie, SecteurSouhaite, Secteur,
+    MAX_ZONES_COMPAREES, Categorie, SecteurSouhaite, Secteur,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
@@ -176,6 +176,18 @@ def noeud_router(state: AgentState) -> AgentState:
         and _MOTS_AGREGATION.search(state["question"])
     ):
         state["categorie"] = Categorie.RECHERCHE_GEO_CLASSEMENT
+
+    # Garde-fou déterministe : plusieurs zones combinées dans une seule
+    # chaîne (ex: "Lyon, Perpignan, Poitiers" extrait comme une seule zone)
+    # échouent systématiquement au géocodage — geo_tool attend une seule
+    # adresse. Plutôt qu'un échec silencieux vers clarification_geo qui
+    # n'aide pas l'utilisateur, bascule vers non_reconnu -> agent ReAct,
+    # capable d'appeler recherche_geo séparément par zone. Volontairement
+    # pas de support déterministe multi-zones pour l'instant (cas plus rare
+    # et plus ouvert que les cas déjà sécurisés, cf. journal S8.19) — à
+    # réévaluer si l'agent se montre fragile ou trop lent sur ces cas.
+    if state["zone_geo"] and "," in state["zone_geo"]:
+        state["categorie"] = Categorie.NON_RECONNU
 
     return state
 
@@ -384,6 +396,24 @@ AGENT_TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
+            "name": "calculer_moyenne",
+            "description": "Calcule la moyenne du score/taux/note pour un ensemble d'établissements déjà identifiés (via recherche_geo ou rechercher_etablissement_par_nom) — moyenne globale, plus détail public/privé. À utiliser DE PRÉFÉRENCE à recherche_sql dès que la question porte sur une moyenne/agrégation sur une zone — plus rapide et plus fiable qu'une requête libre.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "uais": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Liste des UAI (obtenue via recherche_geo ou rechercher_etablissement_par_nom) sur laquelle calculer la moyenne.",
+                    },
+                },
+                "required": ["uais"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "recherche_rag",
             "description": "Cherche une explication méthodologique dans les documents de référence (définition d'un indicateur, méthode de calcul, précautions d'interprétation).",
             "parameters": {
@@ -398,6 +428,29 @@ AGENT_TOOLS_SCHEMA = [
 ]
 
 
+def _resultat_geo_pour_agent(resultat_geo: dict) -> dict:
+    """
+    Version allégée du résultat de recherche_geo pour l'agent — seulement
+    les UAI (nécessaires pour filtrer recherche_sql/calculer_moyenne
+    ensuite) et un résumé, jamais le détail complet de chaque établissement
+    (nom, commune, coordonnées...). Même principe que _tronquer_resultats_geo
+    déjà appliqué au chemin déterministe (S1-S2) : évite un contexte de
+    conversation surchargé — mesuré à 36 Ko pour une seule zone (Lyon)
+    avant ce fix, ce qui ralentissait chaque tour suivant et risquait un
+    timeout au-delà de 2-3 zones dans une même question (cf. session 8).
+    """
+    if not resultat_geo or not resultat_geo.get("success"):
+        return resultat_geo
+    return {
+        "success": True,
+        "adresse_normalisee": resultat_geo.get("adresse_normalisee"),
+        "rayon_km": resultat_geo.get("rayon_km"),
+        "nb_etablissements": resultat_geo.get("nb_etablissements"),
+        "uais": [e["uai"] for e in resultat_geo.get("etablissements", [])],
+        "error": None,
+    }
+
+
 def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
     """
     Dispatch vers la fonction Python réelle correspondant à l'outil choisi
@@ -409,9 +462,11 @@ def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
     pas dans le state partagé.
     """
     if nom_outil == "recherche_geo":
-        return recherche_geo(arguments["adresse_ou_ville"])
+        return _resultat_geo_pour_agent(recherche_geo(arguments["adresse_ou_ville"]))
     if nom_outil == "rechercher_etablissement_par_nom":
         return rechercher_etablissements_par_nom(arguments["noms"])
+    if nom_outil == "calculer_moyenne":
+        return calculer_moyenne_etablissements(arguments["uais"])
     if nom_outil == "recherche_sql":
         resultat = recherche_sql(arguments["question"], uai_filtre=arguments.get("uai_filtre") or None)
         # Enrichit avec un tableau déjà formaté (même fonction de templating
@@ -446,7 +501,24 @@ def noeud_agent_react(state: AgentState) -> AgentState:
     sans repasser par noeud_synthese : ce nœud suppose une forme fixe de
     resultats_sql produite par un seul appel déterministe, incompatible
     avec des appels multiples dans un ordre libre.
+
+    Garde-fou déterministe en premier, avant tout appel LLM : au-delà de
+    MAX_ZONES_COMPAREES zones dans la même question, l'agent devient trop
+    lent/coûteux (timeout mesuré à 5 zones, ~96s avant échec — cf. session
+    8). Plutôt que de laisser l'agent essayer et échouer après une longue
+    attente, on bloque immédiatement avec un message explicite, sans coût
+    ni latence.
     """
+    nb_zones = len((state.get("zone_geo") or "").split(",")) if state.get("zone_geo") else 0
+    if nb_zones > MAX_ZONES_COMPAREES:
+        state["tours_agent"] = 0
+        state["reponse_finale"] = (
+            f"Je peux comparer jusqu'à {MAX_ZONES_COMPAREES} zones géographiques à la fois "
+            f"(villes, départements...). Peux-tu reformuler ta question avec "
+            f"{MAX_ZONES_COMPAREES} zones maximum ?"
+        )
+        return state
+
     messages = [
         {"role": "system", "content": AGENT_REACT_SYSTEM_PROMPT},
         {"role": "user", "content": state["question"]},

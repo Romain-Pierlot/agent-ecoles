@@ -82,6 +82,12 @@ class Secteur(StrEnum):
 MAX_LIGNES_SYNTHESE = 15        # limite de sécurité — évite d'envoyer des centaines de lignes au LLM de synthèse
 SPLIT_SECTEUR_N = 10            # nombre d'établissements par secteur affichés quand le secteur n'est pas précisé
 
+# --- Agent ReAct : comparaison multi-zones ---
+# Au-delà, l'agent devient trop lent/coûteux (timeout observé à 5 zones,
+# ~96s avant échec ; 3 zones fonctionne de façon fiable en ~25s, cf. session 8).
+# Bloqué en amont plutôt que de laisser l'agent essayer et échouer.
+MAX_ZONES_COMPAREES = 3
+
 # --- Résolution de noms d'établissements (sql_tool.py) ---
 SEUIL_CANDIDATS_AVANT_PRECISION = 5   # au-delà, l'entonnoir de désambiguïsation demande une précision géo
 PREFIXES_INSTITUTIONNELS = [

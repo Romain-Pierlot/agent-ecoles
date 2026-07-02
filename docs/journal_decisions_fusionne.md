@@ -1077,3 +1077,22 @@ Appliqués de façon constante v3 à v6.
 **Deuxième bug trouvé en testant** : l'avertissement sur le secteur privé s'affichait même quand seul le secteur public était montré à l'écran (les stats "privé" sont toujours calculées en interne par la fonction, même non affichées). `_etablissement_prive_present()` et `_ajouter_nuance_privee_si_besoin()` étendues pour recevoir `secteur_souhaite` et ne déclencher l'avertissement que si une donnée privée est réellement affichée, pas seulement calculée.
 
 **Conséquence** : `agent/tools/sql_tool.py`, `graph_router.py`. Validé sur les 2 cas (secteur précisé, secteur indifférent) + non-régression complète (classification 11/11, évolution nommée, split Bordeaux, question méthodologique pure, avertissement privé correct dans les 4 configurations de secteur).
+
+## S8.19 — Routage et robustesse de l'agent sur les questions multi-zones
+
+**Contexte** : test explicite demandé par l'utilisateur sur des cas extrêmes multi-zones ("moyenne à Lyon, Perpignan et Poitiers"), pour trancher un débat de fond — construire une capacité déterministe multi-zones, ou laisser l'agent gérer avec ses outils existants ?
+
+**Décision de principe** : ne pas construire de déterminisme multi-zones dédié. L'espace combinatoire (N zones × secteur × années × noms mélangés...) grossirait vite et referait à la main ce pour quoi l'agent existe (S1.5). Contrairement aux cas "1 nom + évolution" et "1 zone + agrégation" (S8.17/S8.18), aucune fragilité constatée ne justifiait cet investissement pour le cas multi-zones — seule la fréquence réelle était une hypothèse, jamais vérifiée.
+
+**Bug de routage trouvé et corrigé** : une question à plusieurs zones ("Lyon, Perpignan, Poitiers") était extraite comme une seule chaîne de zone combinée, échouant systématiquement au géocodage (une seule adresse attendue) — échec silencieux vers `clarification_geo`, pas d'aide réelle. Garde-fou déterministe : zone contenant une virgule → bascule vers `non_reconnu` (agent), qui peut appeler `recherche_geo` séparément par zone.
+
+**Découverte critique en testant ce nouveau routage** : l'agent plantait avec un timeout réel (`openai.APITimeoutError`, exception non gérée remontant jusqu'à l'utilisateur) sur 3 zones. Cause identifiée : `recherche_geo` retournait à l'agent le détail complet et non filtré de chaque établissement trouvé (36 Ko de JSON pour Lyon seul), jamais allégé contrairement au chemin déterministe (`_tronquer_resultats_geo`, déjà en place depuis les phases 1-2). Le contexte de conversation dépassait 57 Ko avant même le 2e tour.
+
+**Décision** :
+- Nouvelle fonction `_resultat_geo_pour_agent()` : ne renvoie à l'agent que les UAI + un résumé, jamais le détail individuel — même principe que `_tronquer_resultats_geo` côté déterministe.
+- Nouvel outil `calculer_moyenne` exposé à l'agent (appelle directement `calculer_moyenne_etablissements`, S8.18) — évite de faire deviner une agrégation par le Text-to-SQL général à chaque zone.
+- **Résultat mesuré** : 3 zones passe de "plantage" à 24.5s, résultat complet et correct. 5 zones reste en échec (timeout à 96s au lieu d'un plantage quasi instantané) — amélioration nette mais pas totale.
+
+**Garde-fou final, à la demande de l'utilisateur** : `MAX_ZONES_COMPAREES = 3` (config.py). Au-delà, `noeud_agent_react` bloque immédiatement (avant tout appel LLM) avec un message explicite invitant à reformuler — évite de payer le coût et la latence d'une tentative vouée à l'échec au-delà de la limite mesurée empiriquement.
+
+**Conséquence** : `config.py`, `graph_router.py`, `prompts/agent_react_system_prompt.py`. Validé sur 3 zones (fonctionne, 23-25s), 5 zones (bloqué en 2.5s, message clair), et non-régression complète (classification 11/11, hors-sujet, comparaison 2 zones, moyenne 1 zone).
