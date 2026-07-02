@@ -1127,3 +1127,20 @@ Appliqués de façon constante v3 à v6.
 **Validation** : extraction vérifiée directement sur des synonymes non couverts par l'ancienne regex — "les plus mauvais" → pire, "en difficulté" → pire, "globalement"/"en général" → agregation_demandee=true — tous corrects et propagés jusqu'à la réponse finale. Suite complète re-passée : classification 11/11, cahier de test end-to-end 22/22 sans régression (y compris le fix "pire" de S8.20, toujours correct).
 
 **Conséquence** : `config.py` (nouvel enum `OrdreSouhaite`), `graph_router.py` (suppression des 3 regex, ajout des 2 champs, module `re` retiré car plus utilisé), `prompts/router_system_prompt.py`.
+
+## S8.22 — Évolution multi-années sur une zone géographique (sans nom d'établissement)
+
+**Contexte** : deuxième trou identifié en S8.20 — "comment ont évolué les résultats des collèges de Lyon sur les 3 dernières années ?" (zone géo, pas de nom) était silencieusement traité comme une question de classement/agrégation sur la seule session la plus récente, sans aucun signal indiquant que la demande d'évolution avait été ignorée.
+
+**Pourquoi pas la même fonction que pour un établissement nommé (S8.17)** : `obtenir_evolution_etablissements` produit une ligne par (établissement, session) — viable pour 1-3 noms, illisible pour une zone entière (ex: 104 établissements x 4 sessions = 416 lignes). La bonne unité ici est l'évolution de la MOYENNE de la zone, peu importe son nombre d'établissements.
+
+**Décision** :
+- Nouvelle fonction déterministe `calculer_evolution_moyenne_zone()` (sql_tool.py) — même logique de calcul que `calculer_moyenne_etablissements` (S8.18), répétée pour chaque session au lieu de la seule la plus récente.
+- Déclenchée dans `noeud_sql` sur `evolution_demandee=true` (chemin géo, pas de nom résolu), **avant** l'agrégation simple : une évolution est elle-même une forme d'agrégation, par année plutôt que sur une session unique.
+- Affichage : un tableau par secteur (Session | Score moyen | Taux moyen | Note moyenne), respectant `secteur_souhaite` (un seul tableau si précisé, trois — global/public/privé — sinon), même principe que S8.18. Intro précisant explicitement le nombre d'années réellement disponibles en base, même logique de transparence que l'évolution nommée (S8.17).
+
+**Validation** : testé secteur précisé et indifférent, avertissement secteur privé correct dans les deux cas (absent si secteur=public, présent sinon). Suite complète re-passée sans régression : classification 11/11, cahier de test end-to-end 22/22 — y compris le cas qui avait motivé ce chantier, qui affiche désormais une vraie tendance par année au lieu d'une vue figée sur l'année en cours.
+
+**Point observé, non corrigé (documenté)** : un cas de test annexe ("Compare le collège Victor Hugo à Paris et à Lyon") est passé du chemin agent au chemin déterministe entre deux exécutions, à cause d'une extraction de zone "Paris et Lyon" (avec "et") au lieu de "Paris, Lyon" (avec virgule) — le garde-fou multi-zones (S8.19) ne détecte que les virgules. Résultat toujours sûr (demande de clarification, pas de donnée fausse), mais moins satisfaisant que le traitement par l'agent. Même famille de fragilité que le bug "pire" (S8.20/S8.21) mais sur l'extraction de zone plutôt que le tri — chantier séparé, non traité ici (cas très marginal, question artificiellement construite pour les tests).
+
+**Conséquence** : `agent/tools/sql_tool.py` (nouvelle fonction), `graph_router.py` (branchement + 3 nouvelles fonctions de template).

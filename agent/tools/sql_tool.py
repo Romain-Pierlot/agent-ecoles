@@ -381,6 +381,84 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
         return {"success": False, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": str(e)}
 
 
+def calculer_evolution_moyenne_zone(uai_filtre: list[str], n_sessions: int = None, type_etablissement: str = "Collège") -> dict:
+    """
+    Calcule, pour chaque session disponible (ou les n_sessions les plus
+    récentes), la moyenne du score/taux/note pour un ensemble d'établissements
+    déjà présélectionné (ex: par geo_tool) — moyenne globale ET détail par
+    secteur, PAR SESSION.
+
+    Utilisé pour une demande d'évolution/tendance sur une ZONE GÉOGRAPHIQUE
+    entière (pas un établissement nommé, cf. obtenir_evolution_etablissements
+    pour ce cas précis) : afficher une ligne par établissement par session
+    serait illisible sur une zone (ex: 104 établissements x 4 sessions = 416
+    lignes). On affiche l'évolution de la MOYENNE, peu importe le nombre
+    d'établissements dans la zone — même principe que calculer_moyenne_etablissements
+    (S8.18), répété par session au lieu de la seule session la plus récente.
+
+    Requête SQL déterministe, AUCUN appel LLM.
+
+    Retourne : {
+        "success": bool,
+        "sessions_disponibles": [str, ...],
+        "evolution": [ {"session": str, "global": {...}|None, "public": {...}|None, "prive": {...}|None}, ... ],
+        "error": str | None
+    }
+    (chaque bloc global/public/prive a la même structure que dans calculer_moyenne_etablissements)
+    """
+    if not uai_filtre:
+        return {"success": True, "sessions_disponibles": [], "evolution": [], "error": None}
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            toutes_sessions = [
+                row["session"] for row in conn.execute("SELECT DISTINCT session FROM scores ORDER BY session")
+            ]
+            sessions_ciblees = toutes_sessions[-n_sessions:] if n_sessions else toutes_sessions
+            placeholders = ",".join("?" for _ in uai_filtre)
+
+            def _moyenne(session, secteur_filtre: str = None):
+                filtre_secteur_sql = "AND e.secteur = ?" if secteur_filtre else ""
+                params = [*uai_filtre, type_etablissement, session]
+                if secteur_filtre:
+                    params.append(secteur_filtre)
+                row = conn.execute(f"""
+                    SELECT COUNT(*) AS nb_etablissements, AVG(s.score_principal) AS score_moyen,
+                           AVG(v.brevet_taux_reussite_general) AS taux_moyen,
+                           AVG(v.brevet_note_ecrit_general) AS note_moyenne
+                    FROM etablissements e
+                    JOIN scores s ON e.uai = s.uai
+                    JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+                    WHERE e.uai IN ({placeholders})
+                      AND e.type_etablissement = ?
+                      AND s.session = ?
+                      {filtre_secteur_sql}
+                """, params).fetchone()
+                if not row or not row["nb_etablissements"]:
+                    return None
+                return dict(row)
+
+            evolution = [
+                {
+                    "session": session,
+                    "global": _moyenne(session),
+                    "public": _moyenne(session, Secteur.PUBLIC.value),
+                    "prive": _moyenne(session, Secteur.PRIVE.value),
+                }
+                for session in sessions_ciblees
+            ]
+        finally:
+            conn.close()
+        return {"success": True, "sessions_disponibles": toutes_sessions, "evolution": evolution, "error": None}
+    except Exception as e:
+        return {"success": False, "sessions_disponibles": [], "evolution": [], "error": str(e)}
+
+
 def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = None, type_etablissement: str = "Collège") -> dict:
     """
     Retourne les données chiffrées (score, taux, note, VA) d'une liste

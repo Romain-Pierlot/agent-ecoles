@@ -14,6 +14,7 @@ from agent.tools.rag_tool import search_rag
 from agent.tools.sql_tool import (
     recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision,
     rechercher_top_par_secteur, obtenir_evolution_etablissements, calculer_moyenne_etablissements,
+    calculer_evolution_moyenne_zone,
 )
 from agent.tools.geo_tool import recherche_geo
 
@@ -287,6 +288,22 @@ def noeud_sql(state: AgentState) -> AgentState:
         uai_filtre = [e["uai"] for e in state["resultats_geo"]["etablissements"]]
         if not uai_filtre:
             state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
+            return state
+        if state.get("evolution_demandee"):
+            # Zone géo (pas de nom résolu) + demande d'évolution multi-années :
+            # agrégation PAR SESSION (cf. calculer_evolution_moyenne_zone,
+            # S8.22) plutôt qu'une ligne par établissement par session —
+            # 104 établissements x 4 ans serait illisible. Priorité sur
+            # l'agrégation simple ci-dessous : une évolution EST une forme
+            # d'agrégation (par année plutôt que sur une seule session).
+            resultat_evolution_zone = calculer_evolution_moyenne_zone(uai_filtre)
+            state["resultats_sql"] = {
+                "success": resultat_evolution_zone["success"],
+                "evolution_geo": True,
+                "evolution": resultat_evolution_zone["evolution"],
+                "sessions_disponibles": resultat_evolution_zone["sessions_disponibles"],
+                "error": resultat_evolution_zone["error"],
+            }
             return state
         if state["agregation_demandee"]:
             # Moyenne/agrégation demandée sur une zone : requête déterministe
@@ -817,6 +834,69 @@ def _generer_intro_agregation_template(resultats_geo):
     return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone} :"
 
 
+def _generer_tableau_evolution_secteur(evolution, cle_secteur, label):
+    """
+    Un tableau (une ligne par session) pour un secteur donné (global/public/
+    prive) — None si aucune session n'a de données pour ce secteur.
+    """
+    lignes = []
+    for bloc in evolution:
+        stats = bloc.get(cle_secteur)
+        if not stats:
+            continue
+        score = stats.get("score_moyen")
+        taux = stats.get("taux_moyen")
+        note = stats.get("note_moyenne")
+        score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
+        taux_str = f"{taux:.1f}%" if isinstance(taux, (int, float)) else "?"
+        note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
+        lignes.append(f"| {bloc['session']} | {score_str} | {taux_str} | {note_str} |")
+    if not lignes:
+        return None
+    entete = "| Session | Score moyen | Taux de réussite moyen | Note écrit moyenne |\n|---|---|---|---|"
+    return f"**{label}**\n\n{entete}\n" + "\n".join(lignes)
+
+
+def _generer_tableau_evolution_geo(resultats_sql, secteur_souhaite):
+    """
+    Évolution de la moyenne (pas ligne par établissement) sur plusieurs
+    sessions, pour une zone géographique — cf. calculer_evolution_moyenne_zone
+    (S8.22). Même logique de sélection que l'agrégation simple (S8.18) :
+    secteur précisé -> uniquement ce secteur, sinon global + détail par
+    secteur.
+    """
+    if not resultats_sql or not resultats_sql.get("success"):
+        return None
+    evolution = resultats_sql.get("evolution") or []
+    if secteur_souhaite == SecteurSouhaite.PUBLIC:
+        return _generer_tableau_evolution_secteur(evolution, "public", "Établissements publics")
+    if secteur_souhaite == SecteurSouhaite.PRIVE:
+        return _generer_tableau_evolution_secteur(evolution, "prive", "Établissements privés")
+    blocs = [
+        _generer_tableau_evolution_secteur(evolution, "global", "Moyenne globale (tous secteurs confondus)"),
+        _generer_tableau_evolution_secteur(evolution, "public", "Établissements publics"),
+        _generer_tableau_evolution_secteur(evolution, "prive", "Établissements privés"),
+    ]
+    return "\n\n".join(b for b in blocs if b) or None
+
+
+def _generer_intro_evolution_geo_template(resultats_geo, sessions_disponibles):
+    """
+    Intro 100% template pour l'évolution géo — précise explicitement le
+    nombre d'années réellement disponibles (même principe de transparence
+    que pour l'évolution nommée, S8.17 : ne jamais laisser croire que "3
+    dernières années" a été honoré si la base n'en a pas autant).
+    """
+    zone = _zone_affichage(resultats_geo)
+    if not sessions_disponibles:
+        return f"Voici l'évolution des moyennes pour les établissements trouvés autour de {zone} :"
+    sessions_txt = ", ".join(str(s) for s in sessions_disponibles)
+    return (
+        f"Voici l'évolution des moyennes pour les établissements trouvés autour de {zone}, "
+        f"sur les {len(sessions_disponibles)} années disponibles en base ({sessions_txt}) :"
+    )
+
+
 def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
@@ -826,6 +906,11 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
 
     Retourne (tableau: str|None, intro: str).
     """
+    if resultats_sql and resultats_sql.get("evolution_geo"):
+        tableau = _generer_tableau_evolution_geo(resultats_sql, secteur_souhaite)
+        intro = _generer_intro_evolution_geo_template(resultats_geo, resultats_sql.get("sessions_disponibles", []))
+        return tableau, intro
+
     if resultats_sql and resultats_sql.get("agregation_geo"):
         tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite)
         intro = _generer_intro_agregation_template(resultats_geo)
@@ -937,6 +1022,13 @@ def _etablissement_prive_present(resultats_sql, secteur_souhaite=None):
             return False
         prive = resultats_sql.get("prive")
         return bool(prive and prive.get("nb_etablissements", 0) > 0)
+    if resultats_sql.get("evolution_geo"):
+        if secteur_souhaite == SecteurSouhaite.PUBLIC:
+            return False
+        return any(
+            bloc.get("prive") and bloc["prive"].get("nb_etablissements", 0) > 0
+            for bloc in resultats_sql.get("evolution", [])
+        )
     lignes = resultats_sql.get("resultats", [])
     return any(
         "nom" in row and row.get("secteur", Secteur.PRIVE) == Secteur.PRIVE
@@ -1053,11 +1145,14 @@ def noeud_synthese(state: AgentState) -> AgentState:
     tableau, intro = _preparer_affichage_resultats(
         resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state.get("ordre_souhaite")
     )
-    # Forme "moyenne/agrégation" : la clé du score n'est pas "score_principal"
-    # (c'est "score_moyen", agrégé) — _lignes_contiennent ne la détecterait
-    # pas, donc court-circuit explicite : le score moyen est toujours
-    # affiché dès que ce type de tableau existe.
-    est_agregation_geo = bool(resultats_sql_tronques and resultats_sql_tronques.get("agregation_geo"))
+    # Forme "moyenne/agrégation" (simple ou par session, cf. evolution_geo) :
+    # la clé du score n'est pas "score_principal" (c'est "score_moyen",
+    # agrégé) — _lignes_contiennent ne la détecterait pas, donc court-circuit
+    # explicite : le score moyen est toujours affiché dès que ce type de
+    # tableau existe.
+    est_agregation_geo = bool(resultats_sql_tronques and (
+        resultats_sql_tronques.get("agregation_geo") or resultats_sql_tronques.get("evolution_geo")
+    ))
     tableau_contient_va = _lignes_contiennent(resultats_sql_tronques, "badge_va")
     tableau_contient_score = est_agregation_geo or _lignes_contiennent(resultats_sql_tronques, "score_principal")
 
