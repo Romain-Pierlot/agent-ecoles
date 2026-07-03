@@ -37,17 +37,7 @@ audit_chunks_rapport.csv
 
 # Résultats de runs du harness (générés, pas du code source)
 rag/resultats/
-
-# Données sources brutes (volumineuses, publiques, retéléchargeables)
-data/*.csv
-
-# Exports et fichiers de debug temporaires
-chunks_export.txt
-data/chunks_inspection.json
-audit_chunks_rapport.csv
-
-# Résultats de runs du harness (générés, pas du code source)
-rag/resultats/
+rag/resultats_harness_history.json
 
 # Fichiers de configuration et de suivi de session — usage local uniquement
 CLAUDE.md

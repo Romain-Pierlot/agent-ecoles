@@ -1,5 +1,5 @@
 # ============================================================
-# EduScope — Configuration centrale
+# agent-ecoles — Configuration centrale
 # La vérité est dans le code. Toutes les constantes ici.
 # ============================================================
 import os
@@ -93,6 +93,15 @@ class OrdreSouhaite(StrEnum):
 # --- Synthèse de réponse (graph_router.py) ---
 MAX_LIGNES_SYNTHESE = 15        # limite de sécurité — évite d'envoyer des centaines de lignes au LLM de synthèse
 SPLIT_SECTEUR_N = 10            # nombre d'établissements par secteur affichés quand le secteur n'est pas précisé
+
+# --- Mémoire de conversation (graph_router.py) ---
+# Nombre de tours passés dans le prompt du routeur pour interpréter une
+# relance ("et son adresse ?"). Choix validé avec l'utilisateur : le coût
+# réel (mesuré à ~0,0003$/appel pour 5 tours en gpt-4o-mini) est négligeable
+# à cette échelle, l'état de session (zone/noms/UAI déjà résolus) couvre par
+# ailleurs la continuité au-delà de cette fenêtre — pas de résumé/compaction
+# pour l'instant, ajouté plus tard si l'usage réel le justifie.
+HISTORIQUE_MAX_TOURS = 5
 
 # --- Agent ReAct : comparaison multi-zones ---
 # Au-delà, l'agent devient trop lent/coûteux (timeout observé à 5 zones,

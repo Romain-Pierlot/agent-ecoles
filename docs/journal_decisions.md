@@ -848,7 +848,7 @@ Appliqués de façon constante v3 à v6.
 
 **Pourquoi** : le gain de vitesse est réel, mais le risque identifié est la perte du garde-fou de compréhension qu'impose le copier-coller manuel (lecture attentive de chaque sortie, ce qui a permis de détecter plusieurs bugs réels cette session). `CLAUDE.md` vise à préserver la discipline pédagogique malgré l'autonomie d'exécution plus large de l'outil.
 
-**Rejeté** : bascule complète sans cadrage — jugée risquée pour un profil non-développeur dont l'objectif est la compréhension, pas seulement la livraison. Révise la position prise en S3.D16 (maintien du chat, refusé alors car "Claude Code ne résout pas davantage le problème") — le contexte a changé : le goulot d'étranglement identifié en session 3 était la perte de contexte entre sessions, celui identifié en session 7 est la friction du copier-coller de fichiers volumineux au sein même d'une session active.
+**Rejeté** : bascule complète sans cadrage — jugée risquée sans garde-fous explicites, l'objectif du projet étant la compréhension de chaque décision, pas seulement la vitesse de livraison. Révise la position prise en S3.D16 (maintien du chat, refusé alors car "Claude Code ne résout pas davantage le problème") — le contexte a changé : le goulot d'étranglement identifié en session 3 était la perte de contexte entre sessions, celui identifié en session 7 est la friction du copier-coller de fichiers volumineux au sein même d'une session active.
 
 **Conséquence** : `CLAUDE.md` et les documents de transition de session sont volontairement exclus du suivi git (`.gitignore`) — fichiers de méthode de travail personnelle, pas des artefacts du projet à exposer publiquement sur le repo GitHub.
 
@@ -1259,3 +1259,31 @@ Appliqués de façon constante v3 à v6.
 **Validation** : formulation de clôture correcte sur un cas "introuvable" ; suite complète sans régression (classification 11/11, cahier e2e 22/22).
 
 **Conséquence** : `graph_router.py` (`noeud_clarification_noms`).
+
+## S9.1 — Mémoire de conversation générale (routeur) + report du contexte sur continuation
+
+**Contexte** : pivot du projet vers une mise en production réelle, multi-utilisateurs, plutôt qu'un exercice d'apprentissage isolé (cf. décision utilisateur hors code). Jusqu'ici, chaque question était traitée indépendamment — une relance sans répéter le nom ou la zone ("et son adresse ?", "et leur VA est-elle fiable ?") était traitée comme une question vide de sens, faute de toute mémoire entre deux appels du graphe.
+
+**Décision** : nouveau champ `nouveau_sujet` (bool) extrait par le routeur, dans le même appel LLM fusionné que les champs existants — true si la question ouvre un sujet sans lien avec l'historique, false si elle continue sur les mêmes établissements/zone. Historique des `HISTORIQUE_MAX_TOURS` (5) derniers tours injecté comme de vrais tours de conversation (rôles user/assistant) dans ce même appel, pour que le LLM interprète les relances avec ce contexte. Sur continuation (`nouveau_sujet=false`), `zone_geo`/`noms_etablissements`/`secteur_souhaite` retombent sur la valeur du tour précédent si le LLM ne les extrait pas explicitement du tour courant — même principe "LLM interprète, code sécurise le repli" que `requete_rag_nuance` (S8.30/S9.x).
+
+**Pourquoi 5 tours et pas plus** : coût mesuré négligeable à cette échelle (~0,0003$/appel en gpt-4o-mini pour 5 tours, contre ~0,00013$/appel sans historique), donc pas un facteur limitant réel — 5 retenu car l'état de session (zone/noms déjà résolus) couvre par ailleurs la continuité factuelle au-delà de cette fenêtre pour le cas d'usage identifié (une comparaison, puis plusieurs relances dessus, puis une nouvelle comparaison).
+
+**Rejeté** : résumé/compaction de l'historique au-delà de 5 tours (sur-ingénierie à ce stade, aucun usage réel ne le justifie encore — pratique standard des produits de chat, à ajouter plus tard si le besoin se confirme) ; report explicite d'`uai_resolus`/`resolution_noms` sur continuation (immédiatement écrasé par `noeud_resolution_noms`, qui tourne de toute façon systématiquement après le routeur pour cette catégorie — la résolution SQL sous-jacente est déterministe et bon marché, pas un appel LLM, donc rien à économiser en la refaisant) ; tenter de sauter l'appel LLM du routeur sur les relances "évidentes" (risque de louper un vrai changement de sujet, pour un gain de coût négligeable aux volumes actuels).
+
+**Levier de coût non activé, à garder en tête si le trafic augmente** : la mise en cache automatique de préfixe d'OpenAI (`cached input`, -50% sur la partie mise en cache du prompt) est pertinente ici car l'historique s'ajoute à la fin d'un préfixe stable (prompt système + tours précédents identiques d'un appel au suivant) — non nécessaire à l'échelle actuelle, mais à réévaluer si le coût du routeur devient un sujet réel.
+
+**Conséquence** : `config.py` (`HISTORIQUE_MAX_TOURS`), `prompts/router_system_prompt.py`, `graph_router.py` (`AgentState`, `noeud_router`, nouvelles fonctions `nouvelle_session()`/`poser_question()` réutilisables par toute future interface).
+
+## S9.2 — Deux bugs trouvés en testant la mémoire de conversation
+
+**Bug 1 — tableau incomplet sur une relance sans mot de comparaison** : `noeud_sql` appelait `recherche_sql(state["question"], ...)` (Text-to-SQL libre) même pour une comparaison d'établissements déjà résolus par nom. Piloté par le seul texte du tour courant, il régénère un jeu de colonnes différent selon le phrasé exact — "Et leur valeur ajoutée est-elle fiable ?" faisait ressortir les colonnes delta VA au lieu des valeurs brutes attendues par le gabarit d'affichage, affichant `?` à la place du taux de réussite et de la note écrit (visibles et corrects au tour précédent, sur la même donnée).
+
+**Décision (bug 1)** : nouvelle fonction déterministe `rechercher_etablissements_par_uai()` (`sql_tool.py`) — même principe que S8.17/S8.18/S8.22 (remplacer le Text-to-SQL libre par une requête déterministe dès que le besoin est fixe, ici : afficher le tableau standard pour des UAI déjà résolus). Câblée dans `noeud_sql` pour le cas standard (hors évolution, qui a déjà sa propre fonction déterministe depuis S8.17).
+
+**Bug 2 — crash sur un cas limite (5 zones géographiques)** : le LLM du routeur a renvoyé `"agregation_demandee"` comme valeur du champ `categorie` (JSON syntaxiquement valide, valeur sémantiquement incohérente — le nom d'un autre champ du schéma au lieu d'une catégorie valide). `Categorie(args["categorie"])` levait une exception non rattrapée, faisant planter tout le graphe au lieu d'afficher le message de blocage prévu ("je peux comparer jusqu'à 3 zones..."). Isolé comme provoqué par l'ajout du champ `nouveau_sujet` au schéma déjà chargé (12 champs requis) : reproduit de façon systématique (3/3) avec le nouveau schéma sur ce cas, absent à 3/3 avec le schéma d'avant cette session.
+
+**Décision (bug 2)** : nouvelle fonction `_enum_securise()` (`graph_router.py`) — repli sur une valeur par défaut sûre (`Categorie.NON_RECONNU`, `SecteurSouhaite.INDIFFERENT`, `OrdreSouhaite.INDIFFERENT`) plutôt que de laisser planter le graphe sur une sortie LLM incohérente, appliquée aux 3 conversions d'enum du routeur. Un système en production ne doit jamais planter sur une réponse LLM malformée, même rare — dégrader proprement (ici : `non_reconnu` → agent ReAct, qui applique déjà le garde-fou multi-zones) plutôt que de renvoyer une erreur brute à l'utilisateur.
+
+**Validation** : cahier de test complet re-passé après les deux fixs — 22/22 sans exception (21/22 avant le fix du bug 2, le cas "5 zones" plantait) ; scénario de mémoire à 3 tours revérifié, tableau cohérent entre les tours.
+
+**Conséquence** : `agent/tools/sql_tool.py` (`rechercher_etablissements_par_uai`), `graph_router.py` (`noeud_sql`, `_enum_securise`).

@@ -1,4 +1,4 @@
-"""sql_tool.py — Outil Text-to-SQL pour EduScope (V7 — précision limitée à ville/département, code postal retiré)"""
+"""sql_tool.py — Outil Text-to-SQL pour agent-ecoles (V7 — précision limitée à ville/département, code postal retiré)"""
 
 import sqlite3
 import os
@@ -325,6 +325,62 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": True, "session_utilisee": session, "error": None, **resultats_par_secteur}
     except Exception as e:
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
+
+
+def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement: str = "Collège") -> dict:
+    """
+    Retourne le tableau standard (score, VA, taux de réussite, note écrit —
+    valeurs brutes) pour une liste d'établissements déjà résolue par nom
+    (cf. rechercher_etablissements_par_nom). Requête SQL déterministe,
+    AUCUN appel LLM.
+
+    Remplace l'usage de recherche_sql() (Text-to-SQL général) pour ce cas :
+    piloté par le texte brut de la question, il régénère un jeu de colonnes
+    différent selon le phrasé exact du tour courant (ex: "leur valeur
+    ajoutée est-elle fiable ?" faisait ressortir les colonnes delta VA au
+    lieu des valeurs brutes attendues par le gabarit d'affichage) — cassant
+    le tableau dès qu'une relance ne répète pas les mots de la question
+    initiale (mémoire de conversation générale).
+
+    Retourne : {
+        "success": bool,
+        "session_utilisee": str | None,
+        "resultats": [ {uai, nom, commune, secteur, score_principal, badge_va,
+                         brevet_taux_reussite_general, brevet_note_ecrit_general}, ... ],
+        "error": str | None
+    }
+    """
+    if not uai_filtre:
+        return {"success": True, "session_utilisee": None, "resultats": [], "error": None}
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            session = conn.execute("SELECT MAX(session) AS s FROM scores").fetchone()["s"]
+            if session is None:
+                return {"success": True, "session_utilisee": None, "resultats": [], "error": None}
+
+            placeholders = ",".join("?" for _ in uai_filtre)
+            rows = conn.execute(f"""
+                SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
+                       v.brevet_taux_reussite_general, v.brevet_note_ecrit_general
+                FROM etablissements e
+                JOIN scores s ON e.uai = s.uai
+                JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+                WHERE e.uai IN ({placeholders})
+                  AND e.type_etablissement = ?
+                  AND s.session = ?
+                ORDER BY s.score_principal DESC
+            """, (*uai_filtre, type_etablissement, session)).fetchall()
+        finally:
+            conn.close()
+        return {"success": True, "session_utilisee": session, "resultats": [dict(row) for row in rows], "error": None}
+    except Exception as e:
+        return {"success": False, "session_utilisee": None, "resultats": [], "error": str(e)}
 
 
 def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège") -> dict:

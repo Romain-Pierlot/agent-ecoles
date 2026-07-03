@@ -58,4 +58,19 @@ sur un ensemble d'établissements plutôt qu'une liste individuelle
 (agregation_demandee = true) — ex: "la moyenne", "en moyenne", "en
 général", "globalement", "dans l'ensemble". false si la question porte sur
 des établissements individuels.
+
+Si un historique de conversation précède la question : utilise-le pour
+l'interpréter. Une relance qui ne répète pas explicitement une zone, un nom
+d'établissement ou un secteur déjà mentionnés continue généralement de
+porter sur le même contexte — essaie de déduire zone/noms_etablissements/
+secteur_souhaite de l'historique si tu peux le faire avec confiance (ex:
+"et son adresse ?" après avoir parlé du collège Aristide Briand ->
+noms_etablissements = ["Aristide Briand"]). Si tu ne peux pas déduire ces
+champs avec confiance, laisse-les vides plutôt que de deviner — le système
+reprendra automatiquement le contexte précédent.
+
+Extrais aussi si la question ouvre un sujet sans lien avec l'historique
+(nouveau_sujet = true) ou si elle continue de porter sur les mêmes
+établissements/zone que le tour précédent (nouveau_sujet = false). true par
+défaut s'il n'y a pas d'historique.
 """

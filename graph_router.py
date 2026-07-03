@@ -13,14 +13,14 @@ from langsmith.wrappers import wrap_openai
 from agent.tools.rag_tool import search_rag
 from agent.tools.sql_tool import (
     recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision,
-    rechercher_top_par_secteur, obtenir_evolution_etablissements, calculer_moyenne_etablissements,
-    calculer_evolution_moyenne_zone, resoudre_zone_administrative,
+    rechercher_top_par_secteur, rechercher_etablissements_par_uai, obtenir_evolution_etablissements,
+    calculer_moyenne_etablissements, calculer_evolution_moyenne_zone, resoudre_zone_administrative,
 )
 from agent.tools.geo_tool import recherche_geo, rechercher_etablissements_region_departement
 
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
-    MAX_ZONES_COMPAREES, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
+    MAX_ZONES_COMPAREES, HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
@@ -48,6 +48,8 @@ class AgentState(TypedDict):
     noms_etablissements: Optional[list]
     resolution_noms: Optional[dict]
     uai_resolus: Optional[list]
+    historique: Optional[list]
+    nouveau_sujet: bool
 
 
 ROUTER_TOOL_SCHEMA = {
@@ -106,41 +108,102 @@ ROUTER_TOOL_SCHEMA = {
                     "type": "boolean",
                     "description": "true si la question demande une moyenne ou une statistique agrégée sur un ensemble d'établissements (ex: \"la moyenne\", \"en moyenne\", \"en général\", \"globalement\", \"dans l'ensemble\") plutôt qu'une liste d'établissements individuels. false sinon.",
                 },
+                "nouveau_sujet": {
+                    "type": "boolean",
+                    "description": "Uniquement pertinent si un historique de conversation précède la question. true si la question ouvre un sujet sans lien avec l'historique (nouvelle zone, nouveaux établissements, sujet différent). false si elle continue de porter sur les mêmes établissements/zone que le tour précédent (ex: \"et son adresse ?\", \"et sur les 3 dernières années ?\", relance implicite sans répéter le nom ou la ville). true par défaut s'il n'y a pas d'historique.",
+                },
             },
             "required": [
                 "categorie", "zone_detectee", "zone", "noms_etablissements",
                 "secteur_souhaite", "nuance_methodologique_demandee", "requete_rag_nuance",
                 "evolution_demandee", "nb_annees_demandees", "ordre_souhaite", "agregation_demandee",
+                "nouveau_sujet",
             ],
         },
     },
 }
 
 
+def _enum_securise(cls, valeur, defaut):
+    """
+    Conversion défensive : le routeur reçoit du JSON généré par un LLM, pas
+    une donnée de confiance. Repli sur `defaut` plutôt que de laisser
+    planter le graphe si le modèle renvoie une valeur incohérente (observé
+    sur un cas limite volontairement difficile — 5 zones géographiques dans
+    une seule question — où le LLM a renvoyé le NOM d'un autre champ du
+    schéma comme valeur de "categorie").
+    """
+    try:
+        return cls(valeur)
+    except ValueError:
+        return defaut
+
+
 def noeud_router(state: AgentState) -> AgentState:
+    historique = (state.get("historique") or [])[-HISTORIQUE_MAX_TOURS:]
+    messages = [{"role": "system", "content": ROUTER_SYSTEM_PROMPT}]
+    for tour in historique:
+        messages.append({"role": "user", "content": tour["question"]})
+        messages.append({"role": "assistant", "content": tour["reponse"]})
+    messages.append({"role": "user", "content": state["question"]})
+
     response = client.chat.completions.create(
         model=LLM_MODEL, temperature=0,
-        messages=[
-            {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
-            {"role": "user", "content": state["question"]},
-        ],
+        messages=messages,
         tools=[ROUTER_TOOL_SCHEMA],
         tool_choice={"type": "function", "function": {"name": "classifier_question"}},
         timeout=LLM_TIMEOUT_SECONDS,
     )
     args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
+
+    # Valeurs du tour précédent, pour le repli en cas de continuation
+    # (mémoire de conversation générale) : capturées AVANT d'être écrasées
+    # ci-dessous.
+    zone_precedente = state.get("zone_geo")
+    noms_precedents = state.get("noms_etablissements") or []
+    secteur_precedent = state.get("secteur_souhaite")
+
     # Catégorie, zone géographique, noms d'établissements, secteur et nuance
     # méthodologique extraits en un seul appel LLM fusionné — évite des
     # appels séparés (gain de latence).
-    state["categorie"] = Categorie(args["categorie"])
-    state["zone_geo"] = args["zone"] if args.get("zone_detectee") else None
-    state["noms_etablissements"] = args.get("noms_etablissements") or []
-    state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
+    state["categorie"] = _enum_securise(Categorie, args["categorie"], Categorie.NON_RECONNU)
+    zone_extraite = args["zone"] if args.get("zone_detectee") else None
+    noms_extraits = args.get("noms_etablissements") or []
+    secteur_extrait = _enum_securise(SecteurSouhaite, args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT, SecteurSouhaite.INDIFFERENT)
+
+    # nouveau_sujet n'a de sens que s'il y a un historique — sans historique,
+    # rien à reporter, pas besoin de faire trancher le LLM sur une évidence.
+    nouveau_sujet = bool(args.get("nouveau_sujet", True)) if historique else True
+    state["nouveau_sujet"] = nouveau_sujet
+
+    if nouveau_sujet:
+        state["zone_geo"] = zone_extraite
+        state["noms_etablissements"] = noms_extraits
+        state["secteur_souhaite"] = secteur_extrait
+        state["uai_resolus"] = None
+        state["resolution_noms"] = None
+    else:
+        # Continuation : le LLM interprète le texte (tâche d'interprétation
+        # légitime), le code sécurise le repli si un champ ressort vide —
+        # même principe que requete_rag_nuance. uai_resolus/resolution_noms
+        # ne sont volontairement PAS reportés ici : noeud_resolution_noms
+        # tourne de toute façon systématiquement après ce nœud pour cette
+        # catégorie et referait le calcul — un report ici serait aussitôt
+        # écrasé. La résolution SQL est déterministe et bon marché (pas un
+        # appel LLM) : la refaire à l'identique sur les mêmes noms n'a pas
+        # de coût réel à éviter (cf. discussion sur les micro-optimisations
+        # disproportionnées pour ce projet).
+        state["zone_geo"] = zone_extraite or zone_precedente
+        state["noms_etablissements"] = noms_extraits or noms_precedents
+        state["secteur_souhaite"] = secteur_extrait if secteur_extrait != SecteurSouhaite.INDIFFERENT else (secteur_precedent or SecteurSouhaite.INDIFFERENT)
+        state["uai_resolus"] = None
+        state["resolution_noms"] = None
+
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
     state["requete_rag_nuance"] = args.get("requete_rag_nuance") or None
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
     state["nb_annees_demandees"] = args.get("nb_annees_demandees") or None
-    state["ordre_souhaite"] = OrdreSouhaite(args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT)
+    state["ordre_souhaite"] = _enum_securise(OrdreSouhaite, args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT, OrdreSouhaite.INDIFFERENT)
     state["agregation_demandee"] = bool(args.get("agregation_demandee"))
 
     # Garde-fou déterministe (pas un patch de prompt) : comparaison_etablissements_nommes
@@ -382,6 +445,20 @@ def noeud_sql(state: AgentState) -> AgentState:
                 "error": resultat_evolution["error"],
             }
             return state
+        # Cas standard (pas d'évolution) : requête déterministe plutôt que
+        # Text-to-SQL général — celui-ci régénère un jeu de colonnes
+        # différent selon le phrasé exact du tour courant, ce qui casse le
+        # tableau dès qu'une relance ne répète pas les mots de la question
+        # initiale (cf. mémoire de conversation générale).
+        resultat_nommes = rechercher_etablissements_par_uai(uai_filtre)
+        state["resultats_sql"] = {
+            "success": resultat_nommes["success"],
+            "resultats": resultat_nommes["resultats"],
+            "nb_resultats": len(resultat_nommes["resultats"]),
+            "session_utilisee": resultat_nommes["session_utilisee"],
+            "error": resultat_nommes["error"],
+        }
+        return state
     state["resultats_sql"] = recherche_sql(state["question"], uai_filtre=uai_filtre)
     return state
 
@@ -1360,6 +1437,51 @@ def construire_graphe():
     graph.add_edge("agent_react", END)  # réponse générée directement par l'agent, pas de re-templating
     graph.add_edge("synthese", END)
     return graph.compile()
+
+
+def nouvelle_session() -> AgentState:
+    """
+    État initial d'une session de conversation multi-tours. À utiliser avec
+    poser_question() plutôt qu'un app.invoke() direct dès qu'on veut que le
+    routeur puisse tenir compte des tours précédents (mémoire de
+    conversation générale). Réutilisable par n'importe quelle interface
+    future (test, CLI, backend web) — la logique de session ne doit pas être
+    réécrite à chaque nouvel appelant.
+    """
+    return {
+        "question": None, "dc_niveau": "accessible", "categorie": None, "zone_geo": None,
+        "secteur_souhaite": None, "nuance_methodologique_demandee": False,
+        "requete_rag_nuance": None, "evolution_demandee": False, "nb_annees_demandees": None,
+        "ordre_souhaite": None, "agregation_demandee": False,
+        "resultats_geo": None, "resultats_sql": None, "resultats_rag": None,
+        "reponse_finale": None, "tours_agent": 0,
+        "noms_etablissements": [], "resolution_noms": None, "uai_resolus": None,
+        "historique": [], "nouveau_sujet": True,
+    }
+
+
+def poser_question(app, etat_session: AgentState, question: str) -> AgentState:
+    """
+    Pose une question dans une session existante : réinitialise les champs
+    propres à CE tour (résultats, réponse), invoque le graphe, puis met à
+    jour l'historique (ajout du tour, troncature à HISTORIQUE_MAX_TOURS —
+    la troncature dans noeud_router s'applique déjà à la lecture, mais la
+    faire aussi ici évite que l'historique en mémoire grossisse sans borne
+    au fil d'une longue session).
+    """
+    etat_session["question"] = question
+    etat_session["resultats_geo"] = None
+    etat_session["resultats_sql"] = None
+    etat_session["resultats_rag"] = None
+    etat_session["reponse_finale"] = None
+    etat_session["tours_agent"] = 0
+
+    nouvel_etat = app.invoke(etat_session)
+    nouvel_etat["historique"] = (nouvel_etat.get("historique") or []) + [
+        {"question": question, "reponse": nouvel_etat["reponse_finale"]}
+    ]
+    nouvel_etat["historique"] = nouvel_etat["historique"][-HISTORIQUE_MAX_TOURS:]
+    return nouvel_etat
 
 
 if __name__ == "__main__":

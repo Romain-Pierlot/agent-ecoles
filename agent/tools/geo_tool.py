@@ -1,4 +1,4 @@
-"""geo_tool.py — Outil de géolocalisation pour EduScope (V2 — clés harmonisées)"""
+"""geo_tool.py — Outil de géolocalisation pour agent-ecoles (V2 — clés harmonisées)"""
 
 import sqlite3
 import requests

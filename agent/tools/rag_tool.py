@@ -1,5 +1,5 @@
 """
-rag_tool.py — Outil RAG pour l'agent EduScope
+rag_tool.py — Outil RAG pour agent-ecoles
 Retrieval dans ChromaDB et retour des chunks bruts au router LangGraph.
 
 Rôle dans l'architecture :

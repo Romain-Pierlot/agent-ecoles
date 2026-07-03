@@ -1,6 +1,6 @@
 """
 ingest.py — Script d'ingestion CSV → SQLite
-EduScope / agent-ecoles
+agent-ecoles
 
 Décisions d'architecture documentées :
 - On stocke TOUS les établissements (collèges + lycées) — filtre par type dans les requêtes

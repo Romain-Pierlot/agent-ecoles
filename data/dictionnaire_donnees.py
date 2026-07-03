@@ -424,7 +424,7 @@ DICTIONNAIRE = {
         "description": "Valeur ajoutée du taux de réussite au brevet voie générale. Écart entre le taux de réussite observé et le taux attendu compte tenu du profil de chaque élève (âge, IPS, niveau scolaire à l'entrée en 6ème via évaluations exhaustives, sexe) et des caractéristiques de l'établissement. Une VA positive signifie que le collège obtient de meilleurs résultats que ce qu'on attendrait pour ce profil d'élèves. Une VA négative ne signifie pas que les élèves régressent — elle indique seulement que le collège est en dessous de la moyenne des établissements comparables.",
         "source": "IVAC DEPP — Guide méthodologique IVAC 2025",
         "synonymes": ["valeur ajoutée", "VA", "plus-value pédagogique", "apport du collège", "ce que le collège apporte"],
-        "notes": "IMPORTANT : calculée UNIQUEMENT pour la série générale du brevet — pas pour la série professionnelle. Absente (NULL) si effectif insuffisant (<40 candidats en général, ou données manquantes >25%). Cette métrique est au cœur d'EduScope.",
+        "notes": "IMPORTANT : calculée UNIQUEMENT pour la série générale du brevet — pas pour la série professionnelle. Absente (NULL) si effectif insuffisant (<40 candidats en général, ou données manquantes >25%). Cette métrique est au cœur d'agent-ecoles.",
     },
 
     "ivac.brevet_note_ecrit_general": {
@@ -516,15 +516,15 @@ DICTIONNAIRE = {
     # ================================================================
 
     "scores.score_principal": {
-        "description": "Score EduScope sur 100. Calculé comme la somme pondérée du taux de réussite normalisé (60%) et de la note à l'écrit normalisée (40%). La normalisation min/max est appliquée par session pour ramener chaque métrique sur une échelle 0-100 par rapport aux établissements de la même session. Score absent (NULL) si taux_reussite ou note_ecrit manquants.",
-        "source": "Calculé par EduScope",
+        "description": "Score agent-ecoles sur 100. Calculé comme la somme pondérée du taux de réussite normalisé (60%) et de la note à l'écrit normalisée (40%). La normalisation min/max est appliquée par session pour ramener chaque métrique sur une échelle 0-100 par rapport aux établissements de la même session. Score absent (NULL) si taux_reussite ou note_ecrit manquants.",
+        "source": "Calculé par agent-ecoles",
         "synonymes": ["score", "classement", "performance", "note globale"],
         "notes": "IMPORTANT : ce score mesure la performance brute, pas la valeur ajoutée. Un score élevé peut refléter un bon recrutement plutôt qu'une bonne pédagogie. Toujours présenter le badge VA à côté du score.",
     },
 
     "scores.badge_va": {
         "description": "Badge qualitatif de valeur ajoutée. Valeurs : 'positif' (VA taux de réussite > +2 points), 'neutre' (dans l'intervalle -2 à +2), 'negatif' (VA taux de réussite < -2 points). NULL si la VA n'est pas disponible.",
-        "source": "Calculé par EduScope",
+        "source": "Calculé par agent-ecoles",
         "synonymes": ["badge", "niveau valeur ajoutée", "apport pédagogique"],
         "notes": "Le badge est calculé depuis brevet_va_taux_reussite_general. Il est affiché séparément du score et ne modifie pas le classement.",
     },
@@ -535,21 +535,21 @@ DICTIONNAIRE = {
 
     "referentiel_temporel.session_ivac": {
         "description": "Année de session du brevet. Valeurs : 2022, 2023, 2024, 2025.",
-        "source": "Manuel EduScope",
+        "source": "Manuel agent-ecoles",
         "synonymes": [],
         "notes": None,
     },
 
     "referentiel_temporel.annee_scolaire_ips": {
         "description": "Année scolaire IPS correspondant à la session IVAC. NULL pour la session 2022 (pas de données IPS disponibles à cette période).",
-        "source": "Manuel EduScope",
+        "source": "Manuel agent-ecoles",
         "synonymes": [],
         "notes": "Correspondances : session 2023 → 2023-2024 / session 2024 → 2024-2025 / session 2025 → 2025-2026.",
     },
 
     "referentiel_temporel.libelle_affichage": {
         "description": "Libellé affiché à l'utilisateur dans l'interface pour lever l'ambiguïté temporelle. Ex : 'Année 2023-2024'.",
-        "source": "Manuel EduScope",
+        "source": "Manuel agent-ecoles",
         "synonymes": [],
         "notes": "Utilisé par l'agent quand un utilisateur mentionne une année sans préciser s'il veut la session brevet ou l'année scolaire.",
     },
