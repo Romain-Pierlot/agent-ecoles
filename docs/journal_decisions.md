@@ -1287,3 +1287,28 @@ Appliqués de façon constante v3 à v6.
 **Validation** : cahier de test complet re-passé après les deux fixs — 22/22 sans exception (21/22 avant le fix du bug 2, le cas "5 zones" plantait) ; scénario de mémoire à 3 tours revérifié, tableau cohérent entre les tours.
 
 **Conséquence** : `agent/tools/sql_tool.py` (`rechercher_etablissements_par_uai`), `graph_router.py` (`noeud_sql`, `_enum_securise`).
+
+## S9.3 — Pipeline d'ingestion PDF hybride envisagé (unstructured → VLM à schéma forcé → manuel), non implémenté
+
+**Contexte** : l'ingestion des PDF méthodologiques DEPP (`rag/ingest_rag.py`, via `unstructured.py`) a mal géré une mise en page à 3 colonnes, ayant nécessité une rédaction manuelle de chunks pour ce document. Approche actuelle purement heuristique, sans filet de secours face à une mise en page inhabituelle.
+
+**Piste validée conceptuellement (pas encore implémentée)** : pipeline à 3 niveaux de repli, chacun activé seulement si le précédent échoue :
+1. `unstructured.py` par défaut (rapide, gratuit, suffisant pour la grande majorité des documents).
+2. En cas d'échec détecté, VLM (modèle multimodal) sur l'image de la page, avec schéma de sortie JSON forcé (structured outputs) reproduisant le schéma de chunk existant — le modèle "lit" la page comme un humain, robuste aux mises en page complexes qu'`unstructured.py` interprète mal.
+3. Si le VLM échoue aussi, retour au chunking manuel déjà pratiqué.
+
+**Pourquoi une approche à paliers, pas un remplacement complet par du VLM** : le corpus est volontairement petit mais choisi pour sa pertinence — contrairement à un corpus volumineux où quelques chunks imparfaits seraient noyés dans la masse, chaque document compte ici et une erreur de contenu n'est pas acceptable. Généraliser le VLM à tous les documents serait à l'inverse disproportionné : coût et latence plus élevés pour un besoin qui ne concerne qu'une minorité de documents à mise en page inhabituelle — cohérent avec le principe déterministe/templating vs LLM déjà appliqué ailleurs dans le projet.
+
+**Rejeté** : bascule complète du pipeline sur VLM par défaut — coût/latence non justifiés pour les documents qui s'extraient déjà correctement.
+
+**Conséquence** : aucune pour l'instant — piste à instrumenter (détection automatique d'un échec d'extraction, schéma de sortie à définir) le jour où un nouveau document pose le même type de problème.
+
+## S9.4 — Mistral AI envisagé comme fournisseur LLM alternatif, non testé
+
+**Contexte** : dans la réflexion sur les acteurs français/européens pour l'hébergement, la question s'est étendue au fournisseur LLM lui-même (actuellement OpenAI).
+
+**Constat** : Mistral Small propose function calling + JSON structuré sur quasi tous ses modèles, prix comparable ou inférieur à gpt-4o-mini (~0,10-0,20$/M tokens en entrée), reconnu pour de bonnes performances multilingues — pertinent pour une application entièrement en français.
+
+**Pourquoi non testé maintenant** : contrairement à un changement d'hébergeur (transparent pour le comportement de l'application), changer de fournisseur LLM changerait potentiellement l'interprétation de chaque question — exactement la partie durement fiabilisée sur plusieurs sessions (extraction de `ordre_souhaite` S8.21, bug des "5 zones" S9.2, reformulation RAG S9.1). Pas de bascule sans un vrai test comparatif.
+
+**Conséquence** : aucune pour l'instant — piste à tester via un comparatif sur `test_router_classification.py`/`test_e2e_complet.py` (classification et extraction identiques ou meilleures qu'avec OpenAI) si l'intérêt se confirme, pas de bascule sur promesse marketing seule.
