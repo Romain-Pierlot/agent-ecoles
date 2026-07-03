@@ -35,6 +35,7 @@ class AgentState(TypedDict):
     zone_geo: Optional[str]
     secteur_souhaite: Optional[SecteurSouhaite]
     nuance_methodologique_demandee: bool
+    requete_rag_nuance: Optional[str]
     evolution_demandee: bool
     nb_annees_demandees: Optional[int]
     ordre_souhaite: Optional[OrdreSouhaite]
@@ -84,6 +85,10 @@ ROUTER_TOOL_SCHEMA = {
                     "type": "boolean",
                     "description": "true si la question demande aussi, en plus d'une recherche géo ou d'une comparaison nommée, une nuance ou explication méthodologique (ex: \"est-ce fiable ?\", \"comment c'est calculé ?\"). false si la question ne porte que sur les données brutes.",
                 },
+                "requete_rag_nuance": {
+                    "type": "string",
+                    "description": "Si nuance_methodologique_demandee=true, reformule UNIQUEMENT cette partie méthodologique en une phrase autonome et compréhensible seule, sans nom propre d'établissement ni mention de comparaison (ex: \"Compare Saint-Joseph et Victor Hugo, leur VA est-elle fiable ?\" -> \"La valeur ajoutée est-elle un indicateur fiable ?\"). Si plusieurs concepts sont mentionnés, inclus-les tous dans cette phrase. Chaîne vide si nuance_methodologique_demandee=false.",
+                },
                 "evolution_demandee": {
                     "type": "boolean",
                     "description": "true si la question porte sur une évolution, une tendance sur PLUSIEURS années/sessions (ex: \"sur les 3 dernières années\", \"évolution\"). false si la question ne porte que sur la session la plus récente.",
@@ -104,8 +109,8 @@ ROUTER_TOOL_SCHEMA = {
             },
             "required": [
                 "categorie", "zone_detectee", "zone", "noms_etablissements",
-                "secteur_souhaite", "nuance_methodologique_demandee", "evolution_demandee",
-                "nb_annees_demandees", "ordre_souhaite", "agregation_demandee",
+                "secteur_souhaite", "nuance_methodologique_demandee", "requete_rag_nuance",
+                "evolution_demandee", "nb_annees_demandees", "ordre_souhaite", "agregation_demandee",
             ],
         },
     },
@@ -132,6 +137,7 @@ def noeud_router(state: AgentState) -> AgentState:
     state["noms_etablissements"] = args.get("noms_etablissements") or []
     state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
+    state["requete_rag_nuance"] = args.get("requete_rag_nuance") or None
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
     state["nb_annees_demandees"] = args.get("nb_annees_demandees") or None
     state["ordre_souhaite"] = OrdreSouhaite(args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT)
@@ -381,7 +387,14 @@ def noeud_sql(state: AgentState) -> AgentState:
 
 
 def noeud_rag(state: AgentState) -> AgentState:
-    state["resultats_rag"] = search_rag(state["question"])
+    # requete_rag_nuance (reformulation propre, sans noms propres ni syntaxe
+    # de comparaison) évite la dilution du score de similarité observée sur
+    # les questions "comparaison nommée + nuance" (S8.30). Filet de sécurité
+    # sur la question brute si le champ est vide — cas normal pour une
+    # question_methodologique pure (déjà propre), ou si le LLM ne l'a pas
+    # rempli malgré nuance_methodologique_demandee=true.
+    requete = state.get("requete_rag_nuance") or state["question"]
+    state["resultats_rag"] = search_rag(requete)
     return state
 
 
@@ -1193,7 +1206,8 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
             "Peux-tu préciser le nom du ou des établissements à comparer ?"
         )
         if state.get("nuance_methodologique_demandee"):
-            reponse += _generer_nuance_rag(state["question"], search_rag(state["question"]))
+            requete = state.get("requete_rag_nuance") or state["question"]
+            reponse += _generer_nuance_rag(state["question"], search_rag(requete))
         state["reponse_finale"] = reponse
         return state
 
@@ -1223,7 +1237,8 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
     )
     reponse = "\n\n".join(morceaux) + cloture
     if state.get("nuance_methodologique_demandee"):
-        reponse += _generer_nuance_rag(state["question"], search_rag(state["question"]))
+        requete = state.get("requete_rag_nuance") or state["question"]
+        reponse += _generer_nuance_rag(state["question"], search_rag(requete))
     state["reponse_finale"] = reponse
     return state
 

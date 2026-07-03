@@ -25,6 +25,17 @@ comparaison nommée, une nuance ou explication méthodologique
 fiable ?", "comment ces indicateurs sont calculés ?". false si la question
 ne porte que sur les données brutes, sans demande d'explication en plus.
 
+Si nuance_methodologique_demandee = true, reformule cette partie dans
+requete_rag_nuance : une phrase autonome et compréhensible seule, qui ne
+garde QUE la question méthodologique, sans nom propre d'établissement ni
+mention de comparaison ("compare X et Y"). Si plusieurs concepts sont
+mentionnés, inclus-les tous dans la même phrase. Exemples :
+- "Compare Saint-Joseph et Victor Hugo, leur VA est-elle fiable ?" ->
+  "La valeur ajoutée est-elle un indicateur fiable ?"
+- "Compare les collèges de Lyon, et au fait c'est quoi l'IPS et la valeur
+  ajoutée ?" -> "Qu'est-ce que l'IPS et qu'est-ce que la valeur ajoutée ?"
+Chaîne vide si nuance_methodologique_demandee = false.
+
 Extrais aussi si la question porte sur une évolution ou une tendance sur
 PLUSIEURS années/sessions (evolution_demandee = true) — ex: "sur les 3
 dernières années", "évolution", "comment ça a changé". false si la question
