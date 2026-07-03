@@ -1169,19 +1169,36 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
     correspond à aucun candidat. Ne choisit jamais un résultat par défaut,
     et ne substitue jamais silencieusement une zone différente de celle
     demandée — le message distingue explicitement ces 3 cas.
+
+    Deux corrections S8.30 :
+    - La question de clôture ne mentionne "numéro" que s'il y a réellement
+      une liste numérotée à choisir (cas "plusieurs candidats ambigus") —
+      avant, elle était collée systématiquement même pour un cas
+      "introuvable", où "numéro" n'a pas de sens (trouvé en relisant le
+      rapport visuel : "numéro de quoi ?").
+    - Si la question demandait AUSSI une nuance méthodologique (ex: "et
+      leur VA est-elle fiable ?"), cette partie n'était jusqu'ici jamais
+      traitée quand la résolution de noms échouait — la clarification
+      s'affichait seule, la deuxième moitié de la question disparaissait
+      silencieusement. Le RAG méthodologique est maintenant interrogé même
+      dans ce cas, et sa réponse ajoutée à la clarification.
     """
     resolution = state.get("resolution_noms") or {}
     candidats_par_nom = resolution.get("resultats", {})
     zones_sans_resultat = resolution.get("zones_sans_resultat", {})
 
     if not candidats_par_nom:
-        state["reponse_finale"] = (
+        reponse = (
             "Je n'ai pas identifié d'établissement nommé dans ta question. "
             "Peux-tu préciser le nom du ou des établissements à comparer ?"
         )
+        if state.get("nuance_methodologique_demandee"):
+            reponse += _generer_nuance_rag(state["question"], search_rag(state["question"]))
+        state["reponse_finale"] = reponse
         return state
 
     morceaux = []
+    a_candidats_multiples = False
     for nom, candidats in candidats_par_nom.items():
         if nom in zones_sans_resultat:
             zone = zones_sans_resultat[nom]
@@ -1192,16 +1209,22 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
         elif len(candidats) == 0:
             morceaux.append(f"Aucun établissement nommé « {nom} » n'a été trouvé dans les données.")
         elif len(candidats) > 1:
+            a_candidats_multiples = True
             lignes = "\n".join(
                 f"  {i + 1}. {c['nom']} — {c['commune']} ({c['secteur']})"
                 for i, c in enumerate(candidats)
             )
             morceaux.append(f"Plusieurs établissements correspondent à « {nom} » :\n{lignes}")
 
-    state["reponse_finale"] = (
-        "\n\n".join(morceaux)
-        + "\n\nPeux-tu préciser lequel tu veux (numéro, ville ou département) ?"
+    cloture = (
+        "\n\nPeux-tu préciser lequel tu veux (indique le numéro) ?"
+        if a_candidats_multiples
+        else "\n\nPeux-tu vérifier le nom ou préciser une autre ville/département ?"
     )
+    reponse = "\n\n".join(morceaux) + cloture
+    if state.get("nuance_methodologique_demandee"):
+        reponse += _generer_nuance_rag(state["question"], search_rag(state["question"]))
+    state["reponse_finale"] = reponse
     return state
 
 

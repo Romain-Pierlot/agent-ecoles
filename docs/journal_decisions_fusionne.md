@@ -1245,3 +1245,17 @@ Appliqués de façon constante v3 à v6.
 **Validation** : testé nombre respecté (3 sur 4 disponibles), demande excessive (10 demandées, 4 affichées avec transparence honnête), chemin nommé et chemin géo. Suite complète re-passée sans régression (classification 11/11, cahier e2e 22/22).
 
 **Conséquence** : `graph_router.py` (nouveau champ + câblage + 2 fonctions d'intro corrigées), `prompts/router_system_prompt.py`.
+
+## S8.30 — Nuance méthodologique traitée même quand la résolution de noms échoue
+
+**Contexte** : dernier point C — quand la résolution d'un nom d'établissement échouait, toute la question de nuance méthodologique posée en même temps ("et leur VA est-elle fiable ?") était silencieusement abandonnée, seule la demande de clarification s'affichait.
+
+**Décision** : `noeud_clarification_noms` interroge maintenant le RAG méthodologique (même appel que `noeud_rag`/`_generer_nuance_rag`) si `nuance_methodologique_demandee` est vrai, et ajoute la réponse à la clarification, plutôt que de terminer directement sur `END` sans jamais y passer.
+
+**Corrigé au passage (même fonction)** : la question de clôture ("Peux-tu préciser lequel tu veux (numéro, ville ou département) ?") était accolée systématiquement, y compris pour un cas "introuvable" où il n'y a aucune liste numérotée — "numéro de quoi ?" (repéré dans le rapport visuel). Désormais conditionnelle : "numéro" seulement s'il y a réellement plusieurs candidats ambigus.
+
+**Trouvé en testant le fix, problème distinct et plus large, non résolu ici** : la recherche RAG sur une question de comparaison nommée + nuance ("Compare le collège X et Y, et est-ce que leur VA est fiable ?") ne trouve souvent aucun chunk pertinent — vérifié : des chunks pertinents existent (score jusqu'à 0.397, sur la fiabilité des IVAC) mais restent sous le seuil de similarité (0.5). Confirmé que ce problème touche identiquement le chemin de succès (les deux noms trouvés) : la dilution vient du mélange noms propres + "Compare... et..." dans la requête d'embedding, pas de la résolution de noms elle-même. Le fix de ce commit est donc correctement câblé mais sa valeur pratique reste limitée tant que cette dilution n'est pas traitée séparément.
+
+**Validation** : formulation de clôture correcte sur un cas "introuvable" ; suite complète sans régression (classification 11/11, cahier e2e 22/22).
+
+**Conséquence** : `graph_router.py` (`noeud_clarification_noms`).
