@@ -14,9 +14,9 @@ from agent.tools.rag_tool import search_rag
 from agent.tools.sql_tool import (
     recherche_sql, rechercher_etablissements_par_nom, filtrer_candidats_par_precision,
     rechercher_top_par_secteur, obtenir_evolution_etablissements, calculer_moyenne_etablissements,
-    calculer_evolution_moyenne_zone,
+    calculer_evolution_moyenne_zone, resoudre_zone_administrative,
 )
-from agent.tools.geo_tool import recherche_geo
+from agent.tools.geo_tool import recherche_geo, rechercher_etablissements_region_departement
 
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
@@ -36,6 +36,7 @@ class AgentState(TypedDict):
     secteur_souhaite: Optional[SecteurSouhaite]
     nuance_methodologique_demandee: bool
     evolution_demandee: bool
+    nb_annees_demandees: Optional[int]
     ordre_souhaite: Optional[OrdreSouhaite]
     agregation_demandee: bool
     resultats_geo: Optional[dict]
@@ -87,6 +88,10 @@ ROUTER_TOOL_SCHEMA = {
                     "type": "boolean",
                     "description": "true si la question porte sur une évolution, une tendance sur PLUSIEURS années/sessions (ex: \"sur les 3 dernières années\", \"évolution\"). false si la question ne porte que sur la session la plus récente.",
                 },
+                "nb_annees_demandees": {
+                    "type": "integer",
+                    "description": "Nombre exact d'années/sessions demandées si evolution_demandee=true ET que la question précise un nombre (ex: \"les 3 dernières années\" -> 3, \"sur 5 sessions\" -> 5). 0 si evolution_demandee=false, ou si aucun nombre précis n'est mentionné (ex: \"l'évolution\" sans préciser combien d'années -> 0, montrera toutes les années disponibles).",
+                },
                 "ordre_souhaite": {
                     "type": "string",
                     "enum": [o.value for o in OrdreSouhaite],
@@ -100,7 +105,7 @@ ROUTER_TOOL_SCHEMA = {
             "required": [
                 "categorie", "zone_detectee", "zone", "noms_etablissements",
                 "secteur_souhaite", "nuance_methodologique_demandee", "evolution_demandee",
-                "ordre_souhaite", "agregation_demandee",
+                "nb_annees_demandees", "ordre_souhaite", "agregation_demandee",
             ],
         },
     },
@@ -128,6 +133,7 @@ def noeud_router(state: AgentState) -> AgentState:
     state["secteur_souhaite"] = SecteurSouhaite(args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT)
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
+    state["nb_annees_demandees"] = args.get("nb_annees_demandees") or None
     state["ordre_souhaite"] = OrdreSouhaite(args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT)
     state["agregation_demandee"] = bool(args.get("agregation_demandee"))
 
@@ -209,6 +215,16 @@ def noeud_geo(state: AgentState) -> AgentState:
             "adresse_recherchee": state["question"],
             "error": "Aucune zone géographique reconnaissable dans la question.",
         }
+        return state
+
+    # Région/département détecté (S8.26) : contourne l'API de géocodage
+    # externe, qui interprète mal ces noms (ex: "Bretagne" -> une rue à
+    # Denain) — recherche déterministe directe sur nos propres données.
+    resolution_admin = resoudre_zone_administrative(zone)
+    if resolution_admin["type"]:
+        state["resultats_geo"] = rechercher_etablissements_region_departement(
+            resolution_admin["type"], resolution_admin["valeur"], resolution_admin.get("libelle")
+        )
         return state
 
     state["resultats_geo"] = recherche_geo(zone)
@@ -300,7 +316,7 @@ def noeud_sql(state: AgentState) -> AgentState:
             # 104 établissements x 4 ans serait illisible. Priorité sur
             # l'agrégation simple ci-dessous : une évolution EST une forme
             # d'agrégation (par année plutôt que sur une seule session).
-            resultat_evolution_zone = calculer_evolution_moyenne_zone(uai_filtre)
+            resultat_evolution_zone = calculer_evolution_moyenne_zone(uai_filtre, n_sessions=state.get("nb_annees_demandees"))
             state["resultats_sql"] = {
                 "success": resultat_evolution_zone["success"],
                 "evolution_geo": True,
@@ -351,7 +367,7 @@ def noeud_sql(state: AgentState) -> AgentState:
             # plutôt que Text-to-SQL général — fragilité réelle observée sur
             # cette combinaison précise (nom + zone + plusieurs années en une
             # seule requête libre, cf. session 8).
-            resultat_evolution = obtenir_evolution_etablissements(uai_filtre)
+            resultat_evolution = obtenir_evolution_etablissements(uai_filtre, n_sessions=state.get("nb_annees_demandees"))
             state["resultats_sql"] = {
                 "success": resultat_evolution["success"],
                 "resultats": resultat_evolution["resultats"],
@@ -425,7 +441,7 @@ AGENT_TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "calculer_moyenne",
-            "description": "Calcule la moyenne du score/taux/note pour un ensemble d'établissements déjà identifiés (via recherche_geo ou rechercher_etablissement_par_nom) — moyenne globale, plus détail public/privé. À utiliser DE PRÉFÉRENCE à recherche_sql dès que la question porte sur une moyenne/agrégation sur une zone — plus rapide et plus fiable qu'une requête libre.",
+            "description": "Calcule la moyenne du score/taux/note pour un ensemble d'établissements déjà identifiés (via recherche_geo ou rechercher_etablissement_par_nom) — moyenne globale, plus détail public/privé. À utiliser UNIQUEMENT si la question demande explicitement une moyenne/statistique agrégée sur une zone (ex: \"la moyenne des collèges de Lyon\"). NE PAS utiliser pour \"le meilleur\"/\"le pire\" collège d'une zone : ce n'est pas une moyenne, c'est UN SEUL établissement à trouver via recherche_sql (tri + limite), pas une agrégation de tous les établissements de la zone.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -695,10 +711,10 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
     # plusieurs années) — absente sur le tableau standard un-seul-an.
     contient_session = "session" in lignes[0]
     if contient_session:
-        entete = "| Session | Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
+        entete = "| Session | Nom | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
         separateur = "|---|---|---|---|---|---|---|\n"
     else:
-        entete = "| Nom | Secteur | Score | VA | Taux de réussite | Note écrit |\n"
+        entete = "| Nom | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
         separateur = "|---|---|---|---|---|---|\n"
     corps = ""
     for r in lignes:
@@ -724,8 +740,15 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
         moyennes = _generer_moyennes_par_etablissement(lignes)
         if moyennes:
             tableau = moyennes + "\n\n" + tableau
-    if sessions_disponibles and contient_session:
-        tableau += f"\n*Sur les {len(sessions_disponibles)} années disponibles en base : {', '.join(sessions_disponibles)}.*\n"
+    if contient_session:
+        # Dérivé des lignes réellement affichées (S8.29), pas de
+        # sessions_disponibles (toutes les années en base, indépendamment
+        # du nombre demandé) — sinon le texte dirait "4 années disponibles"
+        # même quand seules 3 sont montrées suite à une demande "sur les 3
+        # dernières années".
+        sessions_affichees = sorted({r["session"] for r in lignes if r.get("session")})
+        if sessions_affichees:
+            tableau += f"\n*Sur les {len(sessions_affichees)} année(s) affichée(s) : {', '.join(sessions_affichees)}.*\n"
     return tableau
 
 
@@ -802,10 +825,18 @@ def _generer_moyennes_geo_template(resultats_sql, secteur_souhaite):
 
 
 def _zone_affichage(resultats_geo):
-    """Nom de zone à afficher dans l'intro — factorisé, utilisé par les deux variantes d'intro."""
-    if resultats_geo and resultats_geo.get("success"):
-        return resultats_geo.get("adresse_normalisee", "la zone recherchée")
-    return "la zone recherchée"
+    """
+    Fragment de phrase localisant la zone, préposition incluse — factorisé,
+    utilisé par toutes les fonctions d'intro. "autour de X" pour une
+    recherche par rayon (ville/adresse) ; "dans X" pour une zone
+    administrative exacte (région/département, rayon_km=None — "autour de"
+    n'aurait pas de sens pour une région entière, cf. S8.26).
+    """
+    if not resultats_geo or not resultats_geo.get("success"):
+        return "autour de la zone recherchée"
+    zone = resultats_geo.get("adresse_normalisee", "la zone recherchée")
+    preposition = "dans" if resultats_geo.get("rayon_km") is None else "autour de"
+    return f"{preposition} {zone}"
 
 
 def _mention_session(session_utilisee):
@@ -839,8 +870,8 @@ def _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite=None):
         total = resultats_geo.get("nb_etablissements", 0)
         zone = _zone_affichage(resultats_geo)
         if nb_affiches < total:
-            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} {qualificatif} :"
-        return f"Voici les établissements trouvés autour de {zone} :"
+            return f"Dans la zone recherchée ({zone}), {total} établissements ont été identifiés. Voici les {nb_affiches} {qualificatif} :"
+        return f"Voici les établissements trouvés {zone} :"
     if nb_affiches == 1:
         return "Voici les informations pour l'établissement demandé :"
     return "Voici les résultats trouvés :"
@@ -852,7 +883,7 @@ def _generer_intro_split_template(resultats_geo, nb_public, nb_prive, ordre_pire
     qualificatif = "moins bons" if ordre_pire else "meilleurs"
     return (
         f"Voici les {nb_public} {qualificatif} établissements publics et les {nb_prive} "
-        f"{qualificatif} établissements privés trouvés autour de {zone}, affichés séparément "
+        f"{qualificatif} établissements privés trouvés {zone}, affichés séparément "
         f"pour représenter les deux secteurs équitablement :"
     )
 
@@ -860,7 +891,7 @@ def _generer_intro_split_template(resultats_geo, nb_public, nb_prive, ordre_pire
 def _generer_intro_agregation_template(resultats_geo):
     """Intro 100% template pour le cas moyenne/agrégation sur une zone — aucune génération LLM."""
     zone = _zone_affichage(resultats_geo)
-    return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone} :"
+    return f"Voici les moyennes calculées pour les établissements trouvés {zone} :"
 
 
 def _generer_tableau_evolution_secteur(evolution, cle_secteur, label):
@@ -909,20 +940,28 @@ def _generer_tableau_evolution_geo(resultats_sql, secteur_souhaite):
     return "\n\n".join(b for b in blocs if b) or None
 
 
-def _generer_intro_evolution_geo_template(resultats_geo, sessions_disponibles):
+def _generer_intro_evolution_geo_template(resultats_geo, evolution):
     """
-    Intro 100% template pour l'évolution géo — précise explicitement le
-    nombre d'années réellement disponibles (même principe de transparence
-    que pour l'évolution nommée, S8.17 : ne jamais laisser croire que "3
-    dernières années" a été honoré si la base n'en a pas autant).
+    Intro 100% template pour l'évolution géo — précise explicitement les
+    années réellement montrées dans le tableau qui suit (S8.29 : dérivées
+    de "evolution" lui-même, pas de sessions_disponibles qui reflète TOUTES
+    les années en base, indépendamment du nombre demandé — sinon le texte
+    dirait "sur les 4 années disponibles" même quand seules 3 sont
+    affichées suite à une demande "sur les 3 dernières années"). Même
+    principe de transparence que pour l'évolution nommée (S8.17) : ne
+    jamais laisser croire qu'une période demandée a été honorée si la base
+    n'a pas autant d'années — mais ici en reflétant fidèlement ce qui est
+    réellement affiché, dans les deux sens (moins par choix, ou moins par
+    manque de données).
     """
     zone = _zone_affichage(resultats_geo)
-    if not sessions_disponibles:
-        return f"Voici l'évolution des moyennes pour les établissements trouvés autour de {zone} :"
-    sessions_txt = ", ".join(str(s) for s in sessions_disponibles)
+    sessions_affichees = sorted({bloc["session"] for bloc in (evolution or [])})
+    if not sessions_affichees:
+        return f"Voici l'évolution des moyennes pour les établissements trouvés {zone} :"
+    sessions_txt = ", ".join(str(s) for s in sessions_affichees)
     return (
-        f"Voici l'évolution des moyennes pour les établissements trouvés autour de {zone}, "
-        f"sur les {len(sessions_disponibles)} années disponibles en base ({sessions_txt}) :"
+        f"Voici l'évolution des moyennes pour les établissements trouvés {zone}, "
+        f"sur les {len(sessions_affichees)} année(s) affichée(s) ({sessions_txt}) :"
     )
 
 
@@ -947,7 +986,7 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
     """
     if resultats_sql and resultats_sql.get("evolution_geo"):
         tableau = _generer_tableau_evolution_geo(resultats_sql, secteur_souhaite)
-        intro = _generer_intro_evolution_geo_template(resultats_geo, resultats_sql.get("sessions_disponibles", []))
+        intro = _generer_intro_evolution_geo_template(resultats_geo, resultats_sql.get("evolution", []))
     elif resultats_sql and resultats_sql.get("agregation_geo"):
         tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite)
         intro = _generer_intro_agregation_template(resultats_geo)

@@ -5,6 +5,7 @@ import os
 import sys
 import re
 import unicodedata
+from difflib import get_close_matches
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -465,7 +466,7 @@ def calculer_evolution_moyenne_zone(uai_filtre: list[str], n_sessions: int = Non
                     "public": _moyenne(session, Secteur.PUBLIC.value),
                     "prive": _moyenne(session, Secteur.PRIVE.value),
                 }
-                for session in sessions_ciblees
+                for session in reversed(sessions_ciblees)
             ]
         finally:
             conn.close()
@@ -558,6 +559,118 @@ def _normaliser_nom(nom: str) -> str:
             nom = nom[len(prefixe):].strip()
             break
     return re.sub(r"\s+", " ", nom)
+
+
+def _normaliser_zone_administrative(nom: str) -> str:
+    """
+    Normalise un nom de région/département pour comparaison robuste aux
+    variantes (tirets/espaces, accents, casse) — "Nord-Pas-de-Calais",
+    "nord pas de calais" et "NORD PAS DE CALAIS" doivent être équivalents.
+    Différent de _normaliser_nom (établissements) : pas de préfixe
+    institutionnel à retirer ici, mais les tirets doivent être traités
+    comme des séparateurs de mots, pas conservés tels quels.
+    """
+    nom = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
+    nom = nom.lower().replace("-", " ").strip()
+    return re.sub(r"\s+", " ", nom)
+
+
+# Noms de régions françaises d'avant la réforme territoriale de 2016,
+# encore courants dans le langage courant — mappés vers le nom de la
+# région actuelle telle que stockée en base. Fait historique stable (pas
+# de nouvelle fusion prévue), donc figé en dur plutôt que recalculé.
+REGIONS_HERITEES = {
+    "midi pyrenees": "Occitanie",
+    "languedoc roussillon": "Occitanie",
+    "nord pas de calais": "Hauts-de-France",
+    "picardie": "Hauts-de-France",
+    "champagne ardenne": "Grand Est",
+    "lorraine": "Grand Est",
+    "alsace": "Grand Est",
+    "aquitaine": "Nouvelle-Aquitaine",
+    "limousin": "Nouvelle-Aquitaine",
+    "poitou charentes": "Nouvelle-Aquitaine",
+    "basse normandie": "Normandie",
+    "haute normandie": "Normandie",
+    "bourgogne": "Bourgogne-Franche-Comté",
+    "franche comte": "Bourgogne-Franche-Comté",
+    "rhone alpes": "Auvergne-Rhône-Alpes",
+    "auvergne": "Auvergne-Rhône-Alpes",
+}
+
+
+def resoudre_zone_administrative(nom_zone: str) -> dict:
+    """
+    Détermine si nom_zone désigne une région ou un département français
+    (nom actuel, nom d'avant la réforme de 2016, ou faute de frappe légère)
+    plutôt qu'une ville/adresse — évite de laisser l'API de géocodage
+    externe mal interpréter un nom de région (ex: "Bretagne" résolu à tort
+    vers une rue à Denain, cf. S8.26) en la contournant complètement pour
+    ce cas, au profit d'une requête directe sur nos propres données.
+
+    Ensemble de comparaison volontairement petit (~30 noms au total,
+    régions + départements) : les noms de régions/départements changent
+    extrêmement rarement, contrairement aux noms d'établissements — permet
+    une tolérance aux fautes de frappe fiable (plus proche voisin) sans le
+    risque de faux positifs qu'aurait la même approche sur un ensemble de
+    plusieurs milliers de noms.
+
+    Retourne : {"type": "region"|"departement"|None, "valeur": str|None}
+    "valeur" est toujours le nom/code officiel tel que stocké en base
+    (libelle_region ou code_departement), jamais le texte brut saisi.
+    """
+    nom_normalise = _normaliser_zone_administrative(nom_zone)
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    conn = sqlite3.connect(db_path)
+    try:
+        regions = [
+            row[0] for row in conn.execute(
+                "SELECT DISTINCT libelle_region FROM etablissements WHERE libelle_region IS NOT NULL"
+            )
+        ]
+        departements = conn.execute(
+            "SELECT DISTINCT code_departement, libelle_departement FROM etablissements "
+            "WHERE code_departement IS NOT NULL AND libelle_departement IS NOT NULL"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    regions_norm = {_normaliser_zone_administrative(r): r for r in regions}
+    departements_norm_par_libelle = {_normaliser_zone_administrative(lib): code for code, lib in departements}
+    departements_norm_par_code = {code.lower(): code for code, _ in departements}
+    code_vers_libelle = {code: lib for code, lib in departements}
+
+    def _resultat_departement(code):
+        return {"type": "departement", "valeur": code, "libelle": code_vers_libelle.get(code, code)}
+
+    if nom_normalise in regions_norm:
+        return {"type": "region", "valeur": regions_norm[nom_normalise], "libelle": regions_norm[nom_normalise]}
+    if nom_normalise in departements_norm_par_libelle:
+        return _resultat_departement(departements_norm_par_libelle[nom_normalise])
+    if nom_normalise in departements_norm_par_code:
+        return _resultat_departement(departements_norm_par_code[nom_normalise])
+    if nom_normalise in REGIONS_HERITEES:
+        region = REGIONS_HERITEES[nom_normalise]
+        return {"type": "region", "valeur": region, "libelle": region}
+
+    tous_les_noms_connus = (
+        list(regions_norm.keys()) + list(departements_norm_par_libelle.keys()) + list(REGIONS_HERITEES.keys())
+    )
+    proches = get_close_matches(nom_normalise, tous_les_noms_connus, n=1, cutoff=0.8)
+    if proches:
+        trouve = proches[0]
+        if trouve in regions_norm:
+            return {"type": "region", "valeur": regions_norm[trouve], "libelle": regions_norm[trouve]}
+        if trouve in departements_norm_par_libelle:
+            return _resultat_departement(departements_norm_par_libelle[trouve])
+        if trouve in REGIONS_HERITEES:
+            region = REGIONS_HERITEES[trouve]
+            return {"type": "region", "valeur": region, "libelle": region}
+
+    return {"type": None, "valeur": None, "libelle": None}
 
 
 def _retirer_prefixe_recherche(nom: str) -> str:

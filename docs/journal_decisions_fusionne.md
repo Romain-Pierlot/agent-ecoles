@@ -1187,3 +1187,61 @@ Appliqués de façon constante v3 à v6.
 **Validation** : garde-fou testé directement (lève bien une `AssertionError` sur un dict volontairement incomplet). Suite complète re-passée sans régression : classification 11/11, cahier e2e 22/22 — le garde-fou ne s'est déclenché sur aucun des 22 cas réels, confirmant que les 6 chemins qui produisent `resultats_sql` respectent tous la convention.
 
 **Conséquence** : `graph_router.py` (`_preparer_affichage_resultats` restructurée, 3 fonctions d'intro simplifiées, `noeud_sql` harmonisé).
+
+## S8.26 — Corrections issues de la relecture qualitative du rapport visuel (lots A+B)
+
+**Contexte** : relecture ligne par ligne du rapport visuel du cahier de test par l'utilisateur — a fait remonter 11 points distincts. Traités en deux lots (A : formulation peu risquée, B : vrais bugs), le reste (C) discuté séparément.
+
+**Lot A** :
+- En-tête de tableau "VA" → "Valeur ajoutée" (plus explicite qu'une abréviation à faire deviner en bas de tableau).
+- Évolution multi-années sur zone géo (`calculer_evolution_moyenne_zone`, S8.22) : ordre inversé pour afficher l'année la plus récente en premier (la version nommée, S8.17, le faisait déjà correctement via `ORDER BY session DESC`).
+
+**Lot B — bug confirmé** : pour "compare le **meilleur** collège de Lyon et de Marseille", l'agent appelait `calculer_moyenne` (moyenne de tous les établissements de la zone) au lieu de chercher LE meilleur établissement — régression introduite en donnant cet outil à l'agent (S8.19), avec une description trop large. Confirmé en retraçant l'appel pas à pas : `calculer_moyenne` appelé avec la liste complète des UAI de la zone au lieu de `recherche_sql` avec un tri + LIMIT 1. Corrigé en ajoutant une distinction explicite ("meilleur"/"pire" ≠ moyenne) à la fois dans la description de l'outil (schéma) et dans le prompt système de l'agent.
+
+**Lot B — cadrage du périmètre** : deux réponses de l'agent laissaient penser à un périmètre plus large que la réalité — "je peux vous aider à trouver des données pertinentes" (sur une question hors de France) et "pour vous aider à choisir un collège" (sur une question quasi vide). Le prompt système de l'agent est réécrit dès sa première phrase : l'app fournit de l'information factuelle sur les collèges de France, elle n'accompagne pas un choix ni ne donne de recommandation. Deux règles explicites ajoutées (périmètre géographique France uniquement, jamais "aider à choisir").
+
+**Validation** : chaque fix testé isolément puis suite complète (classification 11/11, cahier e2e 22/22) à plusieurs reprises sans régression.
+
+**Conséquence** : `graph_router.py` (en-tête tableau), `agent/tools/sql_tool.py` (ordre évolution géo), `prompts/agent_react_system_prompt.py` (reformulation + 2 nouvelles règles), schéma de l'outil `calculer_moyenne`.
+
+## S8.27 — Recherche déterministe par région/département
+
+**Contexte** : question ouverte de l'utilisateur ("que se passe-t-il si on met une région ?") — testée, révèle un vrai problème : `recherche_geo("Bretagne")` renvoie succès, mais géocode vers une rue à Denain (Nord), à l'autre bout de la France. Aucune erreur, résultats silencieusement faux.
+
+**Décision** : la table `etablissements` contient déjà `libelle_region`/`code_departement`/`libelle_departement` — pas besoin de construire une correspondance région↔département nous-mêmes. Nouvelle fonction `resoudre_zone_administrative()` (sql_tool.py) : détecte si la zone extraite par le router est une région/département (nom actuel, tolérant aux tirets/accents/casse et aux fautes de frappe via `difflib`, ensemble volontairement restreint à ~30 noms connus pour une tolérance fiable) plutôt qu'une ville — et si oui, requête directe sur nos propres colonnes, aucun appel à l'API de géocodage.
+
+**Anciennes régions (réforme 2016)** : table figée `REGIONS_HERITEES` (Midi-Pyrénées → Occitanie, Nord-Pas-de-Calais → Hauts-de-France, etc.) — encore couramment utilisées, fait historique stable.
+
+**Effet de bord positif découvert en testant** : "Paris" est désormais résolu comme département 75 (ville exacte) plutôt que ville+rayon 10km (qui débordait sur la petite couronne) — 229 établissements au lieu de 496.
+
+**Validation** : batterie de variantes (tirets/espaces, casse, faute de frappe, ancien nom, faux positifs sur des noms de villes) toutes correctes ; non-régression complète (classification 11/11, cahier e2e 22/22).
+
+**Conséquence** : `agent/tools/sql_tool.py` (résolution), `agent/tools/geo_tool.py` (`rechercher_etablissements_region_departement`), `graph_router.py` (`noeud_geo`).
+
+## S8.28 — Recherche par ville : commune exacte plutôt que rayon arbitraire
+
+**Contexte** : discussion sur le rayon de 10km par défaut — l'utilisateur soulevait le risque qu'un rayon fixe rate des établissements en périphérie d'une grande ville comme Toulouse.
+
+**Vérifié empiriquement avant de conclure** : rayon 10km actuel vs commune exacte — Toulouse 78 vs 50, Marseille 113 vs 92. Dans les deux cas le rayon actuel trouve PLUS d'établissements, pas moins : il déborde sur les communes voisines plutôt que de rater des établissements. Le vrai sujet n'était donc pas un risque d'incomplétude mais un choix de définition ("collèges à Toulouse" = la commune, ou commune + périphérie ?).
+
+**Décision** : l'API de géocodage renvoie déjà `"type": "municipality"` quand la question ne contient qu'un nom de ville (pas une adresse précise), avec le nom de commune et le code département pour désambiguïser les homonymes. Nouvelle fonction `trouver_etablissements_par_commune()` : correspondance exacte sur `commune` + `code_departement`, sans rayon. Une adresse précise (type != "municipality") garde le comportement par rayon inchangé — pertinent dans ce cas.
+
+**Changement d'ampleur variable selon la ville, signalé avant validation finale** : Toulouse 78→50, Marseille 113→92, mais **Lyon 145→44** (~70%) — la commune de Lyon est petite et dense, entourée de communes proches (Villeurbanne, Vénissieux...) auparavant incluses dans le rayon. Confirmé comme comportement voulu par l'utilisateur avant de poursuivre.
+
+**Validation** : ville seule (pas de rayon) vs adresse précise (rayon conservé) vs code postal, testés séparément ; tolérance aux fautes de frappe toujours fonctionnelle (le "type: municipality" de l'API BAN résout aussi "Lyeon" en "Lyon") ; non-régression complète (classification 11/11, cahier e2e 22/22).
+
+**Conséquence** : `agent/tools/geo_tool.py` (`geocoder` enrichi de city/depcode, `trouver_etablissements_par_commune`, branchement dans `recherche_geo`).
+
+## S8.29 — Respecter le nombre exact d'années demandé sur une évolution
+
+**Contexte** : point C restant — "compare sur les 3 dernières années" affichait toujours les 4 années disponibles en base, sans respecter le "3" demandé littéralement.
+
+**Décision** : nouveau champ `nb_annees_demandees` extrait par le router (même appel LLM fusionné que les autres signaux) — nombre exact si la question en précise un, sinon 0 (toutes les années disponibles, comportement inchangé). Câblé dans le paramètre `n_sessions`, déjà existant mais jusqu'ici jamais utilisé, des deux fonctions d'évolution (`obtenir_evolution_etablissements` S8.17, `calculer_evolution_moyenne_zone` S8.22).
+
+**Bug de transparence trouvé en implémentant** : le texte d'accompagnement ("*Sur les 4 années disponibles en base...*") utilisait `sessions_disponibles` (TOUJOURS toutes les années en base), pas ce qui est réellement affiché — aurait affiché "4 années disponibles" même quand seules 3 sont montrées suite à la demande. Corrigé en dérivant le texte des sessions réellement présentes dans les lignes affichées, plutôt que du total en base — gère naturellement les deux cas (nombre demandé respecté, ou demande supérieure à ce qui existe réellement).
+
+**Point observé en testant, non lié à ce changement** : la suite de classification a montré 10/11 sur une exécution isolée (le cas "meilleur collège de France" retombant en `question_methodologique`) — creusé et confirmé comme de la variance déjà connue de l'extraction LLM de `ordre_souhaite` (S8.21), pas une régression : 7/8 correct sur des essais répétés, confirmé 11/11 en relançant la suite complète juste après.
+
+**Validation** : testé nombre respecté (3 sur 4 disponibles), demande excessive (10 demandées, 4 affichées avec transparence honnête), chemin nommé et chemin géo. Suite complète re-passée sans régression (classification 11/11, cahier e2e 22/22).
+
+**Conséquence** : `graph_router.py` (nouveau champ + câblage + 2 fonctions d'intro corrigées), `prompts/router_system_prompt.py`.

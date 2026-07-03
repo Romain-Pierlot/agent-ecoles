@@ -30,6 +30,11 @@ PLUSIEURS années/sessions (evolution_demandee = true) — ex: "sur les 3
 dernières années", "évolution", "comment ça a changé". false si la question
 ne porte que sur la session la plus récente.
 
+Si evolution_demandee = true, extrais aussi le nombre exact d'années/
+sessions si la question en précise un (nb_annees_demandees) — ex: "les 3
+dernières années" -> 3, "sur 5 sessions" -> 5. 0 si aucun nombre précis
+n'est mentionné (ex: "l'évolution" seule, sans préciser combien d'années).
+
 Extrais aussi le sens de tri souhaité (ordre_souhaite) si un classement ou
 une sélection d'établissements est demandé : "meilleur" (meilleur, top, en
 tête, le plus performant...), "pire" (pire, le plus mauvais, le moins bon,

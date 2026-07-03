@@ -31,20 +31,25 @@ def geocoder(adresse_ou_ville: str) -> dict:
         data = response.json()
         if not data.get("features"):
             return {"success": False, "latitude": None, "longitude": None,
-                    "label": None, "type": None, "error": f"Adresse non trouvée : {adresse_ou_ville}"}
+                    "label": None, "type": None, "city": None, "depcode": None,
+                    "error": f"Adresse non trouvée : {adresse_ou_ville}"}
         feature = data["features"][0]
         coords = feature["geometry"]["coordinates"]
+        proprietes = feature["properties"]
         return {
             "success": True, "latitude": coords[1], "longitude": coords[0],
-            "label": feature["properties"].get("label", adresse_ou_ville),
-            "type": feature["properties"].get("type", "inconnu"), "error": None
+            "label": proprietes.get("label", adresse_ou_ville),
+            "type": proprietes.get("type", "inconnu"),
+            "city": proprietes.get("city"), "depcode": proprietes.get("depcode"),
+            "error": None
         }
     except requests.Timeout:
         return {"success": False, "latitude": None, "longitude": None,
-                "label": None, "type": None, "error": f"Timeout API BAN après {BAN_API_TIMEOUT_SECONDS}s"}
+                "label": None, "type": None, "city": None, "depcode": None,
+                "error": f"Timeout API BAN après {BAN_API_TIMEOUT_SECONDS}s"}
     except Exception as e:
         return {"success": False, "latitude": None, "longitude": None,
-                "label": None, "type": None, "error": str(e)}
+                "label": None, "type": None, "city": None, "depcode": None, "error": str(e)}
 
 
 def trouver_etablissements_dans_rayon(latitude, longitude, rayon_km=None, type_etablissement="Collège"):
@@ -72,11 +77,37 @@ def trouver_etablissements_dans_rayon(latitude, longitude, rayon_km=None, type_e
         conn.close()
 
 
+def trouver_etablissements_par_commune(commune: str, code_departement: str, type_etablissement: str = "Collège") -> list:
+    """
+    Recherche exacte par commune — AUCUN rayon (S8.27) : quand la question
+    ne mentionne qu'un nom de ville (pas une adresse précise), un rayon
+    arbitraire n'a pas de sens — soit il déborde sur les communes voisines
+    (ex: Toulouse en rayon 10km inclut Blagnac, Colomiers... 78 résultats
+    contre 50 pour la seule commune de Toulouse), soit il pourrait couper
+    une partie de la ville sur une commune très étendue. Le nom de commune
+    seul, désambiguïsé par code_departement (des communes homonymes
+    existent en France), est la correspondance la plus fidèle à "collèges
+    à Toulouse" au sens strict.
+    """
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("""
+            SELECT uai, nom, commune, secteur, type_etablissement, latitude, longitude
+            FROM etablissements
+            WHERE commune = ? AND code_departement = ? AND type_etablissement = ?
+        """, (commune, code_departement, type_etablissement)).fetchall()
+        return [{**dict(row), "distance_km": None} for row in rows]
+    finally:
+        conn.close()
+
+
 def recherche_geo(adresse_ou_ville: str, rayon_km: float = None, type_etablissement: str = "Collège") -> dict:
     """Retourne : {success, adresse_recherchee, adresse_normalisee, latitude, longitude,
     rayon_km, etablissements, nb_etablissements, error}"""
-    if rayon_km is None:
-        rayon_km = GEO_RAYON_DEFAUT_KM
     geo = geocoder(adresse_ou_ville)
     if not geo["success"]:
         return {
@@ -84,12 +115,68 @@ def recherche_geo(adresse_ou_ville: str, rayon_km: float = None, type_etablissem
             "latitude": None, "longitude": None, "rayon_km": rayon_km,
             "etablissements": [], "nb_etablissements": 0, "error": geo["error"]
         }
+
+    # "type": "municipality" = l'utilisateur n'a donné qu'un nom de ville
+    # (pas une adresse précise) -> correspondance exacte sur la commune,
+    # pas de rayon (S8.27). Adresse précise -> comportement inchangé
+    # (rayon autour du point géocodé, pertinent dans ce cas).
+    if geo["type"] == "municipality" and geo.get("city") and geo.get("depcode"):
+        etablissements = trouver_etablissements_par_commune(geo["city"], geo["depcode"], type_etablissement)
+        return {
+            "success": True, "adresse_recherchee": adresse_ou_ville,
+            "adresse_normalisee": geo["label"], "latitude": geo["latitude"], "longitude": geo["longitude"],
+            "rayon_km": None, "etablissements": etablissements,
+            "nb_etablissements": len(etablissements), "error": None
+        }
+
+    if rayon_km is None:
+        rayon_km = GEO_RAYON_DEFAUT_KM
     etablissements = trouver_etablissements_dans_rayon(geo["latitude"], geo["longitude"], rayon_km, type_etablissement)
     return {
         "success": True, "adresse_recherchee": adresse_ou_ville,
         "adresse_normalisee": geo["label"], "latitude": geo["latitude"], "longitude": geo["longitude"],
         "rayon_km": rayon_km, "etablissements": etablissements,
         "nb_etablissements": len(etablissements), "error": None
+    }
+
+
+def rechercher_etablissements_region_departement(type_zone: str, valeur: str, libelle: str = None, type_etablissement: str = "Collège") -> dict:
+    """
+    Recherche déterministe par région ou département — AUCUN appel à l'API
+    de géocodage (S8.26) : contourne la mauvaise interprétation d'un nom de
+    région par l'API BAN (ex: "Bretagne" résolu à tort vers une rue à
+    Denain, dans le 59), en filtrant directement sur les colonnes
+    libelle_region/code_departement déjà présentes dans notre propre base
+    (cf. resoudre_zone_administrative dans sql_tool.py pour la résolution
+    du nom saisi vers ces valeurs officielles).
+
+    Retourne la même forme que recherche_geo (compatibilité avec le reste
+    du pipeline — agrégation, split, classement fonctionnent sans
+    modification), sauf latitude/longitude/rayon_km/distance_km qui n'ont
+    pas de sens pour une zone administrative entière (mis à None : pas de
+    point central ni de rayon, contrairement à une recherche par adresse).
+    """
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        colonne = "libelle_region" if type_zone == "region" else "code_departement"
+        rows = conn.execute(f"""
+            SELECT uai, nom, commune, secteur, type_etablissement, latitude, longitude
+            FROM etablissements
+            WHERE {colonne} = ? AND type_etablissement = ?
+        """, (valeur, type_etablissement)).fetchall()
+    finally:
+        conn.close()
+    etablissements = [{**dict(row), "distance_km": None} for row in rows]
+    nom_affiche = libelle or valeur
+    label = f"{nom_affiche} (région)" if type_zone == "region" else f"{nom_affiche} ({valeur})"
+    return {
+        "success": True, "adresse_recherchee": valeur, "adresse_normalisee": label,
+        "latitude": None, "longitude": None, "rayon_km": None,
+        "etablissements": etablissements, "nb_etablissements": len(etablissements), "error": None
     }
 
 
