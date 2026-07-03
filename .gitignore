@@ -43,6 +43,7 @@ rag/resultats_harness_history.json
 CLAUDE.md
 docs/document_transition_session*.md
 docs/fiches/
+docs/journal_de_bord.md
 
 # Résultats de benchmark ponctuels — pas du code source, pas reproductible tel quel
 contexte_benchmark_lyon.json
