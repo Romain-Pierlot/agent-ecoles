@@ -1144,3 +1144,29 @@ Appliqués de façon constante v3 à v6.
 **Point observé, non corrigé (documenté)** : un cas de test annexe ("Compare le collège Victor Hugo à Paris et à Lyon") est passé du chemin agent au chemin déterministe entre deux exécutions, à cause d'une extraction de zone "Paris et Lyon" (avec "et") au lieu de "Paris, Lyon" (avec virgule) — le garde-fou multi-zones (S8.19) ne détecte que les virgules. Résultat toujours sûr (demande de clarification, pas de donnée fausse), mais moins satisfaisant que le traitement par l'agent. Même famille de fragilité que le bug "pire" (S8.20/S8.21) mais sur l'extraction de zone plutôt que le tri — chantier séparé, non traité ici (cas très marginal, question artificiellement construite pour les tests).
 
 **Conséquence** : `agent/tools/sql_tool.py` (nouvelle fonction), `graph_router.py` (branchement + 3 nouvelles fonctions de template).
+
+## S8.23 — L'agent invente parfois une méthodologie non fondée sur les données reçues
+
+**Contexte** : rapport visuel du cahier de test (Artifact, demandé par l'utilisateur pour voir tous les rendus) — en le relisant, l'utilisateur a repéré que le cas "Agent : 2 zones" affirmait "basée sur les résultats des trois dernières années" alors que la question ne mentionnait aucune période, et sans savoir quel score avait réellement été retenu.
+
+**Diagnostic** : reproduction pas à pas, tour par tour. Le SQL réellement généré par `recherche_sql` pour "meilleur collège à Lyon" filtre sur `s.session = (SELECT MAX(session) FROM scores) LIMIT 1` — une seule année, la plus récente, aucune moyenne multi-années. Le `SELECT` n'incluait même pas la colonne `session`. En relançant la même question, la réponse ne contenait plus cette affirmation — confirme que c'est une invention du LLM au moment de la synthèse, pas un calcul multi-années caché : l'agent n'avait tout simplement aucune donnée sur la période et a comblé le vide par une formulation plausible mais fausse.
+
+**Tentative de fix par le prompt, jugée insuffisante** : ajout d'une règle dans `SCHEMA_PROMPT` ("TOUJOURS inclure s.session dans le SELECT") — testée sur 4 essais indépendants, suivie 0 fois sur 4. Contrairement à la règle "pire → ASC" (S8.20, fiable sans même de règle explicite), cette règle n'est pas naturellement suivie par le Text-to-SQL. Règle retirée du prompt (inutile, alourdit sans bénéfice mesuré).
+
+**Décision** : plutôt que de dépendre de la fiabilité du LLM sur ce point, `recherche_sql()` calcule et retourne désormais un champ `session_utilisee` déterministe (MAX des sessions disponibles, calculé en Python, indépendamment de ce que le SQL généré sélectionne réellement) — même principe que `session_utilisee` déjà présent dans `rechercher_top_par_secteur`/`calculer_moyenne_etablissements`. Règle ajoutée dans `AGENT_REACT_SYSTEM_PROMPT` : ne jamais affirmer une période/méthodologie non confirmée par `session_utilisee`/`sessions_disponibles`. `tableau_formate` (utilisé par l'agent) préfixé automatiquement d'une mention de session déterministe, pour ne pas dépendre uniquement du respect de cette règle par le LLM au moment de rédiger.
+
+**Validation** : reproduit 2 fois après le fix, aucune affirmation non fondée dans les deux cas. Pas une garantie à 100% (LLM non parfaitement déterministe même à température 0), mais la cause structurelle (absence de donnée pour se fonder) est éliminée.
+
+**Conséquence** : `agent/tools/sql_tool.py` (`session_utilisee` déterministe), `graph_router.py` (`tableau_formate` enrichi), `prompts/agent_react_system_prompt.py`.
+
+## S8.24 — Transparence sur la session utilisée étendue à tous les chemins déterministes
+
+**Contexte** : en creusant S8.23, l'utilisateur a signalé que le même trou existait sur les chemins 100% déterministes (pas seulement l'agent) — ex: "Quels sont les pires collèges publics à Lyon ?" affiche un tableau sans jamais dire de quelle année il s'agit.
+
+**Constat en auditant systématiquement** : `session_utilisee` (ou `sessions_disponibles`) était déjà calculé déterministiquement dans TOUTES les fonctions sous-jacentes (`recherche_sql`, `rechercher_top_par_secteur`, `calculer_moyenne_etablissements`) — mais seules les fonctions d'intro des chemins évolution (S8.17/S8.22) le faisaient réellement apparaître dans le texte affiché. Les 3 autres (classement standard, split public/privé, agrégation simple) ignoraient complètement cette donnée pourtant déjà disponible.
+
+**Décision** : nouveau helper `_mention_session(session_utilisee)` — fragment de phrase (" (données de la session la plus récente : 2025)") réutilisé par les 3 fonctions d'intro concernées (`_generer_intro_template`, `_generer_intro_split_template`, `_generer_intro_agregation_template`), alimenté par le `session_utilisee` déjà présent dans `resultats_sql` pour chaque forme. Aucun nouveau calcul : seulement la donnée déjà là, enfin affichée.
+
+**Validation** : vérifié sur les 4 chemins concernés (pire/secteur précisé, split, agrégation, comparaison de noms standard) — mention présente et correcte dans les 3 qui aboutissent, non-régression complète (classification 11/11, cahier e2e 22/22).
+
+**Conséquence** : `graph_router.py` uniquement (nouveau helper + 3 signatures de fonction + câblage dans `_preparer_affichage_resultats`).

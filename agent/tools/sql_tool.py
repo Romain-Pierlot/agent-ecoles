@@ -212,16 +212,31 @@ def _sessions_disponibles() -> list[str]:
 
 
 def recherche_sql(question: str, uai_filtre: list = None) -> dict:
-    """Retourne : {success, question, sql_genere, resultats, nb_resultats, sessions_disponibles, error, tentatives}"""
+    """
+    Retourne : {success, question, sql_genere, resultats, nb_resultats,
+    sessions_disponibles, session_utilisee, error, tentatives}
+
+    session_utilisee : calculé déterministiquement (MAX des sessions_disponibles),
+    PAS extrait du SQL généré par le LLM. Testé en pratique (S8.23) : demander
+    au Text-to-SQL d'inclure s.session dans son SELECT (règle de prompt) n'est
+    pas suivi de façon fiable (0/4 essais) — contrairement à d'autres règles
+    de ce prompt. Plutôt que de dépendre de cette fiabilité, ce champ est
+    calculé à côté, indépendamment de ce que le SQL généré sélectionne
+    réellement, pour donner à l'appelant (agent ReAct notamment) une donnée
+    fiable sur laquelle fonder une affirmation de méthodologie — évite qu'il
+    en invente une (ex: "basé sur les 3 dernières années") faute d'information.
+    """
     historique_erreurs = []
     for tentative in range(1, LLM_MAX_RETRIES + 2):
         sql = generer_sql(question, historique_erreurs if historique_erreurs else None, uai_filtre)
         try:
             resultats = executer_sql(sql)
+            sessions = _sessions_disponibles()
             return {
                 "success": True, "question": question, "sql_genere": sql,
                 "resultats": resultats, "nb_resultats": len(resultats),
-                "sessions_disponibles": _sessions_disponibles(),
+                "sessions_disponibles": sessions,
+                "session_utilisee": max(sessions) if sessions else None,
                 "error": None, "tentatives": tentative
             }
         except Exception as e:
