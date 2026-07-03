@@ -287,7 +287,11 @@ def noeud_sql(state: AgentState) -> AgentState:
     if state.get("resultats_geo") and state["resultats_geo"].get("success"):
         uai_filtre = [e["uai"] for e in state["resultats_geo"]["etablissements"]]
         if not uai_filtre:
-            state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "error": None}
+            # session_utilisee=None même ici (résultat vide) : convention
+            # respectée par toutes les fonctions de recherche du projet
+            # (cf. S8.25) — permet à _preparer_affichage_resultats de
+            # vérifier sa présence sans exception pour ce cas légitime.
+            state["resultats_sql"] = {"success": True, "resultats": [], "nb_resultats": 0, "session_utilisee": None, "error": None}
             return state
         if state.get("evolution_demandee"):
             # Zone géo (pas de nom résolu) + demande d'évolution multi-années :
@@ -818,7 +822,7 @@ def _mention_session(session_utilisee):
     return f" (données de la session la plus récente : {session_utilisee})"
 
 
-def _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite=None, session_utilisee=None):
+def _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite=None):
     """
     Intro 100% template — insertion de chiffres, aucune génération LLM.
     Le qualificatif ("meilleurs" vs "moins bons") reflète le tri réellement
@@ -826,37 +830,37 @@ def _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite=None, ses
     résultats", même en affichant les pires établissements demandés.
     ordre_souhaite vient du champ extrait par le LLM du router (S8.21),
     robuste aux synonymes ("le plus mauvais", "en difficulté"...).
+    Ne gère plus elle-même la mention de session (cf. S8.25) — centralisée
+    dans _preparer_affichage_resultats pour ne pas dépendre de chaque
+    fonction d'intro pour l'ajouter individuellement.
     """
     qualificatif = "présentant les moins bons résultats" if ordre_souhaite == OrdreSouhaite.PIRE else "présentant les meilleurs résultats"
-    mention = _mention_session(session_utilisee)
     if resultats_geo and resultats_geo.get("success"):
         total = resultats_geo.get("nb_etablissements", 0)
         zone = _zone_affichage(resultats_geo)
         if nb_affiches < total:
-            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} {qualificatif}{mention} :"
-        return f"Voici les établissements trouvés autour de {zone}{mention} :"
+            return f"Dans la zone recherchée autour de {zone}, {total} établissements ont été identifiés. Voici les {nb_affiches} {qualificatif} :"
+        return f"Voici les établissements trouvés autour de {zone} :"
     if nb_affiches == 1:
-        return f"Voici les informations pour l'établissement demandé{mention} :"
-    return f"Voici les résultats trouvés{mention} :"
+        return "Voici les informations pour l'établissement demandé :"
+    return "Voici les résultats trouvés :"
 
 
-def _generer_intro_split_template(resultats_geo, nb_public, nb_prive, ordre_pire=False, session_utilisee=None):
+def _generer_intro_split_template(resultats_geo, nb_public, nb_prive, ordre_pire=False):
     """Intro 100% template pour le cas split public/privé — aucune génération LLM."""
     zone = _zone_affichage(resultats_geo)
     qualificatif = "moins bons" if ordre_pire else "meilleurs"
-    mention = _mention_session(session_utilisee)
     return (
         f"Voici les {nb_public} {qualificatif} établissements publics et les {nb_prive} "
-        f"{qualificatif} établissements privés trouvés autour de {zone}{mention}, affichés séparément "
+        f"{qualificatif} établissements privés trouvés autour de {zone}, affichés séparément "
         f"pour représenter les deux secteurs équitablement :"
     )
 
 
-def _generer_intro_agregation_template(resultats_geo, session_utilisee=None):
+def _generer_intro_agregation_template(resultats_geo):
     """Intro 100% template pour le cas moyenne/agrégation sur une zone — aucune génération LLM."""
     zone = _zone_affichage(resultats_geo)
-    mention = _mention_session(session_utilisee)
-    return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone}{mention} :"
+    return f"Voici les moyennes calculées pour les établissements trouvés autour de {zone} :"
 
 
 def _generer_tableau_evolution_secteur(evolution, cle_secteur, label):
@@ -925,34 +929,48 @@ def _generer_intro_evolution_geo_template(resultats_geo, sessions_disponibles):
 def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
-    en gérant les trois formats possibles (classement normal, split
-    public/privé, ou moyenne/agrégation sur zone). Centralise ce branchement
-    à un seul endroit plutôt que de le répéter à chaque étape de noeud_synthese.
+    en gérant les quatre formats possibles (classement normal, split
+    public/privé, moyenne/agrégation sur zone, évolution sur zone).
+    Centralise ce branchement à un seul endroit plutôt que de le répéter à
+    chaque étape de noeud_synthese.
+
+    Centralise aussi la mention de session (S8.25) — plus fait par chaque
+    fonction d'intro individuellement (comme en S8.24), mais une seule fois
+    ici, après coup : une future forme ajoutée n'a rien à faire de spécial
+    pour en bénéficier, du moment que sa fonction SQL sous-jacente respecte
+    la convention déjà en place (session_utilisee ou sessions_disponibles
+    toujours présent, même à None/vide). Le garde-fou (assert ci-dessous)
+    fait échouer bruyamment tout résultat qui ne la respecterait pas,
+    plutôt que de laisser passer un trou de transparence en silence.
 
     Retourne (tableau: str|None, intro: str).
     """
     if resultats_sql and resultats_sql.get("evolution_geo"):
         tableau = _generer_tableau_evolution_geo(resultats_sql, secteur_souhaite)
         intro = _generer_intro_evolution_geo_template(resultats_geo, resultats_sql.get("sessions_disponibles", []))
-        return tableau, intro
-
-    if resultats_sql and resultats_sql.get("agregation_geo"):
+    elif resultats_sql and resultats_sql.get("agregation_geo"):
         tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite)
-        intro = _generer_intro_agregation_template(resultats_geo, resultats_sql.get("session_utilisee"))
-        return tableau, intro
-
-    if resultats_sql and resultats_sql.get("split_secteur"):
+        intro = _generer_intro_agregation_template(resultats_geo)
+    elif resultats_sql and resultats_sql.get("split_secteur"):
         tableau = _generer_tableaux_split_secteur(resultats_sql)
         nb_public = len(resultats_sql.get("public", []))
         nb_prive = len(resultats_sql.get("prive", []))
-        intro = _generer_intro_split_template(
-            resultats_geo, nb_public, nb_prive, resultats_sql.get("ordre_pire", False), resultats_sql.get("session_utilisee")
-        )
-        return tableau, intro
+        intro = _generer_intro_split_template(resultats_geo, nb_public, nb_prive, resultats_sql.get("ordre_pire", False))
+    else:
+        tableau = _generer_tableau_etablissements(resultats_sql)
+        nb_affiches = len(resultats_sql.get("resultats", [])) if resultats_sql else 0
+        intro = _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite)
 
-    tableau = _generer_tableau_etablissements(resultats_sql)
-    nb_affiches = len(resultats_sql.get("resultats", [])) if resultats_sql else 0
-    intro = _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite, resultats_sql.get("session_utilisee") if resultats_sql else None)
+    if resultats_sql and resultats_sql.get("success"):
+        assert "session_utilisee" in resultats_sql or "sessions_disponibles" in resultats_sql, (
+            "resultats_sql (success=True) ne contient ni session_utilisee ni "
+            "sessions_disponibles — l'utilisateur ne pourrait pas savoir de "
+            "quand datent les données affichées. Toute fonction de recherche "
+            "doit inclure l'un des deux, même à None/vide (cf. S8.25)."
+        )
+        if resultats_sql.get("session_utilisee"):
+            intro += _mention_session(resultats_sql["session_utilisee"])
+
     return tableau, intro
 
 

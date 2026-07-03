@@ -1170,3 +1170,20 @@ Appliqués de façon constante v3 à v6.
 **Validation** : vérifié sur les 4 chemins concernés (pire/secteur précisé, split, agrégation, comparaison de noms standard) — mention présente et correcte dans les 3 qui aboutissent, non-régression complète (classification 11/11, cahier e2e 22/22).
 
 **Conséquence** : `graph_router.py` uniquement (nouveau helper + 3 signatures de fonction + câblage dans `_preparer_affichage_resultats`).
+
+## S8.25 — Centralisation de la mention de session + garde-fou structurel
+
+**Contexte** : discussion de fond après S8.24. La mention de session ajoutée en S8.24 était "opt-in" — chacune des 3 fonctions d'intro devait individuellement recevoir le paramètre `session_utilisee` ET penser à l'insérer dans sa phrase. L'utilisateur a fait remarquer que ce n'est pas juste un oubli ponctuel possible mais un vrai problème structurel : rien n'empêche une future fonction d'oublier ce câblage, et rien ne le signalerait.
+
+**Option écartée, explicitement déconseillée** : remplacer les dictionnaires de résultats par une structure typée stricte (dataclass/TypedDict) forçant la présence du champ à la compilation. Refusée pour disproportion : toucherait tous les points d'accès `.get(...)` dans `sql_tool.py` et `graph_router.py`, un vrai refactor à risque de régression, pour un projet qui n'a pas la taille justifiant ce niveau d'infrastructure. Point technique clarifié à l'utilisateur : un `TypedDict` seul n'aurait de toute façon rien vérifié à l'exécution (seulement pour un outil d'analyse statique comme mypy) — ne donne pas la garantie "l'oubli fait planter le code" sans un mécanisme de vérification actif en plus.
+
+**Décision retenue (proportionnée)** :
+- La mention de session n'est plus construite par les 3 fonctions d'intro individuellement (revert du paramètre ajouté en S8.24) — elle est ajoutée une seule fois, après coup, dans `_preparer_affichage_resultats` (le point d'orchestration déjà existant), après que tableau/intro ont été produits par la branche appropriée.
+- Garde-fou (`assert`) au même endroit : si `resultats_sql["success"]` est vrai mais qu'il ne contient ni `session_utilisee` ni `sessions_disponibles`, le code lève immédiatement une erreur explicite plutôt que de laisser passer un trou de transparence en silence.
+- Corrigé au passage : le retour anticipé de `noeud_sql` pour une zone sans aucun établissement (`uai_filtre` vide) ne suivait pas la convention (`session_utilisee` absent du dict, pas même `None`) — aurait fait échouer le nouveau garde-fou à tort ; harmonisé.
+
+**Bénéfice concret** : une future 5ᵉ fonction de recherche n'a plus besoin d'un câblage spécifique dans les fonctions d'intro pour que la mention apparaisse — il suffit que sa fonction SQL sous-jacente respecte la convention déjà établie (`session_utilisee` ou `sessions_disponibles` toujours présent, même à `None`/vide). Si elle l'oublie, le garde-fou le signale immédiatement au lieu d'un trou silencieux.
+
+**Validation** : garde-fou testé directement (lève bien une `AssertionError` sur un dict volontairement incomplet). Suite complète re-passée sans régression : classification 11/11, cahier e2e 22/22 — le garde-fou ne s'est déclenché sur aucun des 22 cas réels, confirmant que les 6 chemins qui produisent `resultats_sql` respectent tous la convention.
+
+**Conséquence** : `graph_router.py` (`_preparer_affichage_resultats` restructurée, 3 fonctions d'intro simplifiées, `noeud_sql` harmonisé).
