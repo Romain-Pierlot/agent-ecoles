@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { envoyerMessage } from "@/lib/api";
 
 type Message = {
@@ -56,17 +58,21 @@ export default function PageChat() {
                 : "text-left"
             }
           >
-            <span
-              className={
-                message.role === "user"
-                  ? "inline-block bg-blue-100 rounded-lg px-3 py-2"
-                  : message.role === "erreur"
-                  ? "inline-block"
-                  : "inline-block bg-gray-100 rounded-lg px-3 py-2"
-              }
-            >
-              {message.contenu}
-            </span>
+            {message.role === "assistant" ? (
+              <div className="prose prose-sm max-w-none inline-block bg-gray-100 rounded-lg px-3 py-2 text-left">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.contenu}</ReactMarkdown>
+              </div>
+            ) : (
+              <span
+                className={
+                  message.role === "user"
+                    ? "inline-block bg-blue-100 rounded-lg px-3 py-2"
+                    : "inline-block"
+                }
+              >
+                {message.contenu}
+              </span>
+            )}
           </div>
         ))}
         {enAttente && <p className="text-sm text-gray-500">L&apos;agent réfléchit…</p>}
