@@ -45,5 +45,9 @@ docs/document_transition_session*.md
 docs/fiches/
 docs/journal_de_bord.md
 
+# Décrit des failles de sécurité non encore corrigées (cas d'attaque concrets) —
+# à rendre public seulement une fois les guardrails correspondants implémentés et vérifiés
+docs/guardrails_criteres_acceptance.md
+
 # Résultats de benchmark ponctuels — pas du code source, pas reproductible tel quel
 contexte_benchmark_lyon.json
