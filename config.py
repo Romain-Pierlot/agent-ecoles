@@ -56,6 +56,9 @@ LANGSMITH_PROJECT = "agent-ecoles"
 # --- Géolocalisation ---
 GEO_RAYON_DEFAUT_KM = 10       # Rayon par défaut si non précisé par l'utilisateur
 
+# --- API backend ---
+API_CORS_ORIGINS = ["http://localhost:3000"]  # Origine du frontend Next.js en local
+
 
 # --- Router : catégories de question (ensemble fermé -> enum, pas des chaînes libres) ---
 class Categorie(StrEnum):
