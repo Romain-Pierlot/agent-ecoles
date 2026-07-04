@@ -7,6 +7,7 @@ langgraph
 
 # Base de données
 # sqlite3 est inclus dans Python — pas besoin de l'installer
+sqlglot  # validation du SQL généré par le LLM avant exécution (guardrails/sql_safety.py)
 
 # Vectorstore RAG
 chromadb

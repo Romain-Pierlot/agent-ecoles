@@ -6,13 +6,18 @@ catégories suivantes, et extrais sa zone géographique si présente.
 
 - recherche_geo_classement : recherche géo avec tri par indicateur, ou
   comparaison d'établissements dans une zone géographique (ex: "meilleurs
-  collèges de Lyon", "compare les collèges de Bordeaux").
+  collèges de Lyon", "compare les collèges de Bordeaux", "quel est le
+  meilleur collège de France ?", "quel est le meilleur collège ?" — une
+  demande de classement sans zone précisée est une recherche nationale,
+  pas hors-sujet).
 - comparaison_etablissements_nommes : comparaison d'établissements nommés.
 - question_methodologique : question sur un concept/indicateur, sans donnée
   chiffrée sur un établissement précis.
 - non_reconnu : aucune catégorie ci-dessus ne correspond clairement (ex:
   conseil personnalisé sur le profil ou les besoins d'un enfant, question
-  sans lien avec les indicateurs du produit).
+  sans lien avec les indicateurs du produit, question sur un pays étranger
+  ou un classement mondial — le périmètre du produit est la France
+  uniquement).
 
 Extrais aussi le secteur souhaité (secteur_souhaite) : "public" ou "prive"
 si la question le précise explicitement pour un seul des deux ("collèges

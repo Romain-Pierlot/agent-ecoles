@@ -117,3 +117,12 @@ PREFIXES_INSTITUTIONNELS = [
     "ecole",
     "clg",
 ]
+
+# --- Zone nationale (geo_tool.py) ---
+# Codes département des DOM-TOM tels que stockés en base — fait administratif
+# stable, pas recalculé. Sert à distinguer "France" (tout le pays, DOM-TOM
+# inclus) de "France métropolitaine" (DOM-TOM exclus) pour une recherche à
+# l'échelle nationale.
+DEPARTEMENTS_OUTRE_MER = {
+    "971", "972", "973", "974", "975", "976", "977", "978", "986", "987", "988",
+}

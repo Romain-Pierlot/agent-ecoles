@@ -15,6 +15,7 @@ from config import (
     DB_PATH, LLM_MODEL, LLM_MAX_RETRIES, SQL_TIMEOUT_SECONDS,
     Secteur, SecteurSouhaite, SEUIL_CANDIDATS_AVANT_PRECISION, PREFIXES_INSTITUTIONNELS,
 )
+from guardrails.sql_safety import valider_sql
 
 client = OpenAI()
 
@@ -180,10 +181,16 @@ INSTRUCTIONS :
 
 
 def executer_sql(sql: str) -> list[dict]:
+    """
+    Connexion en LECTURE SEULE (mode URI SQLite `?mode=ro`) : garantit
+    qu'aucune écriture ne passe, quoi que la requête générée par le LLM
+    contienne — indépendamment du validateur (guardrails/sql_safety.py),
+    qui reste la protection principale mais ne doit pas être le seul filet.
+    """
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
     )
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
         cursor = conn.execute(sql)
@@ -230,6 +237,19 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     historique_erreurs = []
     for tentative in range(1, LLM_MAX_RETRIES + 2):
         sql = generer_sql(question, historique_erreurs if historique_erreurs else None, uai_filtre)
+        # Guardrail (cf. guardrails/sql_safety.py) : validation AVANT exécution
+        # — une requête rejetée est réinjectée dans la boucle de retry
+        # existante, exactement comme une erreur SQLite classique.
+        valide, erreur_validation = valider_sql(sql)
+        if not valide:
+            historique_erreurs.append({"sql_tente": sql, "erreur": erreur_validation})
+            if tentative > LLM_MAX_RETRIES:
+                return {
+                    "success": False, "question": question, "sql_genere": sql,
+                    "resultats": [], "nb_resultats": 0,
+                    "error": erreur_validation, "tentatives": tentative
+                }
+            continue
         try:
             resultats = executer_sql(sql)
             sessions = _sessions_disponibles()
@@ -631,6 +651,17 @@ def _normaliser_zone_administrative(nom: str) -> str:
     return re.sub(r"\s+", " ", nom)
 
 
+# Zone nationale : "France" (tout le pays, DOM-TOM inclus, aucune condition
+# géographique dans la requête) et "France métropolitaine" (DOM-TOM exclus,
+# cf. DEPARTEMENTS_OUTRE_MER dans config.py) sont deux zones distinctes,
+# pas une seule — une demande explicite de métropole ne doit pas inclure
+# les DOM-TOM, et inversement "France" doit tous les inclure.
+ZONES_NATIONALES = {
+    "france": "national",
+    "france metropolitaine": "national_metropole",
+    "metropole": "national_metropole",
+}
+
 # Noms de régions françaises d'avant la réforme territoriale de 2016,
 # encore courants dans le langage courant — mappés vers le nom de la
 # région actuelle telle que stockée en base. Fait historique stable (pas
@@ -657,12 +688,13 @@ REGIONS_HERITEES = {
 
 def resoudre_zone_administrative(nom_zone: str) -> dict:
     """
-    Détermine si nom_zone désigne une région ou un département français
-    (nom actuel, nom d'avant la réforme de 2016, ou faute de frappe légère)
-    plutôt qu'une ville/adresse — évite de laisser l'API de géocodage
-    externe mal interpréter un nom de région (ex: "Bretagne" résolu à tort
-    vers une rue à Denain, cf. S8.26) en la contournant complètement pour
-    ce cas, au profit d'une requête directe sur nos propres données.
+    Détermine si nom_zone désigne une région, un département, ou la France
+    entière (nom actuel, nom d'avant la réforme de 2016, ou faute de frappe
+    légère) plutôt qu'une ville/adresse — évite de laisser l'API de
+    géocodage externe mal interpréter un nom de région (ex: "Bretagne"
+    résolu à tort vers une rue à Denain, cf. S8.26) en la contournant
+    complètement pour ce cas, au profit d'une requête directe sur nos
+    propres données.
 
     Ensemble de comparaison volontairement petit (~30 noms au total,
     régions + départements) : les noms de régions/départements changent
@@ -671,11 +703,18 @@ def resoudre_zone_administrative(nom_zone: str) -> dict:
     risque de faux positifs qu'aurait la même approche sur un ensemble de
     plusieurs milliers de noms.
 
-    Retourne : {"type": "region"|"departement"|None, "valeur": str|None}
+    Retourne : {"type": "region"|"departement"|"national"|"national_metropole"|None, "valeur": str|None}
     "valeur" est toujours le nom/code officiel tel que stocké en base
-    (libelle_region ou code_departement), jamais le texte brut saisi.
+    (libelle_region ou code_departement), jamais le texte brut saisi — sauf
+    pour "national"/"national_metropole", où aucune valeur unique n'a de
+    sens (valeur=None, cf. ZONES_NATIONALES).
     """
     nom_normalise = _normaliser_zone_administrative(nom_zone)
+
+    if nom_normalise in ZONES_NATIONALES:
+        type_national = ZONES_NATIONALES[nom_normalise]
+        libelle = "France métropolitaine" if type_national == "national_metropole" else "France"
+        return {"type": type_national, "valeur": None, "libelle": libelle}
 
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH

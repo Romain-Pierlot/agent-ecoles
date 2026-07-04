@@ -17,10 +17,17 @@ from agent.tools.sql_tool import (
     calculer_moyenne_etablissements, calculer_evolution_moyenne_zone, resoudre_zone_administrative,
 )
 from agent.tools.geo_tool import recherche_geo, rechercher_etablissements_region_departement
+from guardrails.llm_output_safety import enum_securise
+from guardrails.resource_limits import verifier_limite_zones
+from guardrails.output_contracts import verifier_transparence_temporelle
+from guardrails.scope_guard import question_hors_sujet, MESSAGE_HORS_SUJET
+from guardrails.input_limits import verifier_longueur_question
+from guardrails.prompt_leakage import contient_fuite_prompt_systeme, MESSAGE_SUBSTITUTION
+from guardrails.output_vocabulary import contient_vocabulaire_interdit, MESSAGE_SUBSTITUTION as MESSAGE_SUBSTITUTION_VOCAB
 
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
-    MAX_ZONES_COMPAREES, HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
+    HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
@@ -124,21 +131,6 @@ ROUTER_TOOL_SCHEMA = {
 }
 
 
-def _enum_securise(cls, valeur, defaut):
-    """
-    Conversion défensive : le routeur reçoit du JSON généré par un LLM, pas
-    une donnée de confiance. Repli sur `defaut` plutôt que de laisser
-    planter le graphe si le modèle renvoie une valeur incohérente (observé
-    sur un cas limite volontairement difficile — 5 zones géographiques dans
-    une seule question — où le LLM a renvoyé le NOM d'un autre champ du
-    schéma comme valeur de "categorie").
-    """
-    try:
-        return cls(valeur)
-    except ValueError:
-        return defaut
-
-
 def noeud_router(state: AgentState) -> AgentState:
     historique = (state.get("historique") or [])[-HISTORIQUE_MAX_TOURS:]
     messages = [{"role": "system", "content": ROUTER_SYSTEM_PROMPT}]
@@ -166,10 +158,10 @@ def noeud_router(state: AgentState) -> AgentState:
     # Catégorie, zone géographique, noms d'établissements, secteur et nuance
     # méthodologique extraits en un seul appel LLM fusionné — évite des
     # appels séparés (gain de latence).
-    state["categorie"] = _enum_securise(Categorie, args["categorie"], Categorie.NON_RECONNU)
+    state["categorie"] = enum_securise(Categorie, args["categorie"], Categorie.NON_RECONNU)
     zone_extraite = args["zone"] if args.get("zone_detectee") else None
     noms_extraits = args.get("noms_etablissements") or []
-    secteur_extrait = _enum_securise(SecteurSouhaite, args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT, SecteurSouhaite.INDIFFERENT)
+    secteur_extrait = enum_securise(SecteurSouhaite, args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT, SecteurSouhaite.INDIFFERENT)
 
     # nouveau_sujet n'a de sens que s'il y a un historique — sans historique,
     # rien à reporter, pas besoin de faire trancher le LLM sur une évidence.
@@ -203,7 +195,7 @@ def noeud_router(state: AgentState) -> AgentState:
     state["requete_rag_nuance"] = args.get("requete_rag_nuance") or None
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
     state["nb_annees_demandees"] = args.get("nb_annees_demandees") or None
-    state["ordre_souhaite"] = _enum_securise(OrdreSouhaite, args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT, OrdreSouhaite.INDIFFERENT)
+    state["ordre_souhaite"] = enum_securise(OrdreSouhaite, args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT, OrdreSouhaite.INDIFFERENT)
     state["agregation_demandee"] = bool(args.get("agregation_demandee"))
 
     # Garde-fou déterministe (pas un patch de prompt) : comparaison_etablissements_nommes
@@ -269,6 +261,18 @@ def noeud_router(state: AgentState) -> AgentState:
     # réévaluer si l'agent se montre fragile ou trop lent sur ces cas.
     if state["zone_geo"] and "," in state["zone_geo"]:
         state["categorie"] = Categorie.NON_RECONNU
+
+    # Garde-fou déterministe : recherche_geo_classement suppose par
+    # définition une zone géographique à chercher. Si aucune zone n'est
+    # extraite (question sans zone du tout, ex: "quel est le meilleur
+    # collège ?", ou mention de "France" que le router ne reconnaît pas
+    # comme géocodable), l'absence de zone est traitée comme une demande
+    # nationale implicite (décision produit), pas comme une ambiguïté à
+    # clarifier ni un refus. resoudre_zone_administrative reconnaît "France"
+    # et retourne le résultat sur toute la base, sans appel à l'API de
+    # géocodage (cf. ZONES_NATIONALES dans sql_tool.py).
+    if state["categorie"] == Categorie.RECHERCHE_GEO_CLASSEMENT and state["zone_geo"] is None:
+        state["zone_geo"] = "France"
 
     return state
 
@@ -644,21 +648,17 @@ def noeud_agent_react(state: AgentState) -> AgentState:
     resultats_sql produite par un seul appel déterministe, incompatible
     avec des appels multiples dans un ordre libre.
 
-    Garde-fou déterministe en premier, avant tout appel LLM : au-delà de
-    MAX_ZONES_COMPAREES zones dans la même question, l'agent devient trop
-    lent/coûteux (timeout mesuré à 5 zones, ~96s avant échec — cf. session
-    8). Plutôt que de laisser l'agent essayer et échouer après une longue
-    attente, on bloque immédiatement avec un message explicite, sans coût
-    ni latence.
+    Garde-fou déterministe en premier, avant tout appel LLM (cf.
+    guardrails/resource_limits.py) : au-delà de MAX_ZONES_COMPAREES zones
+    dans la même question, l'agent devient trop lent/coûteux (timeout
+    mesuré à 5 zones, ~96s avant échec — cf. session 8). Plutôt que de
+    laisser l'agent essayer et échouer après une longue attente, on bloque
+    immédiatement avec un message explicite, sans coût ni latence.
     """
-    nb_zones = len((state.get("zone_geo") or "").split(",")) if state.get("zone_geo") else 0
-    if nb_zones > MAX_ZONES_COMPAREES:
+    autorise, message_refus = verifier_limite_zones(state.get("zone_geo"))
+    if not autorise:
         state["tours_agent"] = 0
-        state["reponse_finale"] = (
-            f"Je peux comparer jusqu'à {MAX_ZONES_COMPAREES} zones géographiques à la fois "
-            f"(villes, départements...). Peux-tu reformuler ta question avec "
-            f"{MAX_ZONES_COMPAREES} zones maximum ?"
-        )
+        state["reponse_finale"] = message_refus
         return state
 
     messages = [
@@ -679,7 +679,16 @@ def noeud_agent_react(state: AgentState) -> AgentState:
 
         if not message.tool_calls:
             # Pas d'appel d'outil : le LLM a choisi de répondre directement.
-            state["reponse_finale"] = message.content
+            # Guardrails de sortie (cf. guardrails/prompt_leakage.py et
+            # guardrails/output_vocabulary.py) : filets durs en plus des
+            # instructions du prompt, avant de renvoyer la réponse.
+            contenu_direct = message.content or ""
+            if contient_fuite_prompt_systeme(contenu_direct, AGENT_REACT_SYSTEM_PROMPT):
+                state["reponse_finale"] = MESSAGE_SUBSTITUTION
+            elif contient_vocabulaire_interdit(contenu_direct):
+                state["reponse_finale"] = MESSAGE_SUBSTITUTION_VOCAB
+            else:
+                state["reponse_finale"] = message.content
             return state
 
         messages.append({
@@ -715,7 +724,13 @@ def noeud_agent_react(state: AgentState) -> AgentState:
         messages=messages,
         timeout=LLM_TIMEOUT_SECONDS,
     )
-    state["reponse_finale"] = response.choices[0].message.content
+    contenu = response.choices[0].message.content or ""
+    if contient_fuite_prompt_systeme(contenu, AGENT_REACT_SYSTEM_PROMPT):
+        state["reponse_finale"] = MESSAGE_SUBSTITUTION
+    elif contient_vocabulaire_interdit(contenu):
+        state["reponse_finale"] = MESSAGE_SUBSTITUTION_VOCAB
+    else:
+        state["reponse_finale"] = contenu
     return state
 
 
@@ -1091,12 +1106,7 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
         intro = _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite)
 
     if resultats_sql and resultats_sql.get("success"):
-        assert "session_utilisee" in resultats_sql or "sessions_disponibles" in resultats_sql, (
-            "resultats_sql (success=True) ne contient ni session_utilisee ni "
-            "sessions_disponibles — l'utilisateur ne pourrait pas savoir de "
-            "quand datent les données affichées. Toute fonction de recherche "
-            "doit inclure l'un des deux, même à None/vide (cf. S8.25)."
-        )
+        verifier_transparence_temporelle(resultats_sql)
         if resultats_sql.get("session_utilisee"):
             intro += _mention_session(resultats_sql["session_utilisee"])
 
@@ -1157,7 +1167,14 @@ def _generer_nuance_rag(question, resultats_rag):
         ],
         timeout=LLM_TIMEOUT_SECONDS,
     )
-    return "\n\n" + response.choices[0].message.content
+    contenu = response.choices[0].message.content
+    # Guardrail de sortie (cf. guardrails/output_vocabulary.py) : filet dur
+    # en plus de l'instruction du prompt ci-dessus. Nuance optionnelle —
+    # en cas de détection, on l'omet plutôt que d'exposer du vocabulaire
+    # d'implémentation, la réponse principale reste intacte sans elle.
+    if contient_vocabulaire_interdit(contenu):
+        return ""
+    return "\n\n" + contenu
 
 
 NUANCE_PRIVE = (
@@ -1372,7 +1389,22 @@ def noeud_synthese(state: AgentState) -> AgentState:
 
 
 def router_vers_chemin(state: AgentState) -> str:
+    if question_hors_sujet(state):
+        return "hors_sujet"
     return state["categorie"]
+
+
+def noeud_refus_hors_sujet(state: AgentState) -> AgentState:
+    """
+    Guardrail dur (cf. guardrails/scope_guard.py) : refus déterministe et
+    immédiat, sans appeler l'agent ReAct, quand la catégorie est non_reconnu
+    ET qu'aucun signal exploitable n'a été extrait par le router. Une
+    question complexe mais légitime (au moins un signal présent) continue
+    vers l'agent ReAct comme avant — ce garde-fou ne cible que le hors-sujet
+    sans aucun rapport avec le produit.
+    """
+    state["reponse_finale"] = MESSAGE_HORS_SUJET
+    return state
 
 
 def router_apres_geo(state: AgentState) -> str:
@@ -1411,6 +1443,7 @@ def construire_graphe():
     graph.add_node("clarification_geo", noeud_clarification_geo)
     graph.add_node("clarification_noms", noeud_clarification_noms)
     graph.add_node("synthese", noeud_synthese)
+    graph.add_node("refus_hors_sujet", noeud_refus_hors_sujet)
 
     graph.set_entry_point("router")
     graph.add_conditional_edges("router", router_vers_chemin, {
@@ -1418,6 +1451,7 @@ def construire_graphe():
         Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES: "resolution_noms",
         Categorie.QUESTION_METHODOLOGIQUE: "rag_tool",
         Categorie.NON_RECONNU: "agent_react",
+        "hors_sujet": "refus_hors_sujet",
     })
     graph.add_conditional_edges("geo_tool", router_apres_geo, {
         "sql_tool": "sql_tool",
@@ -1435,6 +1469,7 @@ def construire_graphe():
     graph.add_edge("clarification_noms", END)
     graph.add_edge("rag_tool", "synthese")
     graph.add_edge("agent_react", END)  # réponse générée directement par l'agent, pas de re-templating
+    graph.add_edge("refus_hors_sujet", END)
     graph.add_edge("synthese", END)
     return graph.compile()
 
@@ -1476,7 +1511,17 @@ def poser_question(app, etat_session: AgentState, question: str) -> AgentState:
     etat_session["reponse_finale"] = None
     etat_session["tours_agent"] = 0
 
-    nouvel_etat = app.invoke(etat_session)
+    # Guardrail d'entrée (cf. guardrails/input_limits.py) : rejet avant tout
+    # appel LLM, y compris le routeur — une question trop longue ne doit
+    # jamais atteindre un appel LLM, même pour être classifiée.
+    autorise, message_refus = verifier_longueur_question(question)
+    if autorise:
+        nouvel_etat = app.invoke(etat_session)
+    else:
+        etat_session["categorie"] = Categorie.NON_RECONNU
+        etat_session["reponse_finale"] = message_refus
+        nouvel_etat = etat_session
+
     nouvel_etat["historique"] = (nouvel_etat.get("historique") or []) + [
         {"question": question, "reponse": nouvel_etat["reponse_finale"]}
     ]

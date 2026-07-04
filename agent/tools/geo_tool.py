@@ -7,7 +7,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM
+from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, DEPARTEMENTS_OUTRE_MER
 
 BAN_API_URL = "https://api-adresse.data.gouv.fr/search/"
 
@@ -142,13 +142,17 @@ def recherche_geo(adresse_ou_ville: str, rayon_km: float = None, type_etablissem
 
 def rechercher_etablissements_region_departement(type_zone: str, valeur: str, libelle: str = None, type_etablissement: str = "Collège") -> dict:
     """
-    Recherche déterministe par région ou département — AUCUN appel à l'API
-    de géocodage (S8.26) : contourne la mauvaise interprétation d'un nom de
-    région par l'API BAN (ex: "Bretagne" résolu à tort vers une rue à
-    Denain, dans le 59), en filtrant directement sur les colonnes
-    libelle_region/code_departement déjà présentes dans notre propre base
-    (cf. resoudre_zone_administrative dans sql_tool.py pour la résolution
-    du nom saisi vers ces valeurs officielles).
+    Recherche déterministe par région, département, ou France entière —
+    AUCUN appel à l'API de géocodage (S8.26) : contourne la mauvaise
+    interprétation d'un nom de région par l'API BAN (ex: "Bretagne" résolu
+    à tort vers une rue à Denain, dans le 59), en filtrant directement sur
+    les colonnes libelle_region/code_departement déjà présentes dans notre
+    propre base (cf. resoudre_zone_administrative dans sql_tool.py pour la
+    résolution du nom/type de zone saisi).
+
+    "national" (France entière, DOM-TOM inclus) et "national_metropole"
+    (DOM-TOM exclus, cf. DEPARTEMENTS_OUTRE_MER) ne filtrent sur aucune
+    valeur précise — valeur/libelle ne servent alors qu'à l'affichage.
 
     Retourne la même forme que recherche_geo (compatibilité avec le reste
     du pipeline — agrégation, split, classement fonctionnent sans
@@ -162,19 +166,38 @@ def rechercher_etablissements_region_departement(type_zone: str, valeur: str, li
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        colonne = "libelle_region" if type_zone == "region" else "code_departement"
-        rows = conn.execute(f"""
-            SELECT uai, nom, commune, secteur, type_etablissement, latitude, longitude
-            FROM etablissements
-            WHERE {colonne} = ? AND type_etablissement = ?
-        """, (valeur, type_etablissement)).fetchall()
+        colonnes = "uai, nom, commune, secteur, type_etablissement, latitude, longitude"
+        if type_zone == "national":
+            rows = conn.execute(
+                f"SELECT {colonnes} FROM etablissements WHERE type_etablissement = ?",
+                (type_etablissement,),
+            ).fetchall()
+        elif type_zone == "national_metropole":
+            placeholders = ", ".join("?" for _ in DEPARTEMENTS_OUTRE_MER)
+            rows = conn.execute(
+                f"SELECT {colonnes} FROM etablissements "
+                f"WHERE type_etablissement = ? AND code_departement NOT IN ({placeholders})",
+                (type_etablissement, *DEPARTEMENTS_OUTRE_MER),
+            ).fetchall()
+        else:
+            colonne_zone = "libelle_region" if type_zone == "region" else "code_departement"
+            rows = conn.execute(
+                f"SELECT {colonnes} FROM etablissements WHERE {colonne_zone} = ? AND type_etablissement = ?",
+                (valeur, type_etablissement),
+            ).fetchall()
     finally:
         conn.close()
     etablissements = [{**dict(row), "distance_km": None} for row in rows]
-    nom_affiche = libelle or valeur
-    label = f"{nom_affiche} (région)" if type_zone == "region" else f"{nom_affiche} ({valeur})"
+    defaut_national = "France métropolitaine" if type_zone == "national_metropole" else "France"
+    nom_affiche = libelle or valeur or defaut_national
+    if type_zone == "region":
+        label = f"{nom_affiche} (région)"
+    elif type_zone == "departement":
+        label = f"{nom_affiche} ({valeur})"
+    else:
+        label = nom_affiche
     return {
-        "success": True, "adresse_recherchee": valeur, "adresse_normalisee": label,
+        "success": True, "adresse_recherchee": nom_affiche, "adresse_normalisee": label,
         "latitude": None, "longitude": None, "rayon_km": None,
         "etablissements": etablissements, "nb_etablissements": len(etablissements), "error": None
     }

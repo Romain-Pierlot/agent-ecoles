@@ -1287,3 +1287,19 @@ Appliqués de façon constante v3 à v6.
 **Validation** : cahier de test complet re-passé après les deux fixs — 22/22 sans exception (21/22 avant le fix du bug 2, le cas "5 zones" plantait) ; scénario de mémoire à 3 tours revérifié, tableau cohérent entre les tours.
 
 **Conséquence** : `agent/tools/sql_tool.py` (`rechercher_etablissements_par_uai`), `graph_router.py` (`noeud_sql`, `_enum_securise`).
+
+## S10.1 — Entonnoir de désambiguïsation (D1) : implémentation différée à la conception de l'interface
+
+**Décision** : le comportement actuel de `noeud_clarification_noms` (lister tous les candidats ambigus en texte, sans filtrage département/ville) reste en place tel quel pour l'instant.
+
+**Pourquoi** : `SEUIL_CANDIDATS_AVANT_PRECISION` et la logique associée (S7.3) n'ont de sens qu'avec une interface à boutons cliquables — la construire en texte brut avant que l'interface soit conçue serait spéculatif, potentiellement à refaire.
+
+**Conséquence** : l'inclusion ou non d'un niveau région dans l'entonnoir (en plus de département/ville) est reportée à la conception de l'interface, pas tranchée maintenant.
+
+## S10.3 — Module `guardrails/` créé : validation d'entrée, limites de ressources, refus hors-domaine, validation SQL, anti-extraction de prompt
+
+**Décision** : nouveau module `guardrails/`, regroupant des protections auparavant dispersées dans `graph_router.py`/`sql_tool.py`, et plusieurs protections nouvelles : plafond de longueur sur l'entrée utilisateur avant tout appel LLM, refus déterministe des questions hors du périmètre du produit, validation de la requête SQL générée par le LLM avant exécution (connexion en lecture seule + validateur syntaxique sur un vrai parseur SQL), détection d'une reproduction du prompt système dans une réponse, détection de vocabulaire d'implémentation dans une réponse destinée à l'utilisateur.
+
+**Pourquoi** : critère retenu pour "guardrails/ vs code local" — une protection y va si elle porte sur une frontière de confiance (entrée utilisateur, sortie LLM, texte libre → SQL exécuté) et reste testable indépendamment de la logique métier environnante ; le reste garde sa place dans le code du nœud concerné.
+
+**Conséquence** : `guardrails/llm_output_safety.py`, `resource_limits.py`, `output_contracts.py`, `input_limits.py`, `scope_guard.py`, `sql_safety.py`, `prompt_leakage.py`, `output_vocabulary.py`. Nouvelle dépendance : `sqlglot`. ~60 cas de test ajoutés, tous passants.
