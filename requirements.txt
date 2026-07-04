@@ -24,6 +24,7 @@ streamlit
 # API backend (Next.js appelle l'agent via cette couche HTTP)
 fastapi
 uvicorn
+psycopg[binary]  # écriture des logs de conversation vers Supabase (Postgres)
 
 # Monitoring
 langsmith
