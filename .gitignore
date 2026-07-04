@@ -44,6 +44,8 @@ CLAUDE.md
 docs/document_transition_session*.md
 docs/fiches/
 docs/journal_de_bord.md
+docs/roadmap_produit.md
+docs/roadmap_technique.md
 
 # Décrit des failles de sécurité non encore corrigées (cas d'attaque concrets) —
 # à rendre public seulement une fois les guardrails correspondants implémentés et vérifiés

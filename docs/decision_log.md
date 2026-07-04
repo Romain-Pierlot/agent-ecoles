@@ -1303,3 +1303,15 @@ Appliqués de façon constante v3 à v6.
 **Pourquoi** : critère retenu pour "guardrails/ vs code local" — une protection y va si elle porte sur une frontière de confiance (entrée utilisateur, sortie LLM, texte libre → SQL exécuté) et reste testable indépendamment de la logique métier environnante ; le reste garde sa place dans le code du nœud concerné.
 
 **Conséquence** : `guardrails/llm_output_safety.py`, `resource_limits.py`, `output_contracts.py`, `input_limits.py`, `scope_guard.py`, `sql_safety.py`, `prompt_leakage.py`, `output_vocabulary.py`. Nouvelle dépendance : `sqlglot`. ~60 cas de test ajoutés, tous passants.
+
+## S10.4 — Frontend Next.js (React/TypeScript), backend Python exposé via API
+
+**Décision** : Frontend Next.js (React/TypeScript), backend Python exposé via API (FastAPI probable), reste à concevoir.
+
+**Pourquoi** : Le produit central est un site public à trafic variable et croissant, avec des pages de contenu individuelles devant rester rapides, référençables et partageables par URL directe, ainsi qu'une zone interactive (chatbot) nécessitant un état de conversation et un rendu en streaming. Next.js couvre ces deux besoins avec un seul modèle de rendu cohérent : génération de pages statiques/à la demande pour le contenu (performance, référencement, mise à l'échelle), rendu serveur ou client pour la zone interactive, et un routage par fichier qui simplifie l'ajout de pages à mesure que le produit évolue. Le typage statique (TypeScript) réduit une classe entière d'erreurs d'exécution en production.
+
+**Rejeté** :
+- Tout-Streamlit : modèle d'exécution (script rejoué à chaque interaction) ne permet ni rendu par URL ni contrôle fin du cache — deux prérequis pour un site public destiné à monter en charge.
+- Tout-Python (FastAPI + Jinja2 + htmx) : viable techniquement, mais impose de reconstruire manuellement des briques que Next.js fournit déjà de façon standardisée (routage, récupération de données, réutilisation de composants), au prix d'une surface de maintenance plus importante à mesure que le produit grandit.
+
+**Conséquence** : Backend agentique inchangé dans sa logique, à envelopper dans une API. Implémentation non commencée.
