@@ -40,6 +40,8 @@ class AgentState(TypedDict):
     dc_niveau: str
     categorie: Optional[Categorie]
     zone_geo: Optional[str]
+    elargir_zone_environs: bool
+    zones_multiples: bool
     secteur_souhaite: Optional[SecteurSouhaite]
     nuance_methodologique_demandee: bool
     requete_rag_nuance: Optional[str]
@@ -79,6 +81,14 @@ ROUTER_TOOL_SCHEMA = {
                 "zone": {
                     "type": "string",
                     "description": "La zone géographique extraite si zone_detectee=true, sinon chaîne vide.",
+                },
+                "elargir_zone_environs": {
+                    "type": "boolean",
+                    "description": "true si la question demande explicitement d'élargir la recherche au-delà de la seule ville nommée (ex: \"et les environs\", \"et les alentours\", \"pas loin de là aussi\"). false si la question ne nomme qu'une ville sans demande d'élargissement — dans ce cas, seule cette commune est cherchée, jamais les communes voisines par défaut.",
+                },
+                "zones_multiples": {
+                    "type": "boolean",
+                    "description": "true UNIQUEMENT si la question compare ou agrège explicitement plusieurs zones géographiques distinctes à traiter séparément (ex: \"compare Lyon et Marseille\", \"la moyenne à Lyon, Perpignan et Poitiers\"). false pour une seule zone, même si son adresse contient une virgule (ex: \"30 rue Rivay, Levallois-Perret\" est UNE SEULE adresse, pas plusieurs zones) — ne te fie jamais à la présence d'une virgule, seulement au sens de la question.",
                 },
                 "noms_etablissements": {
                     "type": "array",
@@ -121,10 +131,10 @@ ROUTER_TOOL_SCHEMA = {
                 },
             },
             "required": [
-                "categorie", "zone_detectee", "zone", "noms_etablissements",
-                "secteur_souhaite", "nuance_methodologique_demandee", "requete_rag_nuance",
-                "evolution_demandee", "nb_annees_demandees", "ordre_souhaite", "agregation_demandee",
-                "nouveau_sujet",
+                "categorie", "zone_detectee", "zone", "elargir_zone_environs", "zones_multiples",
+                "noms_etablissements", "secteur_souhaite", "nuance_methodologique_demandee",
+                "requete_rag_nuance", "evolution_demandee", "nb_annees_demandees", "ordre_souhaite",
+                "agregation_demandee", "nouveau_sujet",
             ],
         },
     },
@@ -191,6 +201,8 @@ def noeud_router(state: AgentState) -> AgentState:
         state["uai_resolus"] = None
         state["resolution_noms"] = None
 
+    state["elargir_zone_environs"] = bool(args.get("elargir_zone_environs"))
+    state["zones_multiples"] = bool(args.get("zones_multiples"))
     state["nuance_methodologique_demandee"] = bool(args.get("nuance_methodologique_demandee"))
     state["requete_rag_nuance"] = args.get("requete_rag_nuance") or None
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
@@ -250,16 +262,23 @@ def noeud_router(state: AgentState) -> AgentState:
     ):
         state["categorie"] = Categorie.RECHERCHE_GEO_CLASSEMENT
 
-    # Garde-fou déterministe : plusieurs zones combinées dans une seule
-    # chaîne (ex: "Lyon, Perpignan, Poitiers" extrait comme une seule zone)
-    # échouent systématiquement au géocodage — geo_tool attend une seule
-    # adresse. Plutôt qu'un échec silencieux vers clarification_geo qui
-    # n'aide pas l'utilisateur, bascule vers non_reconnu -> agent ReAct,
-    # capable d'appeler recherche_geo séparément par zone. Volontairement
-    # pas de support déterministe multi-zones pour l'instant (cas plus rare
-    # et plus ouvert que les cas déjà sécurisés, cf. journal S8.19) — à
-    # réévaluer si l'agent se montre fragile ou trop lent sur ces cas.
-    if state["zone_geo"] and "," in state["zone_geo"]:
+    # Garde-fou déterministe : plusieurs zones distinctes à traiter séparément
+    # (ex: "compare Lyon, Perpignan et Poitiers") échouent systématiquement au
+    # géocodage — geo_tool attend une seule adresse. Plutôt qu'un échec
+    # silencieux vers clarification_geo qui n'aide pas l'utilisateur, bascule
+    # vers non_reconnu -> agent ReAct, capable d'appeler recherche_geo
+    # séparément par zone. Volontairement pas de support déterministe
+    # multi-zones pour l'instant (cas plus rare et plus ouvert que les cas
+    # déjà sécurisés, cf. journal S8.19) — à réévaluer si l'agent se montre
+    # fragile ou trop lent sur ces cas.
+    #
+    # zones_multiples est extrait par le LLM (pas une détection de virgule
+    # dans zone_geo, cf. bug réel) — une adresse précise au format français
+    # "numéro rue, ville" contient elle aussi une virgule sans être un cas de
+    # zones multiples ; seule une vraie interprétation du sens de la question
+    # permet de distinguer les deux (S11.1 : "30 rue Rivay, Levallois-Perret"
+    # routé à tort vers non_reconnu par l'ancien test syntaxique).
+    if state.get("zones_multiples"):
         state["categorie"] = Categorie.NON_RECONNU
 
     # Garde-fou déterministe : recherche_geo_classement suppose par
@@ -300,7 +319,7 @@ def noeud_geo(state: AgentState) -> AgentState:
         )
         return state
 
-    state["resultats_geo"] = recherche_geo(zone)
+    state["resultats_geo"] = recherche_geo(zone, elargir_environs=state.get("elargir_zone_environs", False))
     return state
 
 
@@ -415,6 +434,33 @@ def noeud_sql(state: AgentState) -> AgentState:
             }
             return state
         if state.get("secteur_souhaite") == SecteurSouhaite.INDIFFERENT:
+            if state.get("elargir_zone_environs") and state["ordre_souhaite"] == OrdreSouhaite.INDIFFERENT:
+                # Élargissement explicite ("et les environs") SANS demande de
+                # classement ("meilleurs") : la ville nommée reste une liste
+                # complète (pas un classement tronqué — ce n'est pas ce qui a
+                # été demandé), seuls les environs (hors ville nommée) sont
+                # présentés en top N. Partition via "commune" (déjà renvoyée
+                # par recherche_geo pour chaque établissement du rayon élargi)
+                # comparée à "commune_principale" (la ville géocodée) — aucun
+                # nouvel appel réseau.
+                commune_principale = state["resultats_geo"].get("commune_principale")
+                etablissements = state["resultats_geo"]["etablissements"]
+                uai_ville = [e["uai"] for e in etablissements if e["commune"] == commune_principale]
+                uai_environs = [e["uai"] for e in etablissements if e["commune"] != commune_principale]
+                resultat_ville = rechercher_etablissements_par_uai(uai_ville)
+                resultat_environs = rechercher_top_par_secteur(uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC")
+                state["resultats_sql"] = {
+                    "success": resultat_ville["success"] and resultat_environs["success"],
+                    "split_ville_environs": True,
+                    "commune_principale": commune_principale,
+                    "rayon_km": state["resultats_geo"].get("rayon_km"),
+                    "ville": resultat_ville["resultats"],
+                    "environs_public": resultat_environs["public"],
+                    "environs_prive": resultat_environs["prive"],
+                    "session_utilisee": resultat_ville["session_utilisee"] or resultat_environs["session_utilisee"],
+                    "error": resultat_ville["error"] or resultat_environs["error"],
+                }
+                return state
             # Secteur non précisé sur un chemin géo : split déterministe top N
             # public / top N privé (cf. rechercher_top_par_secteur) plutôt que
             # de laisser le Text-to-SQL général produire un classement global
@@ -489,6 +535,10 @@ AGENT_TOOLS_SCHEMA = [
                 "type": "object",
                 "properties": {
                     "adresse_ou_ville": {"type": "string", "description": "Ville, adresse ou code postal."},
+                    "elargir_environs": {
+                        "type": "boolean",
+                        "description": "true si l'utilisateur demande explicitement d'élargir au-delà de la seule ville nommée (\"et les environs\", \"et les alentours\"). false par défaut — recherche limitée à la commune exacte.",
+                    },
                 },
                 "required": ["adresse_ou_ville"],
             },
@@ -600,7 +650,9 @@ def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
     pas dans le state partagé.
     """
     if nom_outil == "recherche_geo":
-        return _resultat_geo_pour_agent(recherche_geo(arguments["adresse_ou_ville"]))
+        return _resultat_geo_pour_agent(
+            recherche_geo(arguments["adresse_ou_ville"], elargir_environs=bool(arguments.get("elargir_environs")))
+        )
     if nom_outil == "rechercher_etablissement_par_nom":
         return rechercher_etablissements_par_nom(arguments["noms"])
     if nom_outil == "calculer_moyenne":
@@ -771,7 +823,8 @@ def _generer_tableau_generique(lignes, sessions_disponibles=None):
         corps += "| " + " | ".join(valeurs) + " |\n"
     tableau = entete + separateur + corps
     if sessions_disponibles:
-        tableau += f"\n*Calculé sur les {len(sessions_disponibles)} années disponibles en base : {', '.join(sessions_disponibles)}.*\n"
+        annees = _decrire_quantite(len(sessions_disponibles), nom="année", post=["disponible"], verbe="")
+        tableau += f"\n*Calculé sur {annees} en base : {', '.join(sessions_disponibles)}.*\n"
     return tableau
 
 
@@ -792,7 +845,8 @@ def _generer_moyennes_par_etablissement(lignes):
         scores = [r["score_principal"] for r in rows_etab if isinstance(r.get("score_principal"), (int, float))]
         if not scores:
             continue
-        ligne = f"**{nom_etab}** — score moyen : {sum(scores) / len(scores):.2f} (sur {len(scores)} année(s))"
+        annees = _decrire_quantite(len(scores), nom="année", verbe="")
+        ligne = f"**{nom_etab}** — score moyen : {sum(scores) / len(scores):.2f} (sur {annees})"
         taux = [r["brevet_taux_reussite_general"] for r in rows_etab if isinstance(r.get("brevet_taux_reussite_general"), (int, float))]
         if taux:
             ligne += f", taux de réussite moyen : {sum(taux) / len(taux):.1f}%"
@@ -814,16 +868,22 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
 
     # Colonne Session ajoutée seulement si présente (ex: évolution sur
     # plusieurs années) — absente sur le tableau standard un-seul-an.
+    # Colonne Commune toujours affichée (même sur une recherche à une seule
+    # ville) — la donnée est déjà présente dans chaque ligne SQL, l'omettre
+    # perdait le repère de localisation dès qu'une recherche pouvait
+    # couvrir plusieurs communes (élargissement "et les environs",
+    # département, région).
     contient_session = "session" in lignes[0]
     if contient_session:
-        entete = "| Session | Nom | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
-        separateur = "|---|---|---|---|---|---|---|\n"
+        entete = "| Session | Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
+        separateur = "|---|---|---|---|---|---|---|---|\n"
     else:
-        entete = "| Nom | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
-        separateur = "|---|---|---|---|---|---|\n"
+        entete = "| Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
+        separateur = "|---|---|---|---|---|---|---|\n"
     corps = ""
     for r in lignes:
         nom = r.get("nom", "?")
+        commune = r.get("commune", "?")
         secteur = r.get("secteur", "?")
         score = r.get("score_principal")
         score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
@@ -833,9 +893,9 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
         note = r.get("brevet_note_ecrit_general")
         note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
         if contient_session:
-            corps += f"| {r.get('session', '?')} | {nom} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+            corps += f"| {r.get('session', '?')} | {nom} | {commune} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
         else:
-            corps += f"| {nom} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+            corps += f"| {nom} | {commune} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
 
     tableau = entete + separateur + corps
     if contient_session:
@@ -853,7 +913,8 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
         # dernières années".
         sessions_affichees = sorted({r["session"] for r in lignes if r.get("session")})
         if sessions_affichees:
-            tableau += f"\n*Sur les {len(sessions_affichees)} année(s) affichée(s) : {', '.join(sessions_affichees)}.*\n"
+            annees = _decrire_quantite(len(sessions_affichees), nom="année", post=["affichée"], verbe="")
+            tableau += f"\n*Sur {annees} : {', '.join(sessions_affichees)}.*\n"
     return tableau
 
 
@@ -890,6 +951,79 @@ def _generer_tableaux_split_secteur(resultats_sql):
     return f"**Établissements publics**\n\n{bloc_public}\n\n**Établissements privés**\n\n{bloc_prive}"
 
 
+def _generer_tableaux_ville_environs(resultats_sql):
+    """
+    Génère le tableau de la ville nommée (liste complète, non tronquée) suivi
+    des tableaux top N publics/privés des environs — cas "et les environs"
+    sans demande de classement (cf. split_ville_environs dans noeud_sql).
+    """
+    if not resultats_sql or not resultats_sql.get("success"):
+        return None
+    ville = resultats_sql.get("ville", [])
+    environs_public = resultats_sql.get("environs_public", [])
+    environs_prive = resultats_sql.get("environs_prive", [])
+    if not ville and not environs_public and not environs_prive:
+        return None
+
+    commune = resultats_sql.get("commune_principale") or "la ville recherchée"
+    bloc_ville = _generer_tableau_depuis_lignes(ville) or f"Aucun établissement trouvé à {commune}."
+    bloc_public = _generer_tableau_depuis_lignes(environs_public) or "Aucun établissement public trouvé dans les environs."
+    bloc_prive = _generer_tableau_depuis_lignes(environs_prive) or "Aucun établissement privé trouvé dans les environs."
+    return (
+        f"**Établissements à {commune}**\n\n{bloc_ville}\n\n"
+        f"**Meilleurs établissements des environs — publics**\n\n{bloc_public}\n\n"
+        f"**Meilleurs établissements des environs — privés**\n\n{bloc_prive}"
+    )
+
+
+def _decrire_quantite(n, pre=(), post=(), nom="établissement", verbe="trouvé"):
+    """
+    Phrase accordée en nombre — pas seulement pour les établissements malgré
+    le nom de paramètre par défaut, aussi utilisée pour "année(s)" etc. Ex :
+    _decrire_quantite(1, pre=["meilleur"], post=["public"])
+        -> "1 meilleur établissement public trouvé"
+    _decrire_quantite(3, pre=["meilleur"], post=["public"])
+        -> "3 meilleurs établissements publics trouvés"
+    _decrire_quantite(1, nom="année", post=["disponible"], verbe="")
+        -> "1 année disponible"
+    Le pluriel français ne s'applique qu'à partir de 2 (0 et 1 restent au
+    singulier) — accord par simple ajout d'un "s" final, suffisant pour le
+    vocabulaire fixe utilisé dans ces templates (pas un moteur de
+    pluralisation générique). verbe="" pour l'omettre (pas toujours de verbe
+    à accorder, ex: "années disponibles" n'en a pas).
+    """
+    accord = lambda mot: mot if n <= 1 else mot + "s"
+    parties = [
+        " ".join(accord(mot) for mot in pre),
+        accord(nom),
+        " ".join(accord(mot) for mot in post),
+    ]
+    if verbe:
+        parties.append(accord(verbe))
+    return f"{n} " + " ".join(filter(None, parties))
+
+
+def _generer_intro_ville_environs_template(resultats_sql):
+    """
+    Intro 100% template pour le cas ville + environs — aucune génération LLM.
+    Précise le rayon effectivement utilisé pour les environs (GEO_RAYON_ENVIRONS_KM,
+    cf. geo_tool.recherche_geo) — transparence nécessaire dès qu'un rayon
+    différent du rayon par défaut peut s'appliquer selon le type de demande.
+    """
+    commune = resultats_sql.get("commune_principale") or "la ville recherchée"
+    nb_ville = len(resultats_sql.get("ville", []))
+    nb_public = len(resultats_sql.get("environs_public", []))
+    nb_prive = len(resultats_sql.get("environs_prive", []))
+    rayon_km = resultats_sql.get("rayon_km")
+    mention_rayon = f" ({rayon_km} km)" if rayon_km is not None else ""
+    return (
+        f"Voici {_decrire_quantite(nb_ville)} à {commune}, ainsi que "
+        f"{_decrire_quantite(nb_public, pre=['meilleur'], post=['public'])} et "
+        f"{_decrire_quantite(nb_prive, pre=['meilleur'], post=['privé'])} "
+        f"dans les environs{mention_rayon} :"
+    )
+
+
 def _formater_stats_moyenne(stats, label):
     """Une ligne de statistiques agrégées formatée pour un secteur ou une moyenne globale."""
     if not stats:
@@ -901,8 +1035,9 @@ def _formater_stats_moyenne(stats, label):
     score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
     taux_str = f"{taux:.1f}%" if isinstance(taux, (int, float)) else "?"
     note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
+    etablissements = _decrire_quantite(nb, verbe="")
     return (
-        f"**{label}** (sur {nb} établissement(s)) : score moyen {score_str}, "
+        f"**{label}** (sur {etablissements}) : score moyen {score_str}, "
         f"taux de réussite moyen {taux_str}, note écrit moyenne {note_str}"
     )
 
@@ -983,13 +1118,18 @@ def _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite=None):
 
 
 def _generer_intro_split_template(resultats_geo, nb_public, nb_prive, ordre_pire=False):
-    """Intro 100% template pour le cas split public/privé — aucune génération LLM."""
+    """
+    Intro 100% template pour le cas split public/privé — aucune génération LLM.
+    Accord singulier/pluriel via _decrire_etablissements — un des deux
+    secteurs peut n'avoir qu'un seul établissement (ex: petite commune) et
+    "1 meilleurs établissements" serait grammaticalement faux.
+    """
     zone = _zone_affichage(resultats_geo)
-    qualificatif = "moins bons" if ordre_pire else "meilleurs"
+    qualificatif = "moins bon" if ordre_pire else "meilleur"
     return (
-        f"Voici les {nb_public} {qualificatif} établissements publics et les {nb_prive} "
-        f"{qualificatif} établissements privés trouvés {zone}, affichés séparément "
-        f"pour représenter les deux secteurs équitablement :"
+        f"Voici {_decrire_quantite(nb_public, pre=[qualificatif], post=['public'])} et "
+        f"{_decrire_quantite(nb_prive, pre=[qualificatif], post=['privé'])} {zone}, "
+        f"affichés séparément pour représenter les deux secteurs équitablement :"
     )
 
 
@@ -1064,9 +1204,10 @@ def _generer_intro_evolution_geo_template(resultats_geo, evolution):
     if not sessions_affichees:
         return f"Voici l'évolution des moyennes pour les établissements trouvés {zone} :"
     sessions_txt = ", ".join(str(s) for s in sessions_affichees)
+    annees = _decrire_quantite(len(sessions_affichees), nom="année", post=["affichée"], verbe="")
     return (
         f"Voici l'évolution des moyennes pour les établissements trouvés {zone}, "
-        f"sur les {len(sessions_affichees)} année(s) affichée(s) ({sessions_txt}) :"
+        f"sur {annees} ({sessions_txt}) :"
     )
 
 
@@ -1095,6 +1236,9 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
     elif resultats_sql and resultats_sql.get("agregation_geo"):
         tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite)
         intro = _generer_intro_agregation_template(resultats_geo)
+    elif resultats_sql and resultats_sql.get("split_ville_environs"):
+        tableau = _generer_tableaux_ville_environs(resultats_sql)
+        intro = _generer_intro_ville_environs_template(resultats_sql)
     elif resultats_sql and resultats_sql.get("split_secteur"):
         tableau = _generer_tableaux_split_secteur(resultats_sql)
         nb_public = len(resultats_sql.get("public", []))
@@ -1485,6 +1629,7 @@ def nouvelle_session() -> AgentState:
     """
     return {
         "question": None, "dc_niveau": "accessible", "categorie": None, "zone_geo": None,
+        "elargir_zone_environs": False, "zones_multiples": False,
         "secteur_souhaite": None, "nuance_methodologique_demandee": False,
         "requete_rag_nuance": None, "evolution_demandee": False, "nb_annees_demandees": None,
         "ordre_souhaite": None, "agregation_demandee": False,

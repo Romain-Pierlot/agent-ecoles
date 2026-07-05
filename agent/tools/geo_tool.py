@@ -7,7 +7,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, DEPARTEMENTS_OUTRE_MER
+from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, GEO_RAYON_ENVIRONS_KM, DEPARTEMENTS_OUTRE_MER
 
 BAN_API_URL = "https://api-adresse.data.gouv.fr/search/"
 
@@ -105,9 +105,12 @@ def trouver_etablissements_par_commune(commune: str, code_departement: str, type
         conn.close()
 
 
-def recherche_geo(adresse_ou_ville: str, rayon_km: float = None, type_etablissement: str = "Collège") -> dict:
+def recherche_geo(
+    adresse_ou_ville: str, rayon_km: float = None, type_etablissement: str = "Collège",
+    elargir_environs: bool = False,
+) -> dict:
     """Retourne : {success, adresse_recherchee, adresse_normalisee, latitude, longitude,
-    rayon_km, etablissements, nb_etablissements, error}"""
+    rayon_km, etablissements, nb_etablissements, error, commune_principale}"""
     geo = geocoder(adresse_ou_ville)
     if not geo["success"]:
         return {
@@ -120,23 +123,32 @@ def recherche_geo(adresse_ou_ville: str, rayon_km: float = None, type_etablissem
     # (pas une adresse précise) -> correspondance exacte sur la commune,
     # pas de rayon (S8.27). Adresse précise -> comportement inchangé
     # (rayon autour du point géocodé, pertinent dans ce cas).
-    if geo["type"] == "municipality" and geo.get("city") and geo.get("depcode"):
+    # elargir_environs=True (demande explicite type "et les environs")
+    # bypasse cette règle : l'utilisateur a explicitement demandé un rayon
+    # élargi, ce que S8.27 ne visait qu'à éviter par défaut.
+    if geo["type"] == "municipality" and geo.get("city") and geo.get("depcode") and not elargir_environs:
         etablissements = trouver_etablissements_par_commune(geo["city"], geo["depcode"], type_etablissement)
         return {
             "success": True, "adresse_recherchee": adresse_ou_ville,
             "adresse_normalisee": geo["label"], "latitude": geo["latitude"], "longitude": geo["longitude"],
             "rayon_km": None, "etablissements": etablissements,
-            "nb_etablissements": len(etablissements), "error": None
+            "nb_etablissements": len(etablissements), "error": None,
+            "commune_principale": geo.get("city"),
         }
 
     if rayon_km is None:
-        rayon_km = GEO_RAYON_DEFAUT_KM
+        # Élargissement explicite ("et les environs") : rayon volontairement
+        # plus resserré que le rayon par défaut (GEO_RAYON_DEFAUT_KM, pensé
+        # pour une adresse précise) — un rayon de 10 km ramène des communes
+        # trop éloignées en zone dense (testé en région parisienne).
+        rayon_km = GEO_RAYON_ENVIRONS_KM if elargir_environs else GEO_RAYON_DEFAUT_KM
     etablissements = trouver_etablissements_dans_rayon(geo["latitude"], geo["longitude"], rayon_km, type_etablissement)
     return {
         "success": True, "adresse_recherchee": adresse_ou_ville,
         "adresse_normalisee": geo["label"], "latitude": geo["latitude"], "longitude": geo["longitude"],
         "rayon_km": rayon_km, "etablissements": etablissements,
-        "nb_etablissements": len(etablissements), "error": None
+        "nb_etablissements": len(etablissements), "error": None,
+        "commune_principale": geo.get("city"),
     }
 
 

@@ -55,6 +55,8 @@ LANGSMITH_PROJECT = "agent-ecoles"
 
 # --- Géolocalisation ---
 GEO_RAYON_DEFAUT_KM = 10       # Rayon par défaut si non précisé par l'utilisateur
+GEO_RAYON_ENVIRONS_KM = 5      # Rayon pour un élargissement explicite ("et les environs") — testé en
+                               # région parisienne : 10 km y ramène des communes trop éloignées.
 
 # --- API backend ---
 API_CORS_ORIGINS = ["http://localhost:3000"]  # Origine du frontend Next.js en local

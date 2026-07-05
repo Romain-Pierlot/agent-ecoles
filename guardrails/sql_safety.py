@@ -34,6 +34,8 @@ def valider_sql(sql: str):
     tables = {t.name.lower() for t in statement.find_all(exp.Table)}
     tables_interdites = tables - TABLES_AUTORISEES
     if tables_interdites:
-        return False, f"Table(s) non autorisée(s) : {', '.join(sorted(tables_interdites))}."
+        mot = "Table" if len(tables_interdites) <= 1 else "Tables"
+        accord = "non autorisée" if len(tables_interdites) <= 1 else "non autorisées"
+        return False, f"{mot} {accord} : {', '.join(sorted(tables_interdites))}."
 
     return True, None

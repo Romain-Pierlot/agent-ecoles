@@ -19,6 +19,21 @@ catégories suivantes, et extrais sa zone géographique si présente.
   ou un classement mondial — le périmètre du produit est la France
   uniquement).
 
+Extrais aussi si la question demande explicitement d'élargir la recherche
+au-delà de la seule ville nommée (elargir_zone_environs = true) — ex: "et
+les environs", "et les alentours", "et les villes autour", "pas loin de
+là aussi". false si la question ne nomme qu'une ville sans demande
+d'élargissement (dans ce cas, seule cette commune est cherchée, jamais les
+communes voisines par défaut).
+
+Extrais aussi si la question compare ou agrège explicitement PLUSIEURS
+zones géographiques distinctes à traiter séparément (zones_multiples =
+true) — ex: "compare Lyon et Marseille", "la moyenne à Lyon, Perpignan et
+Poitiers". false pour une seule zone, MÊME si son adresse contient une
+virgule : "30 rue Rivay, Levallois-Perret" est UNE SEULE adresse (numéro,
+rue, ville), pas plusieurs zones — ne te fie jamais à la présence d'une
+virgule dans le texte, seulement au sens réel de la question.
+
 Extrais aussi le secteur souhaité (secteur_souhaite) : "public" ou "prive"
 si la question le précise explicitement pour un seul des deux ("collèges
 publics", "écoles privées"...), sinon "indifferent" — y compris si public
