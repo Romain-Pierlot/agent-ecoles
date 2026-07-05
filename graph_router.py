@@ -16,7 +16,10 @@ from agent.tools.sql_tool import (
     rechercher_top_par_secteur, rechercher_etablissements_par_uai, obtenir_evolution_etablissements,
     calculer_moyenne_etablissements, calculer_evolution_moyenne_zone, resoudre_zone_administrative,
 )
-from agent.tools.geo_tool import recherche_geo, rechercher_etablissements_region_departement
+from agent.tools.geo_tool import (
+    recherche_geo, rechercher_etablissements_region_departement, candidats_zone_ambigue,
+    trouver_etablissements_par_commune,
+)
 from guardrails.llm_output_safety import enum_securise
 from guardrails.resource_limits import verifier_limite_zones
 from guardrails.output_contracts import verifier_transparence_temporelle
@@ -28,6 +31,7 @@ from guardrails.output_vocabulary import contient_vocabulaire_interdit, MESSAGE_
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
     HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
+    SEUIL_CANDIDATS_AVANT_PRECISION,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
@@ -57,6 +61,7 @@ class AgentState(TypedDict):
     noms_etablissements: Optional[list]
     resolution_noms: Optional[dict]
     uai_resolus: Optional[list]
+    candidats_zone_geo: Optional[list]
     historique: Optional[list]
     nouveau_sujet: bool
 
@@ -317,6 +322,23 @@ def noeud_geo(state: AgentState) -> AgentState:
         state["resultats_geo"] = rechercher_etablissements_region_departement(
             resolution_admin["type"], resolution_admin["valeur"], resolution_admin.get("libelle")
         )
+        return state
+
+    # Détection d'ambiguïté déterministe (S11.2) AVANT tout géocodage — sur
+    # notre propre base, aucun appel réseau. Un nom partiel comme "Neuilly"
+    # correspond à 5 communes réelles distinctes ; le géocodage BAN, laissé
+    # seul, en choisissait une au hasard (souvent un hameau/rue homonyme
+    # hors sujet, cf. bug "Neuilly, 71520 Matour"). 0 ou 1 candidat -> pas
+    # d'ambiguïté détectable ici, comportement de géocodage inchangé.
+    candidats = candidats_zone_ambigue(zone)
+    if len(candidats) >= 2:
+        state["candidats_zone_geo"] = candidats
+        state["resultats_geo"] = {
+            "success": False,
+            "adresse_recherchee": zone,
+            "adresse_normalisee": None,
+            "error": "zone_ambigue",
+        }
         return state
 
     state["resultats_geo"] = recherche_geo(zone, elargir_environs=state.get("elargir_zone_environs", False))
@@ -1403,9 +1425,37 @@ def _tronquer_resultats_sql(resultats_sql):
 
 def noeud_clarification_geo(state: AgentState) -> AgentState:
     """
-    Appelé quand geo_tool échoue sur un chemin qui en dépend. Ne tente
-    jamais de laisser sql_tool deviner une zone géographique en silence.
+    Appelé quand geo_tool échoue sur un chemin qui en dépend — deux cas
+    distincts (cf. S11.2) :
+    - zone ambiguë (candidats_zone_geo rempli, 2 à SEUIL_CANDIDATS_AVANT_PRECISION
+      candidats) : liste structurée exposée à l'API pour un choix cliquable
+      (cf. api/schemas.py), avec repli texte lisible ici pour tout appelant
+      qui ne consomme pas encore les choix structurés (CLI, tests). Au-delà
+      du seuil, demande de préciser en texte libre plutôt que d'afficher une
+      liste trop longue.
+    - zone non identifiée du tout : comportement inchangé.
+    Ne tente jamais de laisser sql_tool deviner une zone géographique en
+    silence, ni de choisir un candidat par défaut en cas d'ambiguïté.
     """
+    candidats = state.get("candidats_zone_geo")
+    zone = state.get("zone_geo") or ""
+    if candidats:
+        if len(candidats) <= SEUIL_CANDIDATS_AVANT_PRECISION:
+            lignes = "\n".join(
+                f"  {i + 1}. {c['commune']} ({c['code_departement']})"
+                for i, c in enumerate(candidats)
+            )
+            state["reponse_finale"] = (
+                f"Plusieurs communes correspondent à « {zone} » :\n{lignes}\n\n"
+                "Peux-tu préciser laquelle (indique le numéro, ou le nom complet) ?"
+            )
+        else:
+            state["reponse_finale"] = (
+                f"Plusieurs communes correspondent à « {zone} » ({len(candidats)} résultats) — "
+                "peux-tu préciser un département, une région, ou le nom complet de la ville ?"
+            )
+        return state
+
     state["reponse_finale"] = (
         "Je n'ai pas réussi à identifier la zone géographique de ta question. "
         "Peux-tu préciser une adresse, une ville ou un code postal ?"
@@ -1460,6 +1510,17 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
             )
         elif len(candidats) == 0:
             morceaux.append(f"Aucun établissement nommé « {nom} » n'a été trouvé dans les données.")
+        elif len(candidats) > SEUIL_CANDIDATS_AVANT_PRECISION:
+            # Cas réel trouvé en testant (S11.2) : un nom courant sans zone
+            # précisée (ex: "Saint-Joseph") remonte des dizaines voire des
+            # centaines de candidats nationaux — les lister tous en texte
+            # n'est pas exploitable. Redemande de préciser une ville/un
+            # département plutôt qu'afficher une liste trop longue (même
+            # seuil que la désambiguïsation de zone géo, cf. S11.2).
+            morceaux.append(
+                f"Plusieurs établissements correspondent à « {nom} » ({len(candidats)} résultats) — "
+                f"peux-tu préciser une ville ou un département ?"
+            )
         elif len(candidats) > 1:
             a_candidats_multiples = True
             lignes = "\n".join(
@@ -1636,6 +1697,7 @@ def nouvelle_session() -> AgentState:
         "resultats_geo": None, "resultats_sql": None, "resultats_rag": None,
         "reponse_finale": None, "tours_agent": 0,
         "noms_etablissements": [], "resolution_noms": None, "uai_resolus": None,
+        "candidats_zone_geo": None,
         "historique": [], "nouveau_sujet": True,
     }
 
@@ -1653,6 +1715,8 @@ def poser_question(app, etat_session: AgentState, question: str) -> AgentState:
     etat_session["resultats_geo"] = None
     etat_session["resultats_sql"] = None
     etat_session["resultats_rag"] = None
+    etat_session["candidats_zone_geo"] = None
+    etat_session["resolution_noms"] = None
     etat_session["reponse_finale"] = None
     etat_session["tours_agent"] = 0
 
@@ -1672,6 +1736,94 @@ def poser_question(app, etat_session: AgentState, question: str) -> AgentState:
     ]
     nouvel_etat["historique"] = nouvel_etat["historique"][-HISTORIQUE_MAX_TOURS:]
     return nouvel_etat
+
+
+def resoudre_choix_zone_geo(etat: AgentState, commune: str, code_departement: str) -> AgentState:
+    """
+    Résolution directe d'un clic sur une commune parmi les candidats d'une
+    clarification géo ambiguë (S11.2) — AUCUN appel LLM ni round-trip de
+    géocodage superflu : commune+département sont déjà connus et
+    structurés (remontés par candidats_zone_ambigue au tour précédent), ce
+    qui reste à faire est purement déterministe. Ne repasse jamais par
+    noeud_router : un clic n'est pas du texte libre à interpréter.
+
+    Cas "et les environs" (elargir_zone_environs) : un géocodage reste
+    nécessaire pour obtenir un point central de rayon, mais sur la commune
+    déjà désambiguïsée (ex: "Neuilly-sur-Seine, 92") — fiable, plus aucune
+    ambiguïté à ce stade. Cas standard : aucun réseau du tout, recherche
+    directe par commune+département sur notre base.
+    """
+    etat["zone_geo"] = commune
+    etat["candidats_zone_geo"] = None
+
+    if etat.get("elargir_zone_environs"):
+        etat["resultats_geo"] = recherche_geo(f"{commune}, {code_departement}", elargir_environs=True)
+    else:
+        etablissements = trouver_etablissements_par_commune(commune, code_departement)
+        etat["resultats_geo"] = {
+            "success": True, "adresse_recherchee": commune, "adresse_normalisee": commune,
+            "latitude": None, "longitude": None, "rayon_km": None,
+            "etablissements": etablissements, "nb_etablissements": len(etablissements), "error": None,
+            "commune_principale": commune,
+        }
+
+    etat = noeud_sql(etat)
+    if router_apres_sql(etat) == "rag_tool":
+        etat = noeud_rag(etat)
+    return noeud_synthese(etat)
+
+
+def resoudre_choix_noms(etat: AgentState, choix: dict) -> AgentState:
+    """
+    Résolution directe de choix cliqués parmi des noms d'établissements
+    ambigus (S11.2) — choix = {nom: uai_choisi, ...}. AUCUN appel LLM : les
+    UAI sont déjà connus (candidats déjà remontés par resolution_noms au
+    tour précédent). Un nom non présent dans choix mais déjà résolu à un
+    seul candidat (cas normal si un seul des N noms cités était ambigu)
+    est conservé automatiquement.
+    """
+    resolution = etat.get("resolution_noms") or {}
+    candidats_par_nom = resolution.get("resultats", {})
+    uai_resolus = []
+    for nom, candidats in candidats_par_nom.items():
+        if nom in choix:
+            uai_resolus.append(choix[nom])
+        elif len(candidats) == 1:
+            uai_resolus.append(candidats[0]["uai"])
+    etat["uai_resolus"] = uai_resolus
+    etat["resolution_noms"] = None
+
+    etat = noeud_sql(etat)
+    if router_apres_sql(etat) == "rag_tool":
+        etat = noeud_rag(etat)
+    return noeud_synthese(etat)
+
+
+def poser_resolution_choix(etat_session: AgentState, resolution: dict) -> AgentState:
+    """
+    Point d'entrée équivalent à poser_question(), mais pour un choix
+    cliqué (S11.2) plutôt qu'une question en texte libre — ne passe jamais
+    par le graphe LangGraph (donc jamais par noeud_router), puisqu'il n'y a
+    rien à interpréter. Met à jour l'historique comme poser_question(),
+    pour que les tours suivants gardent un contexte cohérent.
+
+    resolution : {"type": "zone", "commune": str, "code_departement": str}
+              ou {"type": "noms", "choix": {nom: uai, ...}}
+    """
+    etat_session["reponse_finale"] = None
+
+    if resolution["type"] == "zone":
+        etat_session = resoudre_choix_zone_geo(etat_session, resolution["commune"], resolution["code_departement"])
+        question_historique = f"{resolution['commune']} ({resolution['code_departement']})"
+    else:
+        etat_session = resoudre_choix_noms(etat_session, resolution["choix"])
+        question_historique = ", ".join(resolution["choix"].values())
+
+    etat_session["historique"] = (etat_session.get("historique") or []) + [
+        {"question": question_historique, "reponse": etat_session["reponse_finale"]}
+    ]
+    etat_session["historique"] = etat_session["historique"][-HISTORIQUE_MAX_TOURS:]
+    return etat_session
 
 
 if __name__ == "__main__":

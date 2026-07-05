@@ -114,8 +114,12 @@ HISTORIQUE_MAX_TOURS = 5
 # Bloqué en amont plutôt que de laisser l'agent essayer et échouer.
 MAX_ZONES_COMPAREES = 3
 
-# --- Résolution de noms d'établissements (sql_tool.py) ---
-SEUIL_CANDIDATS_AVANT_PRECISION = 5   # au-delà, l'entonnoir de désambiguïsation demande une précision géo
+# --- Résolution de noms d'établissements et de zones géo ambiguës ---
+# Seuil commun aux deux entonnoirs de désambiguïsation (noms d'établissements
+# et zones géo homonymes/partielles, ex: "Neuilly" -> 5 communes possibles).
+# Testé à 10 initialement — à redescendre à 5 si l'affichage de 10 boutons
+# s'avère trop chargé à l'usage (cf. décision produit du 2026-07-05).
+SEUIL_CANDIDATS_AVANT_PRECISION = 10   # au-delà, on redemande de préciser en texte libre
 PREFIXES_INSTITUTIONNELS = [
     "college prive",
     "college",

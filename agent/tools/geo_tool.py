@@ -4,7 +4,9 @@ import sqlite3
 import requests
 import math
 import os
+import re
 import sys
+import unicodedata
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, GEO_RAYON_ENVIRONS_KM, DEPARTEMENTS_OUTRE_MER
@@ -75,6 +77,68 @@ def trouver_etablissements_dans_rayon(latitude, longitude, rayon_km=None, type_e
         return [dict(row) for row in rows]
     finally:
         conn.close()
+
+
+def _normaliser_nom_commune(nom: str) -> str:
+    """Minuscules, sans accents, tirets traités comme des séparateurs de mots."""
+    nom = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
+    nom = nom.lower().replace("-", " ").strip()
+    return re.sub(r"\s+", " ", nom)
+
+
+def _racine_commune(nom: str) -> str:
+    """
+    Premier segment avant un vrai tiret dans le nom D'ORIGINE (pas après
+    normalisation) — ex: "Neuilly-sur-Seine" -> "neuilly". Ne segmente PAS
+    sur un simple espace : "Lyon 3e Arrondissement" doit rester entier,
+    sinon il serait confondu à tort avec "Lyon" (bug trouvé en testant :
+    les arrondissements de Lyon/Paris/Marseille sont des communes distinctes
+    dans notre base, séparées par un espace, pas un tiret).
+    """
+    return _normaliser_nom_commune(nom.split("-")[0])
+
+
+def candidats_zone_ambigue(nom_zone: str, type_etablissement: str = "Collège") -> list:
+    """
+    Détecte, dans notre PROPRE base (pas d'appel réseau), si un nom de zone
+    correspond à plusieurs communes distinctes — deux formes d'ambiguïté :
+    - homonyme exact : "Saint-Denis" existe dans 2 départements différents.
+    - nom partiel : "Neuilly" correspond au premier mot de 5 communes
+      distinctes (Neuilly-sur-Seine, Neuilly-Plaisance...) sans être
+      lui-même un nom de commune complet dans notre périmètre.
+
+    Retourne la liste des communes candidates ({commune, code_departement}),
+    dédupliquée, triée par nom. Liste vide ou à 1 élément = pas d'ambiguïté
+    détectable ici (comportement de géocodage inchangé dans ce cas) — ne
+    déclenche une clarification qu'à partir de 2 candidats distincts.
+    """
+    cible = _normaliser_nom_commune(nom_zone)
+    if not cible:
+        return []
+
+    db_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
+    )
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("""
+            SELECT DISTINCT commune, code_departement
+            FROM etablissements
+            WHERE type_etablissement = ?
+        """, (type_etablissement,)).fetchall()
+    finally:
+        conn.close()
+
+    candidats = {}
+    for row in rows:
+        commune, depcode = row["commune"], row["code_departement"]
+        normalise = _normaliser_nom_commune(commune)
+        racine = _racine_commune(commune)
+        if normalise == cible or racine == cible:
+            candidats[(commune, depcode)] = {"commune": commune, "code_departement": depcode}
+
+    return sorted(candidats.values(), key=lambda c: c["commune"])
 
 
 def trouver_etablissements_par_commune(commune: str, code_departement: str, type_etablissement: str = "Collège") -> list:
