@@ -60,6 +60,8 @@ TABLE ivac
   brevet_note_ecrit_general REAL
   brevet_va_note_ecrit_general REAL
   taux_acces_6eme_3eme REAL
+  nb_mentions_ab INTEGER
+  nb_mentions_b INTEGER
   nb_mentions_tb INTEGER
   nb_mentions_total INTEGER
 
@@ -276,7 +278,7 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     }
 
 
-def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC") -> dict:
+def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC", inclure_mentions: bool = False) -> dict:
     """
     Retourne séparément les n meilleurs (ou pires, cf. ordre) établissements
     publics et privés parmi une liste d'UAI déjà présélectionnée (ex: par
@@ -292,6 +294,12 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     depuis une chaîne fournie par l'appelant sans validation, pour éviter
     toute injection SQL sur cette clause (cf. validation stricte ci-dessous).
 
+    inclure_mentions=False (défaut) : colonnes de mention absentes des lignes
+    retournées, donc absentes de l'affichage (cf. _generer_tableau_depuis_lignes,
+    conditionné à leur présence — même principe que la colonne Session).
+    True seulement quand state["mentions_demandees"] (extrait par le router)
+    l'indique — évite d'encombrer l'affichage normal d'une donnée non demandée.
+
     La session utilisée est la plus récente disponible dans la table scores,
     déterminée dynamiquement (jamais codée en dur, pour ne pas se périmer
     quand une nouvelle session de données arrive).
@@ -301,7 +309,8 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         "session_utilisee": str | None,
         "public": [ {uai, nom, commune, secteur, score_principal, badge_va,
                      brevet_taux_reussite_general, brevet_note_ecrit_general,
-                     brevet_va_taux_reussite_general, brevet_va_note_ecrit_general}, ... ],
+                     brevet_va_taux_reussite_general, brevet_va_note_ecrit_general,
+                     [+ brevet_nb_candidats_general, nb_mentions_b, nb_mentions_tb si inclure_mentions]}, ... ],
         "prive": [ ... même structure ... ],
         "error": str | None
     }
@@ -314,6 +323,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
     )
+    colonnes_mentions = ", v.brevet_nb_candidats_general, v.nb_mentions_b, v.nb_mentions_tb" if inclure_mentions else ""
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -329,6 +339,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
                     SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
                            v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
                            v.brevet_va_taux_reussite_general, v.brevet_va_note_ecrit_general
+                           {colonnes_mentions}
                     FROM etablissements e
                     JOIN scores s ON e.uai = s.uai
                     JOIN ivac v ON e.uai = v.uai AND v.session = s.session
@@ -347,7 +358,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
 
 
-def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement: str = "Collège") -> dict:
+def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False) -> dict:
     """
     Retourne le tableau standard (score, VA, taux de réussite, note écrit —
     valeurs brutes) pour une liste d'établissements déjà résolue par nom
@@ -362,11 +373,17 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
     le tableau dès qu'une relance ne répète pas les mots de la question
     initiale (mémoire de conversation générale).
 
+    inclure_mentions=False (défaut) : colonnes de mention absentes des lignes
+    retournées, donc absentes de l'affichage (cf. _generer_tableau_depuis_lignes,
+    conditionné à leur présence). True seulement quand state["mentions_demandees"]
+    (extrait par le router) l'indique.
+
     Retourne : {
         "success": bool,
         "session_utilisee": str | None,
         "resultats": [ {uai, nom, commune, secteur, score_principal, badge_va,
-                         brevet_taux_reussite_general, brevet_note_ecrit_general}, ... ],
+                         brevet_taux_reussite_general, brevet_note_ecrit_general,
+                         [+ brevet_nb_candidats_general, nb_mentions_b, nb_mentions_tb si inclure_mentions]}, ... ],
         "error": str | None
     }
     """
@@ -376,6 +393,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
     )
+    colonnes_mentions = ", v.brevet_nb_candidats_general, v.nb_mentions_b, v.nb_mentions_tb" if inclure_mentions else ""
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -388,6 +406,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
             rows = conn.execute(f"""
                 SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
                        v.brevet_taux_reussite_general, v.brevet_note_ecrit_general
+                       {colonnes_mentions}
                 FROM etablissements e
                 JOIN scores s ON e.uai = s.uai
                 JOIN ivac v ON e.uai = v.uai AND v.session = s.session
@@ -403,7 +422,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
         return {"success": False, "session_utilisee": None, "resultats": [], "error": str(e)}
 
 
-def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège") -> dict:
+def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False) -> dict:
     """
     Calcule la moyenne du score/taux/note pour un ensemble d'établissements
     déjà présélectionné (ex: par geo_tool) — moyenne globale (tous secteurs
@@ -415,10 +434,16 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
     Requête SQL déterministe, AUCUN appel LLM. Session la plus récente
     disponible, déterminée dynamiquement (jamais codée en dur).
 
+    inclure_mentions=False (défaut) : taux_b_moyen/taux_tb_moyen absents du
+    résultat, donc absents de l'affichage (cf. _formater_stats_moyenne,
+    conditionné à leur présence). True seulement quand state["mentions_demandees"]
+    (extrait par le router) l'indique.
+
     Retourne : {
         "success": bool,
         "session_utilisee": str | None,
-        "global": {"nb_etablissements": int, "score_moyen": float, "taux_moyen": float, "note_moyenne": float} | None,
+        "global": {"nb_etablissements": int, "score_moyen": float, "taux_moyen": float, "note_moyenne": float,
+                   [+ "taux_b_moyen": float, "taux_tb_moyen": float si inclure_mentions]} | None,
         "public": { ... même structure ... } | None,
         "prive": { ... même structure ... } | None,
         "error": str | None
@@ -430,6 +455,10 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
     )
+    colonnes_mentions = (
+        ", AVG(1.0 * v.nb_mentions_b / v.brevet_nb_candidats_general) AS taux_b_moyen,"
+        " AVG(1.0 * v.nb_mentions_tb / v.brevet_nb_candidats_general) AS taux_tb_moyen"
+    ) if inclure_mentions else ""
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -449,6 +478,7 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
                     SELECT COUNT(*) AS nb_etablissements, AVG(s.score_principal) AS score_moyen,
                            AVG(v.brevet_taux_reussite_general) AS taux_moyen,
                            AVG(v.brevet_note_ecrit_general) AS note_moyenne
+                           {colonnes_mentions}
                     FROM etablissements e
                     JOIN scores s ON e.uai = s.uai
                     JOIN ivac v ON e.uai = v.uai AND v.session = s.session

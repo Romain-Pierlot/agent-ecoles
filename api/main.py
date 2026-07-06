@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from graph_router import AgentState, poser_question, poser_resolution_choix
-from config import API_CORS_ORIGINS, SEUIL_CANDIDATS_AVANT_PRECISION
+from config import API_CORS_ORIGINS, SEUIL_CANDIDATS_AVANT_PRECISION, SPLIT_SECTEUR_INCREMENT
 from api.graphe import obtenir_graphe
 from api.sessions import obtenir_ou_creer_session, enregistrer_session
 from api.schemas import ChatRequest, ChatResponse, Choix
@@ -45,6 +45,21 @@ def _construire_choix(etat: AgentState) -> Choix | None:
     reponse_finale demande déjà de préciser en texte libre plutôt que
     d'afficher une liste trop longue de boutons).
     """
+    resultats_sql = etat.get("resultats_sql") or {}
+    if resultats_sql.get("split_secteur"):
+        options = []
+        for secteur, libelle in (("public", "publics"), ("prive", "privés")):
+            cache = etat.get(f"cache_secteur_{secteur}") or []
+            n_affiches = etat.get(f"n_affiches_{secteur}") or 0
+            if n_affiches < len(cache):
+                nb_de_plus = min(SPLIT_SECTEUR_INCREMENT, len(cache) - n_affiches)
+                options.append({
+                    "label": f"Voir {nb_de_plus} établissements {libelle} de plus",
+                    "valeur": {"secteur": secteur},
+                })
+        if options:
+            return Choix(type="voir_plus", groupes=[{"titre": "Voir plus", "options": options}])
+
     candidats_zone = etat.get("candidats_zone_geo")
     if candidats_zone:
         if len(candidats_zone) > SEUIL_CANDIDATS_AVANT_PRECISION:

@@ -30,6 +30,7 @@ from guardrails.output_vocabulary import contient_vocabulaire_interdit, MESSAGE_
 
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
+    SPLIT_SECTEUR_N_MAX, SPLIT_SECTEUR_INCREMENT,
     HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
     SEUIL_CANDIDATS_AVANT_PRECISION,
 )
@@ -53,6 +54,7 @@ class AgentState(TypedDict):
     nb_annees_demandees: Optional[int]
     ordre_souhaite: Optional[OrdreSouhaite]
     agregation_demandee: bool
+    mentions_demandees: bool
     resultats_geo: Optional[dict]
     resultats_sql: Optional[dict]
     resultats_rag: Optional[dict]
@@ -64,6 +66,10 @@ class AgentState(TypedDict):
     candidats_zone_geo: Optional[list]
     historique: Optional[list]
     nouveau_sujet: bool
+    cache_secteur_public: Optional[list]
+    cache_secteur_prive: Optional[list]
+    n_affiches_public: Optional[int]
+    n_affiches_prive: Optional[int]
 
 
 ROUTER_TOOL_SCHEMA = {
@@ -128,7 +134,11 @@ ROUTER_TOOL_SCHEMA = {
                 },
                 "agregation_demandee": {
                     "type": "boolean",
-                    "description": "true si la question demande une moyenne ou une statistique agrégée sur un ensemble d'établissements (ex: \"la moyenne\", \"en moyenne\", \"en général\", \"globalement\", \"dans l'ensemble\") plutôt qu'une liste d'établissements individuels. false sinon.",
+                    "description": "true UNIQUEMENT si la question demande une seule moyenne/statistique globale sur un ensemble d'établissements, SANS détail par établissement (ex: \"la moyenne\", \"en moyenne\", \"en général\", \"globalement\", \"dans l'ensemble\"). false si la question demande une liste, une \"répartition\" ou un \"détail par collège/établissement\" — même si elle porte sur une statistique précise (ex: les mentions) : une répartition PAR établissement est une liste à afficher établissement par établissement, jamais une agrégation, quels que soient les mots utilisés par ailleurs dans la question.",
+                },
+                "mentions_demandees": {
+                    "type": "boolean",
+                    "description": "true si la question porte explicitement sur les mentions au brevet (Très Bien/TB, Bien/B, Assez Bien/AB, \"taux de mention\"). false sinon — dans ce cas les colonnes de mention ne doivent PAS apparaître dans le tableau, l'affichage normal ne les montre pas.",
                 },
                 "nouveau_sujet": {
                     "type": "boolean",
@@ -139,7 +149,7 @@ ROUTER_TOOL_SCHEMA = {
                 "categorie", "zone_detectee", "zone", "elargir_zone_environs", "zones_multiples",
                 "noms_etablissements", "secteur_souhaite", "nuance_methodologique_demandee",
                 "requete_rag_nuance", "evolution_demandee", "nb_annees_demandees", "ordre_souhaite",
-                "agregation_demandee", "nouveau_sujet",
+                "agregation_demandee", "mentions_demandees", "nouveau_sujet",
             ],
         },
     },
@@ -169,6 +179,7 @@ def noeud_router(state: AgentState) -> AgentState:
     zone_precedente = state.get("zone_geo")
     noms_precedents = state.get("noms_etablissements") or []
     secteur_precedent = state.get("secteur_souhaite")
+    categorie_precedente = state.get("categorie")
 
     # Catégorie, zone géographique, noms d'établissements, secteur et nuance
     # méthodologique extraits en un seul appel LLM fusionné — évite des
@@ -214,6 +225,7 @@ def noeud_router(state: AgentState) -> AgentState:
     state["nb_annees_demandees"] = args.get("nb_annees_demandees") or None
     state["ordre_souhaite"] = enum_securise(OrdreSouhaite, args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT, OrdreSouhaite.INDIFFERENT)
     state["agregation_demandee"] = bool(args.get("agregation_demandee"))
+    state["mentions_demandees"] = bool(args.get("mentions_demandees"))
 
     # Garde-fou déterministe (pas un patch de prompt) : comparaison_etablissements_nommes
     # exige par définition au moins un nom propre cité. Si le LLM choisit cette
@@ -234,6 +246,26 @@ def noeud_router(state: AgentState) -> AgentState:
     # inexploité dans une autre catégorie qui ne sait pas le résoudre.
     if state["noms_etablissements"] and state["categorie"] != Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES:
         state["categorie"] = Categorie.COMPARAISON_ETABLISSEMENTS_NOMMES
+
+    # Garde-fou déterministe : une continuation (nouveau_sujet=false) d'un
+    # sujet recherche_geo_classement ne doit pas retomber sur non_reconnu ->
+    # agent ReAct simplement parce que cette question, isolée de son
+    # historique, ne recontient plus de zone/nom explicite (ex: "donne moi la
+    # répartition par collèges..." après une recherche géo déjà établie,
+    # cf. session 2026-07-05). L'agent ReAct ne reçoit JAMAIS l'historique de
+    # conversation (cf. noeud_agent_react) : il perdrait la zone déjà connue
+    # au lieu de la réutiliser. Exclut zones_multiples (garde-fou dédié juste
+    # après) et le cas où un nom d'établissement a été extrait (déjà basculé
+    # vers comparaison_etablissements_nommes ci-dessus).
+    if (
+        not nouveau_sujet
+        and categorie_precedente == Categorie.RECHERCHE_GEO_CLASSEMENT
+        and state["categorie"] == Categorie.NON_RECONNU
+        and not state["noms_etablissements"]
+        and not state["nuance_methodologique_demandee"]
+        and not state["zones_multiples"]
+    ):
+        state["categorie"] = Categorie.RECHERCHE_GEO_CLASSEMENT
 
     # Garde-fou déterministe : question_methodologique sert de catégorie
     # "par défaut" un peu trop attractive pour le LLM du router dès qu'aucune
@@ -444,7 +476,7 @@ def noeud_sql(state: AgentState) -> AgentState:
             # (cf. calculer_moyenne_etablissements) plutôt que Text-to-SQL
             # général — pas de tableau détaillé par établissement ici, c'est
             # une agrégation statistique, pas une liste à afficher.
-            resultat_moyenne = calculer_moyenne_etablissements(uai_filtre)
+            resultat_moyenne = calculer_moyenne_etablissements(uai_filtre, inclure_mentions=state.get("mentions_demandees", False))
             state["resultats_sql"] = {
                 "success": resultat_moyenne["success"],
                 "agregation_geo": True,
@@ -469,8 +501,9 @@ def noeud_sql(state: AgentState) -> AgentState:
                 etablissements = state["resultats_geo"]["etablissements"]
                 uai_ville = [e["uai"] for e in etablissements if e["commune"] == commune_principale]
                 uai_environs = [e["uai"] for e in etablissements if e["commune"] != commune_principale]
-                resultat_ville = rechercher_etablissements_par_uai(uai_ville)
-                resultat_environs = rechercher_top_par_secteur(uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC")
+                mentions = state.get("mentions_demandees", False)
+                resultat_ville = rechercher_etablissements_par_uai(uai_ville, inclure_mentions=mentions)
+                resultat_environs = rechercher_top_par_secteur(uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC", inclure_mentions=mentions)
                 state["resultats_sql"] = {
                     "success": resultat_ville["success"] and resultat_environs["success"],
                     "split_ville_environs": True,
@@ -488,14 +521,24 @@ def noeud_sql(state: AgentState) -> AgentState:
             # de laisser le Text-to-SQL général produire un classement global
             # où le privé écrase mécaniquement le public (score plus élevé en
             # moyenne, lié au biais de sélection à l'entrée).
+            # Récupère jusqu'à SPLIT_SECTEUR_N_MAX (coût quasi nul, SQL
+            # déterministe) mais n'en affiche que SPLIT_SECTEUR_N — le reste
+            # est mis en cache de session pour le bouton "voir plus"
+            # (cf. resoudre_choix_voir_plus), sans nouvel appel SQL/LLM au clic.
             ordre = "ASC" if state["ordre_souhaite"] == OrdreSouhaite.PIRE else "DESC"
-            resultat_split = rechercher_top_par_secteur(uai_filtre, n=SPLIT_SECTEUR_N, ordre=ordre)
+            resultat_split = rechercher_top_par_secteur(
+                uai_filtre, n=SPLIT_SECTEUR_N_MAX, ordre=ordre, inclure_mentions=state.get("mentions_demandees", False)
+            )
+            state["cache_secteur_public"] = resultat_split["public"]
+            state["cache_secteur_prive"] = resultat_split["prive"]
+            state["n_affiches_public"] = SPLIT_SECTEUR_N
+            state["n_affiches_prive"] = SPLIT_SECTEUR_N
             state["resultats_sql"] = {
                 "success": resultat_split["success"],
                 "split_secteur": True,
                 "ordre_pire": ordre == "ASC",
-                "public": resultat_split["public"],
-                "prive": resultat_split["prive"],
+                "public": resultat_split["public"][:SPLIT_SECTEUR_N],
+                "prive": resultat_split["prive"][:SPLIT_SECTEUR_N],
                 "session_utilisee": resultat_split["session_utilisee"],
                 "error": resultat_split["error"],
             }
@@ -522,7 +565,7 @@ def noeud_sql(state: AgentState) -> AgentState:
         # différent selon le phrasé exact du tour courant, ce qui casse le
         # tableau dès qu'une relance ne répète pas les mots de la question
         # initiale (cf. mémoire de conversation générale).
-        resultat_nommes = rechercher_etablissements_par_uai(uai_filtre)
+        resultat_nommes = rechercher_etablissements_par_uai(uai_filtre, inclure_mentions=state.get("mentions_demandees", False))
         state["resultats_sql"] = {
             "success": resultat_nommes["success"],
             "resultats": resultat_nommes["resultats"],
@@ -661,7 +704,7 @@ def _resultat_geo_pour_agent(resultat_geo: dict) -> dict:
     }
 
 
-def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
+def _executer_outil_agent(nom_outil: str, arguments: dict, mentions_demandees: bool = False) -> dict:
     """
     Dispatch vers la fonction Python réelle correspondant à l'outil choisi
     par l'agent. Appelle directement les fonctions des outils (pas les
@@ -670,6 +713,14 @@ def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
     — l'agent, lui, peut appeler plusieurs outils dans un ordre libre, ses
     résultats vivent dans l'historique de conversation local à la boucle,
     pas dans le state partagé.
+
+    mentions_demandees (extrait par le router, cf. state["mentions_demandees"]) :
+    testé empiriquement (session 2026-07-06) que l'agent restitue TOUJOURS
+    dans son texte libre les champs présents dans le JSON qu'on lui donne,
+    même non pertinents pour la question posée (ex: "quelle est la moyenne"
+    sans mention des mentions -> l'agent les rapporte quand même si elles
+    sont dans les données) — donc bien gater ici aussi, pas seulement dans
+    les tableaux à colonnes fixes des chemins déterministes.
     """
     if nom_outil == "recherche_geo":
         return _resultat_geo_pour_agent(
@@ -678,7 +729,7 @@ def _executer_outil_agent(nom_outil: str, arguments: dict) -> dict:
     if nom_outil == "rechercher_etablissement_par_nom":
         return rechercher_etablissements_par_nom(arguments["noms"])
     if nom_outil == "calculer_moyenne":
-        return calculer_moyenne_etablissements(arguments["uais"])
+        return calculer_moyenne_etablissements(arguments["uais"], inclure_mentions=mentions_demandees)
     if nom_outil == "recherche_sql":
         resultat = recherche_sql(arguments["question"], uai_filtre=arguments.get("uai_filtre") or None)
         # Enrichit avec un tableau déjà formaté (même fonction de templating
@@ -735,10 +786,19 @@ def noeud_agent_react(state: AgentState) -> AgentState:
         state["reponse_finale"] = message_refus
         return state
 
-    messages = [
-        {"role": "system", "content": AGENT_REACT_SYSTEM_PROMPT},
-        {"role": "user", "content": state["question"]},
-    ]
+    # Historique de conversation (même mécanisme que noeud_router, S12.1) :
+    # sans ça, une question qui atterrit ici (non_reconnu) perdait tout
+    # contexte du tour précédent — y compris une zone/nom déjà établi par un
+    # tour antérieur passé par ce même nœud — et redemandait une précision
+    # déjà donnée. Uniquement les tours passés (question, réponse) au format
+    # texte, pas les appels d'outils intermédiaires (ceux-là restent locaux à
+    # la boucle ci-dessous, cf. _executer_outil_agent).
+    historique = (state.get("historique") or [])[-HISTORIQUE_MAX_TOURS:]
+    messages = [{"role": "system", "content": AGENT_REACT_SYSTEM_PROMPT}]
+    for tour in historique:
+        messages.append({"role": "user", "content": tour["question"]})
+        messages.append({"role": "assistant", "content": tour["reponse"]})
+    messages.append({"role": "user", "content": state["question"]})
 
     for tour in range(AGENT_MAX_TOURS):
         state["tours_agent"] = tour + 1
@@ -779,7 +839,7 @@ def noeud_agent_react(state: AgentState) -> AgentState:
         for tool_call in message.tool_calls:
             nom_outil = tool_call.function.name
             arguments = json.loads(tool_call.function.arguments)
-            resultat = _executer_outil_agent(nom_outil, arguments)
+            resultat = _executer_outil_agent(nom_outil, arguments, state.get("mentions_demandees", False))
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -896,12 +956,23 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
     # couvrir plusieurs communes (élargissement "et les environs",
     # département, région).
     contient_session = "session" in lignes[0]
+    # Colonnes de mention ajoutées seulement si présentes dans les données —
+    # même principe que la colonne Session : rien à faire ici pour piloter
+    # leur affichage, c'est déjà tranché en amont (cf. inclure_mentions dans
+    # sql_tool.py, contrôlé par state["mentions_demandees"] extrait par le
+    # router) — ne pas encombrer l'affichage normal d'une donnée non demandée.
+    contient_mentions = "nb_mentions_b" in lignes[0]
+    entete_colonnes = "Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit"
+    separateur_colonnes = "---|---|---|---|---|---|---"
+    if contient_mentions:
+        entete_colonnes += " | Mentions B | Mentions TB | Taux TB"
+        separateur_colonnes += "|---|---|---"
     if contient_session:
-        entete = "| Session | Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
-        separateur = "|---|---|---|---|---|---|---|---|\n"
+        entete = f"| Session | {entete_colonnes} |\n"
+        separateur = f"|---|{separateur_colonnes}|\n"
     else:
-        entete = "| Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit |\n"
-        separateur = "|---|---|---|---|---|---|---|\n"
+        entete = f"| {entete_colonnes} |\n"
+        separateur = f"|{separateur_colonnes}|\n"
     corps = ""
     for r in lignes:
         nom = r.get("nom", "?")
@@ -914,10 +985,26 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
         taux_str = f"{taux:.1f}" if isinstance(taux, (int, float)) else "?"
         note = r.get("brevet_note_ecrit_general")
         note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
+        ligne_colonnes = f"{nom} | {commune} | {secteur} | {score_str} | {va} | {taux_str} | {note_str}"
+        if contient_mentions:
+            mentions_b = r.get("nb_mentions_b")
+            mentions_b_str = str(mentions_b) if isinstance(mentions_b, (int, float)) else "?"
+            mentions_tb = r.get("nb_mentions_tb")
+            mentions_tb_str = str(mentions_tb) if isinstance(mentions_tb, (int, float)) else "?"
+            # Taux TB = nb_mentions_tb / brevet_nb_candidats_general —
+            # dénominateur documenté dans data/dictionnaire_donnees.py
+            # (nb_mentions_total ne compterait que les élèves déjà
+            # mentionnés, pas tous les candidats).
+            candidats = r.get("brevet_nb_candidats_general")
+            if isinstance(mentions_tb, (int, float)) and isinstance(candidats, (int, float)) and candidats > 0:
+                taux_tb_str = f"{mentions_tb / candidats * 100:.1f}%"
+            else:
+                taux_tb_str = "?"
+            ligne_colonnes += f" | {mentions_b_str} | {mentions_tb_str} | {taux_tb_str}"
         if contient_session:
-            corps += f"| {r.get('session', '?')} | {nom} | {commune} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+            corps += f"| {r.get('session', '?')} | {ligne_colonnes} |\n"
         else:
-            corps += f"| {nom} | {commune} | {secteur} | {score_str} | {va} | {taux_str} | {note_str} |\n"
+            corps += f"| {ligne_colonnes} |\n"
 
     tableau = entete + separateur + corps
     if contient_session:
@@ -1058,10 +1145,21 @@ def _formater_stats_moyenne(stats, label):
     taux_str = f"{taux:.1f}%" if isinstance(taux, (int, float)) else "?"
     note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
     etablissements = _decrire_quantite(nb, verbe="")
-    return (
+    ligne = (
         f"**{label}** (sur {etablissements}) : score moyen {score_str}, "
         f"taux de réussite moyen {taux_str}, note écrit moyenne {note_str}"
     )
+    # Mentions absentes de stats (clé même pas présente) quand inclure_mentions=False
+    # côté calculer_moyenne_etablissements — même principe que les colonnes de
+    # mention du tableau (cf. _generer_tableau_depuis_lignes) : rien à faire ici
+    # pour piloter leur affichage, déjà tranché en amont par state["mentions_demandees"].
+    if "taux_b_moyen" in stats or "taux_tb_moyen" in stats:
+        taux_b = stats.get("taux_b_moyen")
+        taux_tb = stats.get("taux_tb_moyen")
+        taux_b_str = f"{taux_b * 100:.1f}%" if isinstance(taux_b, (int, float)) else "?"
+        taux_tb_str = f"{taux_tb * 100:.1f}%" if isinstance(taux_tb, (int, float)) else "?"
+        ligne += f", taux de mention B moyen {taux_b_str}, taux de mention TB moyen {taux_tb_str}"
+    return ligne
 
 
 def _generer_moyennes_geo_template(resultats_sql, secteur_souhaite):
@@ -1693,12 +1791,14 @@ def nouvelle_session() -> AgentState:
         "elargir_zone_environs": False, "zones_multiples": False,
         "secteur_souhaite": None, "nuance_methodologique_demandee": False,
         "requete_rag_nuance": None, "evolution_demandee": False, "nb_annees_demandees": None,
-        "ordre_souhaite": None, "agregation_demandee": False,
+        "ordre_souhaite": None, "agregation_demandee": False, "mentions_demandees": False,
         "resultats_geo": None, "resultats_sql": None, "resultats_rag": None,
         "reponse_finale": None, "tours_agent": 0,
         "noms_etablissements": [], "resolution_noms": None, "uai_resolus": None,
         "candidats_zone_geo": None,
         "historique": [], "nouveau_sujet": True,
+        "cache_secteur_public": None, "cache_secteur_prive": None,
+        "n_affiches_public": None, "n_affiches_prive": None,
     }
 
 
@@ -1799,6 +1899,30 @@ def resoudre_choix_noms(etat: AgentState, choix: dict) -> AgentState:
     return noeud_synthese(etat)
 
 
+def resoudre_choix_voir_plus(etat: AgentState, secteur: str) -> AgentState:
+    """
+    Révèle SPLIT_SECTEUR_INCREMENT établissements de plus pour le secteur
+    cliqué (bouton "voir plus", session 2026-07-06) — à partir du cache déjà
+    récupéré au tour précédent (cf. noeud_sql, SPLIT_SECTEUR_N_MAX). AUCUN
+    nouvel appel SQL ni LLM : juste une tranche supplémentaire d'une liste
+    déjà en mémoire de session.
+    """
+    if secteur not in ("public", "prive"):
+        return etat
+
+    cle_cache = f"cache_secteur_{secteur}"
+    cle_n = f"n_affiches_{secteur}"
+    cache = etat.get(cle_cache) or []
+    n_actuel = etat.get(cle_n) or SPLIT_SECTEUR_N
+    etat[cle_n] = min(n_actuel + SPLIT_SECTEUR_INCREMENT, len(cache))
+
+    resultats_sql = dict(etat.get("resultats_sql") or {})
+    resultats_sql[secteur] = cache[: etat[cle_n]]
+    etat["resultats_sql"] = resultats_sql
+
+    return noeud_synthese(etat)
+
+
 def poser_resolution_choix(etat_session: AgentState, resolution: dict) -> AgentState:
     """
     Point d'entrée équivalent à poser_question(), mais pour un choix
@@ -1809,12 +1933,16 @@ def poser_resolution_choix(etat_session: AgentState, resolution: dict) -> AgentS
 
     resolution : {"type": "zone", "commune": str, "code_departement": str}
               ou {"type": "noms", "choix": {nom: uai, ...}}
+              ou {"type": "voir_plus", "secteur": "public"|"prive"}
     """
     etat_session["reponse_finale"] = None
 
     if resolution["type"] == "zone":
         etat_session = resoudre_choix_zone_geo(etat_session, resolution["commune"], resolution["code_departement"])
         question_historique = f"{resolution['commune']} ({resolution['code_departement']})"
+    elif resolution["type"] == "voir_plus":
+        etat_session = resoudre_choix_voir_plus(etat_session, resolution["secteur"])
+        question_historique = f"Voir plus ({resolution['secteur']})"
     else:
         etat_session = resoudre_choix_noms(etat_session, resolution["choix"])
         question_historique = ", ".join(resolution["choix"].values())

@@ -14,7 +14,7 @@ export type GroupeChoix = {
 };
 
 export type Choix = {
-  type: string; // "zone" ou "noms"
+  type: string; // "zone", "noms" ou "voir_plus"
   groupes: GroupeChoix[];
 };
 
@@ -57,13 +57,16 @@ export function envoyerResolution(
 
 // Construit le corps de résolution attendu par l'API à partir du type de
 // clarification (porté par Choix.type) et de la valeur du bouton cliqué —
-// les deux types de clarification n'ont pas la même forme côté backend.
+// les trois types n'ont pas la même forme côté backend.
 export function construireResolution(
   type: string,
   valeur: Record<string, string>
 ): Record<string, unknown> {
   if (type === "zone") {
     return { type: "zone", commune: valeur.commune, code_departement: valeur.code_departement };
+  }
+  if (type === "voir_plus") {
+    return { type: "voir_plus", secteur: valeur.secteur };
   }
   return { type: "noms", choix: { [valeur.nom]: valeur.uai } };
 }

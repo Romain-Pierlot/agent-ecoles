@@ -98,6 +98,12 @@ class OrdreSouhaite(StrEnum):
 # --- Synthèse de réponse (graph_router.py) ---
 MAX_LIGNES_SYNTHESE = 15        # limite de sécurité — évite d'envoyer des centaines de lignes au LLM de synthèse
 SPLIT_SECTEUR_N = 10            # nombre d'établissements par secteur affichés quand le secteur n'est pas précisé
+# Requête SQL déterministe (aucun coût LLM) : on récupère ce plafond dès la
+# première recherche, mais on n'en affiche que SPLIT_SECTEUR_N — le reste
+# attend en cache de session pour le bouton "voir plus" (cf. graph_router.py
+# resoudre_choix_voir_plus), sans nouvel appel SQL ni LLM au clic.
+SPLIT_SECTEUR_N_MAX = 50
+SPLIT_SECTEUR_INCREMENT = 10    # établissements supplémentaires révélés par clic "voir plus"
 
 # --- Mémoire de conversation (graph_router.py) ---
 # Nombre de tours passés dans le prompt du routeur pour interpréter une

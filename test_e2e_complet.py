@@ -5,15 +5,21 @@ Couvre l'ensemble des chemins et variantes construits pendant la session :
 classement/split, comparaison de noms (standard/évolution/nuance),
 agrégation géo (secteur précisé/indifférent), question méthodologique pure,
 agent ReAct (hors-sujet, multi-zones 2/3/5, hors-périmètre, zone introuvable),
-et une série de cas limites/questions bancales pour chercher des trous non
-encore trouvés.
+une série de cas limites/questions bancales, l'affichage conditionnel des
+mentions TB/B (session 2026-07-06, sur les deux chemins qui y sont sensibles :
+déterministe et agent ReAct) et le bouton "voir plus" (cache + pagination).
+
+Chaque cas de CAS peut porter une fonction de vérification optionnelle
+(3e élément du tuple) qui contrôle le contenu réel de la réponse, pas
+seulement l'absence d'exception — sans ça, une régression d'affichage
+(colonne en trop ou manquante) passerait inaperçue.
 
 Coûteux dans son ensemble (beaucoup de cas passent par l'agent ou plusieurs
 appels LLM) — lancé volontairement, pas en CI à chaque commit.
 """
 
 import time
-from graph_router import construire_graphe
+from graph_router import construire_graphe, nouvelle_session, poser_question, poser_resolution_choix
 
 app = construire_graphe()
 
@@ -77,14 +83,80 @@ CAS = [
      "collège"),
     ("Edge : secteur privé seul + agrégation",
      "Quelle est la moyenne du score des collèges privés à Bordeaux ?"),
+
+    # --- Mentions TB/B : affichage conditionnel (session 2026-07-06) ---
+    # 3e élément optionnel : fonction de vérification du contenu de la
+    # réponse (au-delà du simple "pas d'exception") — sinon les régressions
+    # d'affichage (colonnes en trop ou manquantes) passeraient inaperçues.
+    ("Classement géo, mentions demandées explicitement",
+     "Quels sont les collèges à Toulouse avec leurs mentions TB et B ?",
+     lambda r: "Mentions B" in r["reponse_finale"] and "Mentions TB" in r["reponse_finale"]),
+    ("Classement géo, sans mention (non-régression affichage par défaut)",
+     "Quels sont les meilleurs collèges à Toulouse ?",
+     lambda r: "Mentions B" not in r["reponse_finale"] and "Mentions TB" not in r["reponse_finale"]),
+    ("Agent ReAct, taux de mention TB demandé (chemin non_reconnu, bug régression S12)",
+     "Quel est le taux de mention TB moyen des collèges publics à Levallois-Perret ?",
+     lambda r: "mention" in r["reponse_finale"].lower()),
+    ("Agent ReAct, moyenne sans mention (non-régression, même chemin non_reconnu)",
+     "Quelle est la moyenne des collèges publics à Levallois-Perret ?",
+     lambda r: "mention" not in r["reponse_finale"].lower()),
 ]
+
+
+def tester_bouton_voir_plus(resultats):
+    """
+    Cas multi-tours (bouton "voir plus", session 2026-07-06) : nécessite un
+    état de session persistant (poser_question/poser_resolution_choix),
+    incompatible avec le format à une question de CAS (un simple app.invoke
+    isolé). Vérifie : le cache est bien rempli au-delà de ce qui est
+    affiché, le clic augmente n_affiches sans dépasser le cache, et un
+    second clic jusqu'à épuisement du cache ne plante pas (plafonne).
+    """
+    nom_cas = "Bouton 'voir plus' : incrémente depuis le cache, sans nouvel appel SQL/LLM"
+    print(f"--- {nom_cas} ---")
+    debut = time.time()
+    try:
+        etat_session = nouvelle_session()
+        etat_session = poser_question(app, etat_session, "Quels sont les collèges à Toulouse ?")
+        cache_public = etat_session["cache_secteur_public"]
+        n_avant = etat_session["n_affiches_public"]
+
+        etat_session = poser_resolution_choix(etat_session, {"type": "voir_plus", "secteur": "public"})
+        n_apres_1_clic = etat_session["n_affiches_public"]
+
+        # Clics répétés jusqu'à dépasser la taille du cache — doit plafonner,
+        # jamais planter ni dépasser len(cache_public).
+        for _ in range(5):
+            etat_session = poser_resolution_choix(etat_session, {"type": "voir_plus", "secteur": "public"})
+        n_final = etat_session["n_affiches_public"]
+
+        ok = (
+            len(cache_public) > n_avant
+            and n_apres_1_clic > n_avant
+            and n_apres_1_clic <= len(cache_public)
+            and n_final == len(cache_public)
+            and len(etat_session["resultats_sql"]["public"]) == n_final
+        )
+        duree = time.time() - debut
+        print(
+            f"cache={len(cache_public)} | n_affiches avant={n_avant}, après 1 clic={n_apres_1_clic}, "
+            f"après 6 clics={n_final} -> {'✓' if ok else '✗'}"
+        )
+        resultats.append((nom_cas, ok, duree))
+    except Exception as e:
+        duree = time.time() - debut
+        print(f"✗ ERREUR après {duree:.1f}s : {type(e).__name__} : {e}")
+        resultats.append((nom_cas, False, duree))
+    print("=" * 70 + "\n")
 
 
 def tester():
     print("=== CAHIER DE TEST END-TO-END CONSOLIDÉ ===\n")
     resultats = []
 
-    for nom_cas, question in CAS:
+    for cas in CAS:
+        nom_cas, question = cas[0], cas[1]
+        verification = cas[2] if len(cas) > 2 else None
         print(f"--- {nom_cas} ---")
         print(f"Question : \"{question}\"")
         debut = time.time()
@@ -93,19 +165,27 @@ def tester():
             duree = time.time() - debut
             print(f"Catégorie : {r['categorie']} | Tours agent : {r['tours_agent']} | Durée : {duree:.1f}s")
             print(f"\n{r['reponse_finale']}\n")
-            resultats.append((nom_cas, True, duree))
+            if verification is not None:
+                ok = bool(verification(r))
+                if not ok:
+                    print(f"✗ VÉRIFICATION DE CONTENU ÉCHOUÉE pour : {nom_cas}\n")
+                resultats.append((nom_cas, ok, duree))
+            else:
+                resultats.append((nom_cas, True, duree))
         except Exception as e:
             duree = time.time() - debut
             print(f"✗ ERREUR après {duree:.1f}s : {type(e).__name__} : {e}\n")
             resultats.append((nom_cas, False, duree))
         print("=" * 70 + "\n")
 
+    tester_bouton_voir_plus(resultats)
+
     print("=== RÉCAPITULATIF ===")
     for nom_cas, ok, duree in resultats:
         symbole = "✓" if ok else "✗"
         print(f"{symbole} {nom_cas} ({duree:.1f}s)")
     nb_ok = sum(1 for _, ok, _ in resultats if ok)
-    print(f"\n{nb_ok}/{len(resultats)} sans exception levée — la qualité des réponses reste à relire ci-dessus.")
+    print(f"\n{nb_ok}/{len(resultats)} corrects (pas d'exception + vérification de contenu quand présente).")
 
 
 if __name__ == "__main__":
