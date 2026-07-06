@@ -32,7 +32,7 @@ from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
     SPLIT_SECTEUR_N_MAX, SPLIT_SECTEUR_INCREMENT,
     HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
-    SEUIL_CANDIDATS_AVANT_PRECISION,
+    SEUIL_CANDIDATS_AVANT_PRECISION, SectionSouhaitee, COLONNE_SECTION, LIBELLE_SECTION,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
 from prompts.agent_react_system_prompt import AGENT_REACT_SYSTEM_PROMPT
@@ -48,6 +48,7 @@ class AgentState(TypedDict):
     elargir_zone_environs: bool
     zones_multiples: bool
     secteur_souhaite: Optional[SecteurSouhaite]
+    section_souhaitee: Optional[SectionSouhaitee]
     nuance_methodologique_demandee: bool
     requete_rag_nuance: Optional[str]
     evolution_demandee: bool
@@ -106,10 +107,22 @@ ROUTER_TOOL_SCHEMA = {
                     "items": {"type": "string"},
                     "description": "Noms propres d'établissements explicitement cités dans la question (ex: 'Victor Hugo', 'Jean Moulin', 'Chevreul'), quelle que soit la catégorie choisie — même une question sur un seul établissement nommé (pas une comparaison entre plusieurs) doit remplir ce champ. Liste vide seulement si aucun nom propre d'établissement n'est cité.",
                 },
-                "secteur_souhaite": {
-                    "type": "string",
-                    "enum": [s.value for s in SecteurSouhaite],
-                    "description": "Secteur souhaité si mentionné explicitement dans la question (\"collèges publics\", \"écoles privées\"...). \"indifferent\" si non précisé, ou si public ET privé sont explicitement demandés ensemble.",
+                "criteres_filtre": {
+                    "type": "object",
+                    "description": "Critères de filtre sur les établissements, en plus de la zone géographique.",
+                    "properties": {
+                        "secteur_souhaite": {
+                            "type": "string",
+                            "enum": [s.value for s in SecteurSouhaite],
+                            "description": "Secteur souhaité si mentionné explicitement dans la question (\"collèges publics\", \"écoles privées\"...). \"indifferent\" si non précisé, ou si public ET privé sont explicitement demandés ensemble.",
+                        },
+                        "section_demandee": {
+                            "type": "string",
+                            "enum": [s.value for s in SectionSouhaitee],
+                            "description": "Section demandée comme critère de filtre (ex: \"section sport\" -> sport, \"section théâtre\" -> theatre). \"aucune\" si non mentionnée.",
+                        },
+                    },
+                    "required": ["secteur_souhaite", "section_demandee"],
                 },
                 "nuance_methodologique_demandee": {
                     "type": "boolean",
@@ -147,7 +160,7 @@ ROUTER_TOOL_SCHEMA = {
             },
             "required": [
                 "categorie", "zone_detectee", "zone", "elargir_zone_environs", "zones_multiples",
-                "noms_etablissements", "secteur_souhaite", "nuance_methodologique_demandee",
+                "noms_etablissements", "criteres_filtre", "nuance_methodologique_demandee",
                 "requete_rag_nuance", "evolution_demandee", "nb_annees_demandees", "ordre_souhaite",
                 "agregation_demandee", "mentions_demandees", "nouveau_sujet",
             ],
@@ -187,7 +200,18 @@ def noeud_router(state: AgentState) -> AgentState:
     state["categorie"] = enum_securise(Categorie, args["categorie"], Categorie.NON_RECONNU)
     zone_extraite = args["zone"] if args.get("zone_detectee") else None
     noms_extraits = args.get("noms_etablissements") or []
-    secteur_extrait = enum_securise(SecteurSouhaite, args.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT, SecteurSouhaite.INDIFFERENT)
+    # secteur_souhaite et section_demandee regroupés sous criteres_filtre dans
+    # le schéma (cf. ROUTER_TOOL_SCHEMA) — test S13.2 : les avoir à plat au même
+    # niveau que agregation_demandee/categorie déstabilisait ces derniers
+    # (85% -> 25% de fiabilité mesurée sur "moyenne des collèges à Lyon").
+    criteres_filtre = args.get("criteres_filtre") or {}
+    secteur_extrait = enum_securise(SecteurSouhaite, criteres_filtre.get("secteur_souhaite") or SecteurSouhaite.INDIFFERENT, SecteurSouhaite.INDIFFERENT)
+    # Pas de repli sur le tour précédent ici (contrairement à secteur_souhaite) :
+    # une section est presque toujours nommée explicitement dans la question
+    # qui la concerne (cf. test S13.1 : le LLM du routeur l'a extraite correctement
+    # dès la relance "Et sa section théâtre ?" grâce à l'historique de
+    # conversation déjà transmis dans les messages, sans mécanisme dédié).
+    state["section_souhaitee"] = enum_securise(SectionSouhaitee, criteres_filtre.get("section_demandee") or SectionSouhaitee.AUCUNE, SectionSouhaitee.AUCUNE)
 
     # nouveau_sujet n'a de sens que s'il y a un historique — sans historique,
     # rien à reporter, pas besoin de faire trancher le LLM sur une évidence.
@@ -292,8 +316,14 @@ def noeud_router(state: AgentState) -> AgentState:
     # S8.18) — pas une question de concept. agregation_demandee extrait par
     # le LLM (S8.21), robuste aux synonymes de "moyenne" ("en général",
     # "globalement"...), contrairement à l'ancienne regex _MOTS_AGREGATION.
+    # Couvre aussi non_reconnu (pas seulement question_methodologique) : ajouter
+    # section_demandee au même appel LLM fusionné (S13, critère de section) a
+    # rendu ce même cas encore instable, mais vers cette deuxième catégorie
+    # cette fois — zone_geo et agregation_demandee restent fiables dans les
+    # deux cas (vérifié empiriquement), donc ce garde-fou peut s'y fier quelle
+    # que soit la valeur erronée prise par categorie.
     if (
-        state["categorie"] == Categorie.QUESTION_METHODOLOGIQUE
+        state["categorie"] in (Categorie.QUESTION_METHODOLOGIQUE, Categorie.NON_RECONNU)
         and state["zone_geo"] is not None
         and state["agregation_demandee"]
     ):
@@ -445,6 +475,10 @@ def noeud_resolution_noms(state: AgentState) -> AgentState:
 
 
 def noeud_sql(state: AgentState) -> AgentState:
+    # Nom de colonne réel (ex: "section_theatre"), ou None si aucune section
+    # n'est demandée — converti une seule fois ici, jamais reconstruit à
+    # partir du texte utilisateur (cf. COLONNE_SECTION, config.py).
+    colonne_section = COLONNE_SECTION.get(state.get("section_souhaitee"))
     uai_filtre = None
     if state.get("resultats_geo") and state["resultats_geo"].get("success"):
         uai_filtre = [e["uai"] for e in state["resultats_geo"]["etablissements"]]
@@ -476,7 +510,9 @@ def noeud_sql(state: AgentState) -> AgentState:
             # (cf. calculer_moyenne_etablissements) plutôt que Text-to-SQL
             # général — pas de tableau détaillé par établissement ici, c'est
             # une agrégation statistique, pas une liste à afficher.
-            resultat_moyenne = calculer_moyenne_etablissements(uai_filtre, inclure_mentions=state.get("mentions_demandees", False))
+            resultat_moyenne = calculer_moyenne_etablissements(
+                uai_filtre, inclure_mentions=state.get("mentions_demandees", False), colonne_section_filtre=colonne_section
+            )
             state["resultats_sql"] = {
                 "success": resultat_moyenne["success"],
                 "agregation_geo": True,
@@ -502,8 +538,8 @@ def noeud_sql(state: AgentState) -> AgentState:
                 uai_ville = [e["uai"] for e in etablissements if e["commune"] == commune_principale]
                 uai_environs = [e["uai"] for e in etablissements if e["commune"] != commune_principale]
                 mentions = state.get("mentions_demandees", False)
-                resultat_ville = rechercher_etablissements_par_uai(uai_ville, inclure_mentions=mentions)
-                resultat_environs = rechercher_top_par_secteur(uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC", inclure_mentions=mentions)
+                resultat_ville = rechercher_etablissements_par_uai(uai_ville, inclure_mentions=mentions, colonne_section_filtre=colonne_section)
+                resultat_environs = rechercher_top_par_secteur(uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC", inclure_mentions=mentions, colonne_section_filtre=colonne_section)
                 state["resultats_sql"] = {
                     "success": resultat_ville["success"] and resultat_environs["success"],
                     "split_ville_environs": True,
@@ -527,7 +563,8 @@ def noeud_sql(state: AgentState) -> AgentState:
             # (cf. resoudre_choix_voir_plus), sans nouvel appel SQL/LLM au clic.
             ordre = "ASC" if state["ordre_souhaite"] == OrdreSouhaite.PIRE else "DESC"
             resultat_split = rechercher_top_par_secteur(
-                uai_filtre, n=SPLIT_SECTEUR_N_MAX, ordre=ordre, inclure_mentions=state.get("mentions_demandees", False)
+                uai_filtre, n=SPLIT_SECTEUR_N_MAX, ordre=ordre, inclure_mentions=state.get("mentions_demandees", False),
+                colonne_section_filtre=colonne_section,
             )
             state["cache_secteur_public"] = resultat_split["public"]
             state["cache_secteur_prive"] = resultat_split["prive"]
@@ -939,7 +976,7 @@ def _generer_moyennes_par_etablissement(lignes):
     return "\n\n".join(blocs)
 
 
-def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
+def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None, section_souhaitee=None):
     """Génère le tableau markdown depuis une liste de lignes déjà résolues — aucune génération LLM."""
     if not lignes:
         return None
@@ -962,11 +999,21 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
     # sql_tool.py, contrôlé par state["mentions_demandees"] extrait par le
     # router) — ne pas encombrer l'affichage normal d'une donnée non demandée.
     contient_mentions = "nb_mentions_b" in lignes[0]
+    # Colonne section ajoutée seulement si une section a été demandée ET que
+    # la colonne correspondante est bien présente dans ces lignes (ex:
+    # absente sur un split public/privé zone, où le filtre a déjà tranché —
+    # cf. rechercher_etablissements_par_uai, seule fonction qui la fournit).
+    colonne_section = COLONNE_SECTION.get(section_souhaitee) if section_souhaitee else None
+    contient_section = bool(colonne_section) and colonne_section in lignes[0]
     entete_colonnes = "Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit"
     separateur_colonnes = "---|---|---|---|---|---|---"
     if contient_mentions:
         entete_colonnes += " | Mentions B | Mentions TB | Taux TB"
         separateur_colonnes += "|---|---|---"
+    if contient_section:
+        libelle_section = LIBELLE_SECTION.get(section_souhaitee, section_souhaitee.value)
+        entete_colonnes += f" | Section {libelle_section}"
+        separateur_colonnes += "|---"
     if contient_session:
         entete = f"| Session | {entete_colonnes} |\n"
         separateur = f"|---|{separateur_colonnes}|\n"
@@ -1001,6 +1048,8 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
             else:
                 taux_tb_str = "?"
             ligne_colonnes += f" | {mentions_b_str} | {mentions_tb_str} | {taux_tb_str}"
+        if contient_section:
+            ligne_colonnes += f" | {'Oui' if r.get(colonne_section) else 'Non'}"
         if contient_session:
             corps += f"| {r.get('session', '?')} | {ligne_colonnes} |\n"
         else:
@@ -1027,7 +1076,7 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None):
     return tableau
 
 
-def _generer_tableau_etablissements(resultats_sql):
+def _generer_tableau_etablissements(resultats_sql, section_souhaitee=None):
     """
     Génère le tableau markdown directement depuis les données SQL —
     aucune génération LLM ici. Ces données sont déjà connues et fiables,
@@ -1037,7 +1086,7 @@ def _generer_tableau_etablissements(resultats_sql):
     if not resultats_sql or not resultats_sql.get("success"):
         return None
     return _generer_tableau_depuis_lignes(
-        resultats_sql.get("resultats", []), resultats_sql.get("sessions_disponibles")
+        resultats_sql.get("resultats", []), resultats_sql.get("sessions_disponibles"), section_souhaitee
     )
 
 
@@ -1331,7 +1380,7 @@ def _generer_intro_evolution_geo_template(resultats_geo, evolution):
     )
 
 
-def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None):
+def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None, section_souhaitee=None):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
     en gérant les quatre formats possibles (classement normal, split
@@ -1365,7 +1414,7 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
         nb_prive = len(resultats_sql.get("prive", []))
         intro = _generer_intro_split_template(resultats_geo, nb_public, nb_prive, resultats_sql.get("ordre_pire", False))
     else:
-        tableau = _generer_tableau_etablissements(resultats_sql)
+        tableau = _generer_tableau_etablissements(resultats_sql, section_souhaitee)
         nb_affiches = len(resultats_sql.get("resultats", [])) if resultats_sql else 0
         intro = _generer_intro_template(resultats_geo, nb_affiches, ordre_souhaite)
 
@@ -1662,7 +1711,8 @@ def noeud_synthese(state: AgentState) -> AgentState:
     resultats_sql_tronques = _tronquer_resultats_sql(state.get("resultats_sql"))
 
     tableau, intro = _preparer_affichage_resultats(
-        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state.get("ordre_souhaite")
+        resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state.get("ordre_souhaite"),
+        state.get("section_souhaitee"),
     )
     # Forme "moyenne/agrégation" (simple ou par session, cf. evolution_geo) :
     # la clé du score n'est pas "score_principal" (c'est "score_moyen",
@@ -1789,7 +1839,7 @@ def nouvelle_session() -> AgentState:
     return {
         "question": None, "dc_niveau": "accessible", "categorie": None, "zone_geo": None,
         "elargir_zone_environs": False, "zones_multiples": False,
-        "secteur_souhaite": None, "nuance_methodologique_demandee": False,
+        "secteur_souhaite": None, "section_souhaitee": None, "nuance_methodologique_demandee": False,
         "requete_rag_nuance": None, "evolution_demandee": False, "nb_annees_demandees": None,
         "ordre_souhaite": None, "agregation_demandee": False, "mentions_demandees": False,
         "resultats_geo": None, "resultats_sql": None, "resultats_rag": None,

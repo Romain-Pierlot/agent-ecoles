@@ -1315,3 +1315,11 @@ Appliqués de façon constante v3 à v6.
 - Tout-Python (FastAPI + Jinja2 + htmx) : viable techniquement, mais impose de reconstruire manuellement des briques que Next.js fournit déjà de façon standardisée (routage, récupération de données, réutilisation de composants), au prix d'une surface de maintenance plus importante à mesure que le produit grandit.
 
 **Conséquence** : Backend agentique inchangé dans sa logique, à envelopper dans une API. Implémentation non commencée.
+
+## S13.3 — Filtre par critère de section + factorisation SQL générique
+
+**Décision** : factoriser la validation + construction du filtre SQL sur les colonnes de section dans une fonction unique (`_filtre_section_sql` dans `sql_tool.py`), dérivée d'un seul registre (`COLONNE_SECTION` dans `config.py`), plutôt que dupliquer cette logique dans chaque fonction déterministe qui en a besoin.
+
+**Pourquoi** : 3 fonctions déterministes (`rechercher_top_par_secteur`, `rechercher_etablissements_par_uai`, `calculer_moyenne_etablissements`) reproduisaient la même validation par liste blanche et la même construction de clause SQL pour filtrer sur une section (sport, arts, cinéma, théâtre, internationale, européenne). Un nouveau critère de filtre binaire (ex: futures colonnes restauration/hébergement) ne doit s'ajouter qu'à un seul endroit.
+
+**Conséquence** : ajouter un nouveau critère de filtre binaire ne demande plus que d'étendre le registre (`COLONNE_SECTION`) et d'ajouter un paramètre par fonction déterministe, pas de recopier la validation. `rechercher_etablissements_par_uai` récupère aussi systématiquement les colonnes de section pour un établissement nommé (coût négligeable, petit nombre de lignes), pour répondre directement ("a-t-il une section théâtre ?") sans nouvelle requête ciblée.

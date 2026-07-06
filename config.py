@@ -77,6 +77,41 @@ class SecteurSouhaite(StrEnum):
     INDIFFERENT = "indifferent"
 
 
+class SectionSouhaitee(StrEnum):
+    """Section/option demandée comme critère de filtre (extraite par le router)."""
+    SPORT = "sport"
+    ARTS = "arts"
+    CINEMA = "cinema"
+    THEATRE = "theatre"
+    INTERNATIONALE = "internationale"
+    EUROPEENNE = "europeenne"
+    AUCUNE = "aucune"
+
+
+# Correspondance vers le vrai nom de colonne SQL — jamais construit
+# dynamiquement à partir du texte utilisateur (cf. agent/tools/sql_tool.py,
+# qui revalide en plus contre sa propre liste blanche avant tout usage SQL).
+COLONNE_SECTION = {
+    SectionSouhaitee.SPORT: "section_sport",
+    SectionSouhaitee.ARTS: "section_arts",
+    SectionSouhaitee.CINEMA: "section_cinema",
+    SectionSouhaitee.THEATRE: "section_theatre",
+    SectionSouhaitee.INTERNATIONALE: "section_internationale",
+    SectionSouhaitee.EUROPEENNE: "section_europeenne",
+}
+
+# Libellé affiché à l'utilisateur pour chaque section (cf. graph_router.py,
+# affichage Oui/Non pour un établissement nommé).
+LIBELLE_SECTION = {
+    SectionSouhaitee.SPORT: "sportive",
+    SectionSouhaitee.ARTS: "arts",
+    SectionSouhaitee.CINEMA: "cinéma",
+    SectionSouhaitee.THEATRE: "théâtre",
+    SectionSouhaitee.INTERNATIONALE: "internationale",
+    SectionSouhaitee.EUROPEENNE: "européenne",
+}
+
+
 class Secteur(StrEnum):
     """Valeurs du secteur telles que stockées dans la table etablissements — distinct de SecteurSouhaite."""
     PUBLIC = "Public"

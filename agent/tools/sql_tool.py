@@ -14,10 +14,42 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from config import (
     DB_PATH, LLM_MODEL, LLM_MAX_RETRIES, SQL_TIMEOUT_SECONDS,
     Secteur, SecteurSouhaite, SEUIL_CANDIDATS_AVANT_PRECISION, PREFIXES_INSTITUTIONNELS,
+    COLONNE_SECTION,
 )
 from guardrails.sql_safety import valider_sql
 
 client = OpenAI()
+
+# Liste blanche des colonnes de section utilisables comme critère de filtre
+# dans les requêtes déterministes ci-dessous — dérivée de COLONNE_SECTION
+# (config.py, source unique) plutôt que retapée ici : ajouter une section
+# ne demande de toucher qu'un seul endroit, jamais deux listes à resynchroniser
+# à la main. Jamais un nom de colonne construit dynamiquement à partir d'un
+# texte utilisateur non vérifié.
+COLONNES_SECTION_VALIDES = set(COLONNE_SECTION.values())
+
+
+def _filtre_section_sql(colonne_section_filtre: str = None) -> tuple[str, str]:
+    """
+    Construit la clause SQL de filtre `AND e.{colonne} = 1` après validation
+    contre la liste blanche — factorisé une seule fois, utilisé par les 3
+    fonctions déterministes ci-dessous (rechercher_top_par_secteur,
+    rechercher_etablissements_par_uai, calculer_moyenne_etablissements), qui
+    dupliquaient chacune la même validation et la même construction de
+    chaîne. Un nouveau critère de filtre binaire (ex: futur "restauration",
+    "hebergement") s'ajoute en étendant COLONNE_SECTION/COLONNES_SECTION_VALIDES,
+    pas en recopiant cette logique dans une 4e fonction.
+
+    Retourne (clause_sql, erreur) : clause_sql vide et erreur=None si
+    colonne_section_filtre est None (aucun filtre demandé) ; erreur non-None
+    si la colonne demandée n'appartient pas à la liste blanche (jamais de
+    clause construite sur une valeur non vérifiée).
+    """
+    if colonne_section_filtre is None:
+        return "", None
+    if colonne_section_filtre not in COLONNES_SECTION_VALIDES:
+        return "", f"colonne de section invalide : {colonne_section_filtre}"
+    return f" AND e.{colonne_section_filtre} = 1", None
 
 SCHEMA_PROMPT = """
 Tu as accès à une base SQLite avec 5 tables sur les établissements scolaires français.
@@ -37,6 +69,9 @@ TABLE etablissements — 1 ligne par établissement
   segpa INTEGER
   ulis INTEGER
   section_sport INTEGER
+  section_arts INTEGER
+  section_cinema INTEGER
+  section_theatre INTEGER
   section_internationale INTEGER
   section_europeenne INTEGER
   appartenance_education_prioritaire TEXT
@@ -95,6 +130,10 @@ RÈGLES IMPORTANTES :
   Exemple correct   : WHERE (e.nom LIKE '%Chevreul%' OR e.nom LIKE '%Louise Michel%')
   Exemple incorrect : WHERE e.nom IN ('Chevreul', 'Louise Michel')
 - La VA peut être NULL — toujours IS NOT NULL si filtrée
+- segpa/ulis/section_* sont des colonnes binaires (1 = oui, 0 = non, jamais
+  NULL) — pour filtrer sur leur présence, teste TOUJOURS `= 1`, jamais
+  `IS NOT NULL` (qui vaut vrai pour toutes les lignes, y compris celles à 0,
+  et ne filtre donc rien du tout)
 - Toujours afficher le badge_va à côté du score
 - TOUJOURS inclure e.uai dans le SELECT (nécessaire pour la traçabilité en aval)
 - TOUJOURS inclure e.secteur dans le SELECT dès que la requête retourne des
@@ -102,7 +141,9 @@ RÈGLES IMPORTANTES :
   sur la sélection à l'entrée du privé, affiché en aval à partir de ce champ
 - Synonymes : école/établissement/collège → etablissements, résultats/notes → ivac,
   classement/meilleur → ORDER BY score_principal DESC, pire/moins bon → ORDER BY
-  score_principal ASC, social/milieu → ips_moyen
+  score_principal ASC, social/milieu → ips_moyen, section arts/option arts →
+  section_arts, section cinéma/option cinéma/audiovisuel → section_cinema,
+  section théâtre/option théâtre/art dramatique → section_theatre
 - Critère de tri/classement : TOUJOURS score_principal (jamais un autre champ),
   y compris quand la question mentionne la VA comme critère ("le meilleur
   collège en tenant compte de la valeur ajoutée", "classe-les par valeur
@@ -278,7 +319,7 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     }
 
 
-def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC", inclure_mentions: bool = False) -> dict:
+def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC", inclure_mentions: bool = False, colonne_section_filtre: str = None) -> dict:
     """
     Retourne séparément les n meilleurs (ou pires, cf. ordre) établissements
     publics et privés parmi une liste d'UAI déjà présélectionnée (ex: par
@@ -293,6 +334,12 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     ordre="DESC" (défaut, meilleurs) ou "ASC" (pires) — jamais interpolé
     depuis une chaîne fournie par l'appelant sans validation, pour éviter
     toute injection SQL sur cette clause (cf. validation stricte ci-dessous).
+
+    colonne_section_filtre=None (défaut) : si fourni (ex: "section_theatre"),
+    ajoute un filtre `= 1` sur cette colonne — utilisé quand state["section_souhaitee"]
+    (extrait par le router) demande un critère de section en plus de la zone.
+    Doit appartenir à COLONNES_SECTION_VALIDES (jamais un nom de colonne
+    construit depuis un texte utilisateur non vérifié).
 
     inclure_mentions=False (défaut) : colonnes de mention absentes des lignes
     retournées, donc absentes de l'affichage (cf. _generer_tableau_depuis_lignes,
@@ -319,6 +366,9 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": True, "session_utilisee": None, "public": [], "prive": [], "error": None}
     if ordre not in ("DESC", "ASC"):
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": f"ordre invalide : {ordre}"}
+    filtre_section_sql, erreur_section = _filtre_section_sql(colonne_section_filtre)
+    if erreur_section:
+        return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": erreur_section}
 
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
@@ -347,6 +397,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
                       AND e.secteur = ?
                       AND e.type_etablissement = ?
                       AND s.session = ?
+                      {filtre_section_sql}
                     ORDER BY s.score_principal {ordre}
                     LIMIT ?
                 """, (*uai_filtre, secteur_db.value, type_etablissement, session, n)).fetchall()
@@ -358,7 +409,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": str(e)}
 
 
-def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False) -> dict:
+def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False, colonne_section_filtre: str = None) -> dict:
     """
     Retourne le tableau standard (score, VA, taux de réussite, note écrit —
     valeurs brutes) pour une liste d'établissements déjà résolue par nom
@@ -373,6 +424,22 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
     le tableau dès qu'une relance ne répète pas les mots de la question
     initiale (mémoire de conversation générale).
 
+    Les 6 colonnes de section (section_sport, section_arts, section_cinema,
+    section_theatre, section_internationale, section_europeenne) sont
+    TOUJOURS incluses dans le SELECT, coût négligeable pour le petit nombre
+    de lignes concerné ici (établissement(s) déjà résolu(s) par nom, ou
+    ville d'une zone). Ça permet de répondre à une question de suivi sur
+    n'importe laquelle de ces sections sans nouvel appel SQL ciblé — cf.
+    discussion produit sur l'entonnoir zone -> établissement nommé.
+
+    colonne_section_filtre=None (défaut) : aucun filtre, TOUS les
+    établissements de uai_filtre sont retournés (avec leurs colonnes de
+    section pour affichage) — comportement voulu pour un établissement
+    nommé : "Ampère a-t-il une section théâtre ?" doit répondre Oui/Non,
+    jamais faire disparaître Ampère du résultat s'il ne l'a pas. Si fourni
+    (cas zone, ex: "ville" d'un split ville+environs), ajoute un filtre
+    `= 1` sur cette colonne — doit appartenir à COLONNES_SECTION_VALIDES.
+
     inclure_mentions=False (défaut) : colonnes de mention absentes des lignes
     retournées, donc absentes de l'affichage (cf. _generer_tableau_depuis_lignes,
     conditionné à leur présence). True seulement quand state["mentions_demandees"]
@@ -383,12 +450,17 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
         "session_utilisee": str | None,
         "resultats": [ {uai, nom, commune, secteur, score_principal, badge_va,
                          brevet_taux_reussite_general, brevet_note_ecrit_general,
+                         section_sport, section_arts, section_cinema, section_theatre,
+                         section_internationale, section_europeenne,
                          [+ brevet_nb_candidats_general, nb_mentions_b, nb_mentions_tb si inclure_mentions]}, ... ],
         "error": str | None
     }
     """
     if not uai_filtre:
         return {"success": True, "session_utilisee": None, "resultats": [], "error": None}
+    filtre_section_sql, erreur_section = _filtre_section_sql(colonne_section_filtre)
+    if erreur_section:
+        return {"success": False, "session_utilisee": None, "resultats": [], "error": erreur_section}
 
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
@@ -405,7 +477,9 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
             placeholders = ",".join("?" for _ in uai_filtre)
             rows = conn.execute(f"""
                 SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
-                       v.brevet_taux_reussite_general, v.brevet_note_ecrit_general
+                       v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
+                       e.section_sport, e.section_arts, e.section_cinema, e.section_theatre,
+                       e.section_internationale, e.section_europeenne
                        {colonnes_mentions}
                 FROM etablissements e
                 JOIN scores s ON e.uai = s.uai
@@ -413,6 +487,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
                 WHERE e.uai IN ({placeholders})
                   AND e.type_etablissement = ?
                   AND s.session = ?
+                  {filtre_section_sql}
                 ORDER BY s.score_principal DESC
             """, (*uai_filtre, type_etablissement, session)).fetchall()
         finally:
@@ -422,7 +497,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
         return {"success": False, "session_utilisee": None, "resultats": [], "error": str(e)}
 
 
-def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False) -> dict:
+def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False, colonne_section_filtre: str = None) -> dict:
     """
     Calcule la moyenne du score/taux/note pour un ensemble d'établissements
     déjà présélectionné (ex: par geo_tool) — moyenne globale (tous secteurs
@@ -433,6 +508,12 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
 
     Requête SQL déterministe, AUCUN appel LLM. Session la plus récente
     disponible, déterminée dynamiquement (jamais codée en dur).
+
+    colonne_section_filtre=None (défaut) : si fourni (ex: "section_theatre"),
+    restreint la moyenne aux établissements ayant cette section — utilisé
+    quand state["section_souhaitee"] (extrait par le router) demande un
+    critère de section en plus de la zone (ex: "la moyenne des collèges
+    avec section sport à Lyon"). Doit appartenir à COLONNES_SECTION_VALIDES.
 
     inclure_mentions=False (défaut) : taux_b_moyen/taux_tb_moyen absents du
     résultat, donc absents de l'affichage (cf. _formater_stats_moyenne,
@@ -451,6 +532,9 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
     """
     if not uai_filtre:
         return {"success": True, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": None}
+    filtre_section_sql, erreur_section = _filtre_section_sql(colonne_section_filtre)
+    if erreur_section:
+        return {"success": False, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": erreur_section}
 
     db_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), DB_PATH
@@ -486,6 +570,7 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
                       AND e.type_etablissement = ?
                       AND s.session = ?
                       {filtre_secteur_sql}
+                      {filtre_section_sql}
                 """, params).fetchone()
                 if not row or not row["nb_etablissements"]:
                     return None
