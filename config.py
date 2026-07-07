@@ -20,8 +20,32 @@ LLM_MAX_RETRIES = 2             # Erreurs transitoires OpenAI
 AGENT_MAX_TOURS = 5             # Garde-fou boucle infinie LangGraph
 
 # --- Scoring ---
-SCORE_POIDS_TAUX = 0.60         # Poids taux de réussite dans le score
-SCORE_POIDS_NOTE = 0.40         # Poids note à l'écrit dans le score
+# score_principal (jamais affiché) : sert au tri "meilleur collège" et à
+# dériver la notation en lettres (cf. NOTATION_* ci-dessous). 4 indicateurs
+# à parts égales — donner autant de poids à la VA (50% du total) qu'aux
+# résultats bruts est un choix assumé (cf. decision_log.md S13.4) : valoriser
+# les collèges qui font mieux que prévu, pas seulement ceux qui réussissent
+# déjà le mieux.
+SCORE_PRINCIPAL_POIDS_TAUX = 0.25     # Taux de réussite
+SCORE_PRINCIPAL_POIDS_NOTE = 0.25     # Note à l'écrit
+SCORE_PRINCIPAL_POIDS_VA_TAUX = 0.25  # VA sur le taux de réussite
+SCORE_PRINCIPAL_POIDS_VA_NOTE = 0.25  # VA sur la note à l'écrit
+
+# score_resultats (jamais affiché) : sert au tri quand la question porte
+# explicitement sur "les résultats" d'un collège (pas sur "le meilleur
+# collège") — résultats bruts seuls, sans valeur ajoutée.
+SCORE_RESULTATS_POIDS_TAUX = 0.50
+SCORE_RESULTATS_POIDS_NOTE = 0.50
+
+# --- Notation en lettres (dérivée de score_principal uniquement) ---
+# Répartition Stanine (standard nine) adaptée à 5 groupes : bande centrale
+# large, bandes resserrées aux extrêmes pour réserver les notes les plus
+# hautes/basses aux collèges réellement atypiques (cf. decision_log.md
+# S13.4). Les deux listes sont alignées : NOTATION_LETTRES[i] correspond au
+# pourcentage NOTATION_REPARTITION[i], du groupe le plus faible (index 0) au
+# plus élevé (dernier index).
+NOTATION_REPARTITION = [10, 15, 50, 15, 10]     # en %, somme = 100
+NOTATION_LETTRES = ["B", "B+", "A-", "A", "A+"]  # du plus faible au plus élevé
 
 # --- Badge Valeur Ajoutée ---
 VA_SEUIL_POSITIF = 2.0          # VA taux > +2 → badge vert
@@ -128,6 +152,19 @@ class OrdreSouhaite(StrEnum):
     MEILLEUR = "meilleur"
     PIRE = "pire"
     INDIFFERENT = "indifferent"
+
+
+class CritereTriSouhaite(StrEnum):
+    """
+    Critère de tri demandé par l'utilisateur sur le chemin géo déterministe
+    (recherche_geo_classement) — distinct du SENS du tri (OrdreSouhaite).
+    GLOBAL (score_principal, notation en lettres) est le tri par défaut
+    ("meilleur collège", "classement"). RESULTATS (score_resultats, résultats
+    bruts seuls, sans VA) s'applique uniquement quand la question mentionne
+    explicitement "les résultats" (cf. decision_log.md S13.4).
+    """
+    GLOBAL = "global"
+    RESULTATS = "resultats"
 
 
 # --- Synthèse de réponse (graph_router.py) ---

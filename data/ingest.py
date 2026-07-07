@@ -13,13 +13,18 @@ Décisions d'architecture documentées :
 
 import sqlite3
 import pandas as pd
+import numpy as np
+import re
 import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import (
     DB_PATH,
-    SCORE_POIDS_TAUX, SCORE_POIDS_NOTE,
+    SCORE_PRINCIPAL_POIDS_TAUX, SCORE_PRINCIPAL_POIDS_NOTE,
+    SCORE_PRINCIPAL_POIDS_VA_TAUX, SCORE_PRINCIPAL_POIDS_VA_NOTE,
+    SCORE_RESULTATS_POIDS_TAUX, SCORE_RESULTATS_POIDS_NOTE,
+    NOTATION_REPARTITION, NOTATION_LETTRES,
     VA_SEUIL_POSITIF, VA_SEUIL_NEGATIF
 )
 
@@ -136,6 +141,8 @@ def creer_tables(conn):
             uai             TEXT,
             session         TEXT,
             score_principal REAL,
+            score_resultats REAL,
+            notation        TEXT,
             badge_va        TEXT,
             PRIMARY KEY (uai, session),
             FOREIGN KEY (uai) REFERENCES etablissements(uai)
@@ -148,6 +155,45 @@ def creer_tables(conn):
         );
     """)
     print("✓ Tables créées")
+
+
+# Communes à arrondissements où le fichier source du ministère étiquette la
+# grande majorité des établissements génériquement ("Paris", "Lyon",
+# "Marseille") plutôt que par arrondissement précis ("Paris 13e
+# Arrondissement") — ex: 179 des ~200 collèges parisiens sont dans ce cas.
+# Une recherche géo par arrondissement (comparaison exacte sur commune,
+# cf. geo_tool.trouver_etablissements_par_commune) ratait donc la quasi-
+# totalité des établissements. Le code postal complet encode fiablement
+# l'arrondissement pour ces 3 villes (750XX, 690XX, 130XX) — regex validée
+# manuellement contre les codes postaux réellement présents en base.
+ARRONDISSEMENTS_PAR_CODE_POSTAL = {
+    "Paris": (re.compile(r'^750(\d{2})$'), 1, 20),
+    "Lyon": (re.compile(r'^690(\d{2})$'), 1, 9),
+    "Marseille": (re.compile(r'^130(\d{2})$'), 1, 16),
+}
+
+
+def _deriver_arrondissement(commune: str, code_postal) -> str:
+    """
+    Reconstruit le libellé d'arrondissement (ex: "Paris 16e Arrondissement")
+    depuis le code postal quand la commune est étiquetée génériquement.
+    Ne touche jamais les communes déjà précises (ex: déjà "Paris 16e
+    Arrondissement") ni les codes postaux hors du motif attendu (quelques
+    codes CEDEX/administratifs isolés, ex: 69289, 13232 — laissés tels
+    quels plutôt que de risquer un rattachement erroné).
+    """
+    motif = ARRONDISSEMENTS_PAR_CODE_POSTAL.get(commune)
+    if motif is None or not isinstance(code_postal, str):
+        return commune
+    regex, arr_min, arr_max = motif
+    match = regex.match(code_postal)
+    if not match:
+        return commune
+    numero = int(match.group(1))
+    if not (arr_min <= numero <= arr_max):
+        return commune
+    suffixe = "1er" if numero == 1 else f"{numero}e"
+    return f"{commune} {suffixe} Arrondissement"
 
 
 def ingerer_annuaire(conn):
@@ -220,6 +266,20 @@ def ingerer_annuaire(conn):
     # Multi-sites : on garde le site principal (première occurrence par UAI)
     df = df.drop_duplicates(subset='uai', keep='first')
     df['secteur'] = df['secteur'].str.strip()
+    # Espaces multiples normalisés en un seul (ex: "Paris 16e  Arrondissement"
+    # -> "Paris 16e Arrondissement") — anomalie du fichier source du ministère
+    # présente sur les arrondissements de Paris, Lyon ET Marseille (espacement
+    # incohérent selon les lignes). Sans ça, une égalité stricte sur commune
+    # (cf. geo_tool.trouver_etablissements_par_commune) ne matche jamais la
+    # valeur renvoyée par le géocodeur (BAN), qui utilise toujours un seul
+    # espace -> "collèges à Paris/Lyon/Marseille Xe" retournait 0 résultat.
+    if 'commune' in df.columns:
+        df['commune'] = df['commune'].str.strip().str.replace(r'\s+', ' ', regex=True)
+    # Arrondissement reconstruit depuis le code postal quand la commune est
+    # étiquetée génériquement (cf. _deriver_arrondissement) — Paris, Lyon,
+    # Marseille seulement, sans effet sur les autres communes.
+    if 'commune' in df.columns and 'code_postal' in df.columns:
+        df['commune'] = df.apply(lambda r: _deriver_arrondissement(r['commune'], r['code_postal']), axis=1)
 
     df.to_sql('etablissements', conn, if_exists='append', index=False)
 
@@ -318,33 +378,88 @@ def ingerer_ivac(conn):
     print(f"  ✓ {len(df)} lignes IVAC")
 
 
+def _bornes_repartition(valeurs, repartition_pct):
+    """
+    Bornes de score correspondant à une répartition en % cumulés (ex: la
+    répartition Stanine [10, 15, 50, 15, 10] de NOTATION_REPARTITION), sur
+    une série de valeurs donnée. np.unique gère le cas de doublons aux
+    bornes (valeurs très concentrées) en fusionnant les tranches concernées.
+    """
+    cumules = np.cumsum([0] + list(repartition_pct)) / 100.0
+    return np.unique(valeurs.quantile(cumules).values)
+
+
 def calculer_scores(conn):
+    """
+    Calcule 2 scores distincts (jamais affichés, cf. decision_log.md S13.4) :
+    - score_resultats : taux de réussite + note écrite seuls (50/50) — sert
+      au tri quand la question porte explicitement sur "les résultats".
+    - score_principal : les 2 précédents + VA taux + VA note (25% chacun) —
+      sert au tri "meilleur collège" et à dériver la notation en lettres.
+    Chaque indicateur est normalisé min-max par session (comparable entre
+    établissements de la même année uniquement, jamais d'une année à
+    l'autre). score_principal et la notation ne sont calculés que pour le
+    sous-ensemble d'une session qui a les 2 VA renseignées (~75% des
+    établissements, cf. roadmap_produit.md) ; score_resultats reste
+    calculable pour tous les établissements ayant taux + note.
+    """
     print("→ Calcul des scores...")
     df = pd.read_sql("""
         SELECT uai, session,
                brevet_taux_reussite_general,
                brevet_note_ecrit_general,
-               brevet_va_taux_reussite_general
+               brevet_va_taux_reussite_general,
+               brevet_va_note_ecrit_general
         FROM ivac
         WHERE brevet_taux_reussite_general IS NOT NULL
           AND brevet_note_ecrit_general IS NOT NULL
     """, conn)
 
+    df['score_resultats'] = None
     df['score_principal'] = None
+    df['notation'] = None
 
     for session in df['session'].unique():
         mask = df['session'] == session
-        s = df[mask]
 
-        t_min, t_max = s['brevet_taux_reussite_general'].min(), s['brevet_taux_reussite_general'].max()
-        n_min, n_max = s['brevet_note_ecrit_general'].min(), s['brevet_note_ecrit_general'].max()
+        t_min = df.loc[mask, 'brevet_taux_reussite_general'].min()
+        t_max = df.loc[mask, 'brevet_taux_reussite_general'].max()
+        n_min = df.loc[mask, 'brevet_note_ecrit_general'].min()
+        n_max = df.loc[mask, 'brevet_note_ecrit_general'].max()
+        if t_max <= t_min or n_max <= n_min:
+            continue  # session dégénérée (une seule valeur distincte) : pas de score calculable
 
-        if t_max > t_min and n_max > n_min:
-            t_norm = (df.loc[mask, 'brevet_taux_reussite_general'] - t_min) / (t_max - t_min)
-            n_norm = (df.loc[mask, 'brevet_note_ecrit_general'] - n_min) / (n_max - n_min)
-            df.loc[mask, 'score_principal'] = (
-                t_norm * SCORE_POIDS_TAUX + n_norm * SCORE_POIDS_NOTE
-            ) * 100
+        df.loc[mask, 'score_resultats'] = (
+            (df.loc[mask, 'brevet_taux_reussite_general'] - t_min) / (t_max - t_min) * SCORE_RESULTATS_POIDS_TAUX +
+            (df.loc[mask, 'brevet_note_ecrit_general'] - n_min) / (n_max - n_min) * SCORE_RESULTATS_POIDS_NOTE
+        ) * 100
+
+        mask_va = mask & df['brevet_va_taux_reussite_general'].notna() & df['brevet_va_note_ecrit_general'].notna()
+        if not mask_va.any():
+            continue
+
+        vt_min = df.loc[mask_va, 'brevet_va_taux_reussite_general'].min()
+        vt_max = df.loc[mask_va, 'brevet_va_taux_reussite_general'].max()
+        vn_min = df.loc[mask_va, 'brevet_va_note_ecrit_general'].min()
+        vn_max = df.loc[mask_va, 'brevet_va_note_ecrit_general'].max()
+        if vt_max <= vt_min or vn_max <= vn_min:
+            continue
+
+        df.loc[mask_va, 'score_principal'] = (
+            (df.loc[mask_va, 'brevet_taux_reussite_general'] - t_min) / (t_max - t_min) * SCORE_PRINCIPAL_POIDS_TAUX +
+            (df.loc[mask_va, 'brevet_note_ecrit_general'] - n_min) / (n_max - n_min) * SCORE_PRINCIPAL_POIDS_NOTE +
+            (df.loc[mask_va, 'brevet_va_taux_reussite_general'] - vt_min) / (vt_max - vt_min) * SCORE_PRINCIPAL_POIDS_VA_TAUX +
+            (df.loc[mask_va, 'brevet_va_note_ecrit_general'] - vn_min) / (vn_max - vn_min) * SCORE_PRINCIPAL_POIDS_VA_NOTE
+        ) * 100
+
+        scores_session = df.loc[mask_va, 'score_principal']
+        bornes = _bornes_repartition(scores_session, NOTATION_REPARTITION)
+        if len(bornes) < 2:
+            continue
+        labels = NOTATION_LETTRES[:len(bornes) - 1]
+        df.loc[mask_va, 'notation'] = pd.cut(
+            scores_session, bins=bornes, labels=labels, include_lowest=True
+        ).astype(str)
 
     def badge(row):
         va = row['brevet_va_taux_reussite_general']
@@ -358,9 +473,10 @@ def calculer_scores(conn):
 
     df['badge_va'] = df.apply(badge, axis=1)
 
-    scores = df[['uai', 'session', 'score_principal', 'badge_va']]
+    scores = df[['uai', 'session', 'score_principal', 'score_resultats', 'notation', 'badge_va']]
     scores.to_sql('scores', conn, if_exists='append', index=False)
-    print(f"  ✓ {len(scores)} scores calculés")
+    n_avec_notation = scores['notation'].notna().sum()
+    print(f"  ✓ {len(scores)} scores calculés ({n_avec_notation} avec notation complète)")
 
 
 def inserer_referentiel(conn):
@@ -430,10 +546,18 @@ def verifier(conn):
     """).fetchone()[0]
     print(f"\n  UAI communs aux 3 sources : {communs}")
 
-    scores_non_null = conn.execute(
+    resultats_non_null = conn.execute(
+        "SELECT COUNT(*) FROM scores WHERE score_resultats IS NOT NULL"
+    ).fetchone()[0]
+    principal_non_null = conn.execute(
         "SELECT COUNT(*) FROM scores WHERE score_principal IS NOT NULL"
     ).fetchone()[0]
-    print(f"  Scores calculés (non NULL) : {scores_non_null}")
+    notation_non_null = conn.execute(
+        "SELECT COUNT(*) FROM scores WHERE notation IS NOT NULL"
+    ).fetchone()[0]
+    print(f"  score_resultats calculés (non NULL) : {resultats_non_null}")
+    print(f"  score_principal calculés (non NULL) : {principal_non_null}")
+    print(f"  notation calculées (non NULL) : {notation_non_null}")
     print("====================\n")
 
 

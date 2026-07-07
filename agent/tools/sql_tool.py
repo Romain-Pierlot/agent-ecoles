@@ -103,7 +103,9 @@ TABLE ivac
 TABLE scores
   uai TEXT FK
   session TEXT
-  score_principal REAL
+  score_principal REAL   -- jamais affiché : sert au tri "meilleur(s) collège(s)"
+  score_resultats REAL   -- jamais affiché : sert au tri "meilleurs résultats" (résultats bruts seuls)
+  notation TEXT           -- A+/A/A-/B+/B : c'est ÇA qui s'affiche, jamais score_principal ni score_resultats
   badge_va TEXT
 
 TABLE referentiel_temporel
@@ -134,27 +136,44 @@ RÈGLES IMPORTANTES :
   NULL) — pour filtrer sur leur présence, teste TOUJOURS `= 1`, jamais
   `IS NOT NULL` (qui vaut vrai pour toutes les lignes, y compris celles à 0,
   et ne filtre donc rien du tout)
-- Toujours afficher le badge_va à côté du score
+- La notation (colonne notation, ex: A+/A/A-/B+/B) est ce qui s'affiche à
+  l'utilisateur — TOUJOURS l'inclure dans le SELECT dès que la table scores
+  est jointe, à côté du badge_va. Ne JAMAIS afficher score_principal ni
+  score_resultats tels quels (ce sont des chiffres internes jamais montrés,
+  ils ne servent qu'au tri) — inclus dans le SELECT uniquement s'ils sont
+  nécessaires au tri demandé, jamais pour être lus par l'utilisateur.
 - TOUJOURS inclure e.uai dans le SELECT (nécessaire pour la traçabilité en aval)
 - TOUJOURS inclure e.secteur dans le SELECT dès que la requête retourne des
   lignes d'établissement (pas une agrégation) — nécessaire à l'avertissement
   sur la sélection à l'entrée du privé, affiché en aval à partir de ce champ
 - Synonymes : école/établissement/collège → etablissements, résultats/notes → ivac,
-  classement/meilleur → ORDER BY score_principal DESC, pire/moins bon → ORDER BY
-  score_principal ASC, social/milieu → ips_moyen, section arts/option arts →
-  section_arts, section cinéma/option cinéma/audiovisuel → section_cinema,
-  section théâtre/option théâtre/art dramatique → section_theatre
-- Critère de tri/classement : TOUJOURS score_principal (jamais un autre champ),
-  y compris quand la question mentionne la VA comme critère ("le meilleur
-  collège en tenant compte de la valeur ajoutée", "classe-les par valeur
-  ajoutée") — la VA n'est qu'un badge d'information affiché à côté du score,
-  jamais un critère de tri, même quand la question la cite explicitement.
-  Correct   : ORDER BY s.score_principal DESC
-  Incorrect : ORDER BY v.brevet_va_taux_reussite_general DESC
+  social/milieu → ips_moyen, section arts/option arts → section_arts, section
+  cinéma/option cinéma/audiovisuel → section_cinema, section théâtre/option
+  théâtre/art dramatique → section_theatre
+- DEUX critères de tri distincts selon la formulation exacte de la question —
+  ne jamais les confondre :
+  1. "quels sont les meilleurs/pires collèges", "classe les collèges",
+     "meilleur collège" (sans qualificatif) → ORDER BY s.score_principal
+     DESC (ou ASC pour "pires"/"moins bons"). C'est le tri par défaut, y
+     compris quand la question mentionne la VA comme critère ("le meilleur
+     collège en tenant compte de la valeur ajoutée") — la VA fait déjà
+     partie du calcul de score_principal, elle n'est jamais un second
+     critère de tri ajouté par-dessus.
+  2. "quels collèges ont les meilleurs/moins bons résultats", "les meilleurs
+     résultats" (le mot "résultats" est explicitement présent) → ORDER BY
+     s.score_resultats DESC (ou ASC). Ce tri ignore la valeur ajoutée,
+     uniquement taux de réussite + note écrite.
+  Correct   : "meilleurs collèges à Lyon" → ORDER BY s.score_principal DESC
+  Correct   : "collèges avec les meilleurs résultats à Lyon" → ORDER BY s.score_resultats DESC
+  Incorrect : utiliser score_resultats pour "meilleurs collèges" (sans le mot
+              "résultats"), ou score_principal pour "meilleurs résultats"
+  Incorrect : ORDER BY v.brevet_va_taux_reussite_general DESC (la VA n'est
+              jamais un critère de tri direct, seulement une composante de
+              score_principal)
 
 EXEMPLES :
 Question: "Meilleurs collèges publics à Lyon"
-SQL: SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
+SQL: SELECT e.uai, e.nom, e.commune, e.secteur, s.notation, s.badge_va,
             v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
             v.brevet_va_taux_reussite_general, v.brevet_va_note_ecrit_general
      FROM etablissements e
@@ -164,7 +183,18 @@ SQL: SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
        AND e.type_etablissement = 'Collège' AND s.session = (SELECT MAX(session) FROM scores)
      ORDER BY s.score_principal DESC LIMIT 10;
 
-TOUJOURS inclure badge_va, brevet_va_taux_reussite_general et
+Question: "Quels collèges de Lyon ont les meilleurs résultats ?"
+SQL: SELECT e.uai, e.nom, e.commune, e.secteur, s.notation, s.badge_va,
+            v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
+            v.brevet_va_taux_reussite_general, v.brevet_va_note_ecrit_general
+     FROM etablissements e
+     JOIN scores s ON e.uai = s.uai
+     JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+     WHERE e.commune LIKE '%LYON%'
+       AND e.type_etablissement = 'Collège' AND s.session = (SELECT MAX(session) FROM scores)
+     ORDER BY s.score_resultats DESC LIMIT 10;
+
+TOUJOURS inclure notation, badge_va, brevet_va_taux_reussite_general et
 brevet_va_note_ecrit_general dans le SELECT quand la table scores/ivac est
 jointe — la valeur ajoutée est une information clé pour l'utilisateur final.
 """
@@ -319,11 +349,20 @@ def recherche_sql(question: str, uai_filtre: list = None) -> dict:
     }
 
 
-def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC", inclure_mentions: bool = False, colonne_section_filtre: str = None) -> dict:
+def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etablissement: str = "Collège", ordre: str = "DESC", inclure_mentions: bool = False, colonne_section_filtre: str = None, critere_tri: str = "global") -> dict:
     """
     Retourne séparément les n meilleurs (ou pires, cf. ordre) établissements
     publics et privés parmi une liste d'UAI déjà présélectionnée (ex: par
-    geo_tool), triés par score_principal.
+    geo_tool), triés par score_principal ou score_resultats (cf. critere_tri).
+
+    critere_tri="global" (défaut) : tri sur score_principal — "meilleurs
+    collèges", classement général (résultats bruts + valeur ajoutée).
+    critere_tri="resultats" : tri sur score_resultats — uniquement quand la
+    question mentionne explicitement "les résultats" (résultats bruts seuls,
+    sans VA). Valeur dérivée de state["critere_tri_souhaite"] (extrait par le
+    router, cf. config.CritereTriSouhaite), jamais construite depuis un texte
+    utilisateur non vérifié — validée ci-dessous contre les 2 seules valeurs
+    possibles avant toute interpolation dans le SQL.
 
     Requête SQL déterministe, AUCUN appel LLM : une fois qu'on sait que
     l'utilisateur n'a précisé aucun secteur (cf. state["secteur_souhaite"]
@@ -354,7 +393,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     Retourne : {
         "success": bool,
         "session_utilisee": str | None,
-        "public": [ {uai, nom, commune, secteur, score_principal, badge_va,
+        "public": [ {uai, nom, commune, secteur, notation, badge_va,
                      brevet_taux_reussite_general, brevet_note_ecrit_general,
                      brevet_va_taux_reussite_general, brevet_va_note_ecrit_general,
                      [+ brevet_nb_candidats_general, nb_mentions_b, nb_mentions_tb si inclure_mentions]}, ... ],
@@ -366,6 +405,9 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": True, "session_utilisee": None, "public": [], "prive": [], "error": None}
     if ordre not in ("DESC", "ASC"):
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": f"ordre invalide : {ordre}"}
+    if critere_tri not in ("global", "resultats"):
+        return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": f"critere_tri invalide : {critere_tri}"}
+    colonne_tri = "score_principal" if critere_tri == "global" else "score_resultats"
     filtre_section_sql, erreur_section = _filtre_section_sql(colonne_section_filtre)
     if erreur_section:
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": erreur_section}
@@ -386,7 +428,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
             resultats_par_secteur = {}
             for secteur_db, cle in ((Secteur.PUBLIC, SecteurSouhaite.PUBLIC), (Secteur.PRIVE, SecteurSouhaite.PRIVE)):
                 rows = conn.execute(f"""
-                    SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
+                    SELECT e.uai, e.nom, e.commune, e.secteur, s.notation, s.badge_va,
                            v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
                            v.brevet_va_taux_reussite_general, v.brevet_va_note_ecrit_general
                            {colonnes_mentions}
@@ -398,7 +440,7 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
                       AND e.type_etablissement = ?
                       AND s.session = ?
                       {filtre_section_sql}
-                    ORDER BY s.score_principal {ordre}
+                    ORDER BY s.{colonne_tri} {ordre}
                     LIMIT ?
                 """, (*uai_filtre, secteur_db.value, type_etablissement, session, n)).fetchall()
                 resultats_par_secteur[cle.value] = [dict(row) for row in rows]
@@ -448,7 +490,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
     Retourne : {
         "success": bool,
         "session_utilisee": str | None,
-        "resultats": [ {uai, nom, commune, secteur, score_principal, badge_va,
+        "resultats": [ {uai, nom, commune, secteur, notation, badge_va,
                          brevet_taux_reussite_general, brevet_note_ecrit_general,
                          section_sport, section_arts, section_cinema, section_theatre,
                          section_internationale, section_europeenne,
@@ -476,7 +518,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
 
             placeholders = ",".join("?" for _ in uai_filtre)
             rows = conn.execute(f"""
-                SELECT e.uai, e.nom, e.commune, e.secteur, s.score_principal, s.badge_va,
+                SELECT e.uai, e.nom, e.commune, e.secteur, s.notation, s.badge_va,
                        v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
                        e.section_sport, e.section_arts, e.section_cinema, e.section_theatre,
                        e.section_internationale, e.section_europeenne
@@ -497,7 +539,7 @@ def rechercher_etablissements_par_uai(uai_filtre: list[str], type_etablissement:
         return {"success": False, "session_utilisee": None, "resultats": [], "error": str(e)}
 
 
-def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False, colonne_section_filtre: str = None) -> dict:
+def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: str = "Collège", inclure_mentions: bool = False, colonne_section_filtre: str = None, critere_tri: str = "global") -> dict:
     """
     Calcule la moyenne du score/taux/note pour un ensemble d'établissements
     déjà présélectionné (ex: par geo_tool) — moyenne globale (tous secteurs
@@ -520,6 +562,13 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
     conditionné à leur présence). True seulement quand state["mentions_demandees"]
     (extrait par le router) l'indique.
 
+    critere_tri="global" (défaut) : la moyenne "score_moyen" porte sur
+    score_principal. critere_tri="resultats" : porte sur score_resultats —
+    quand la question demande explicitement "la moyenne des résultats" (cf.
+    config.CritereTriSouhaite). Le nom de la clé retournée reste "score_moyen"
+    dans les deux cas, le libellé affiché est choisi en aval selon ce qui a
+    été demandé.
+
     Retourne : {
         "success": bool,
         "session_utilisee": str | None,
@@ -532,6 +581,9 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
     """
     if not uai_filtre:
         return {"success": True, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": None}
+    if critere_tri not in ("global", "resultats"):
+        return {"success": False, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": f"critere_tri invalide : {critere_tri}"}
+    colonne_tri = "score_principal" if critere_tri == "global" else "score_resultats"
     filtre_section_sql, erreur_section = _filtre_section_sql(colonne_section_filtre)
     if erreur_section:
         return {"success": False, "session_utilisee": None, "global": None, "public": None, "prive": None, "error": erreur_section}
@@ -559,7 +611,7 @@ def calculer_moyenne_etablissements(uai_filtre: list[str], type_etablissement: s
                 if secteur_filtre:
                     params.append(secteur_filtre)
                 row = conn.execute(f"""
-                    SELECT COUNT(*) AS nb_etablissements, AVG(s.score_principal) AS score_moyen,
+                    SELECT COUNT(*) AS nb_etablissements, AVG(s.{colonne_tri}) AS score_moyen,
                            AVG(v.brevet_taux_reussite_general) AS taux_moyen,
                            AVG(v.brevet_note_ecrit_general) AS note_moyenne
                            {colonnes_mentions}
@@ -690,7 +742,7 @@ def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = No
     Retourne : {
         "success": bool,
         "sessions_disponibles": [str, ...],
-        "resultats": [ {uai, nom, commune, secteur, session, score_principal,
+        "resultats": [ {uai, nom, commune, secteur, session, notation,
                          badge_va, brevet_taux_reussite_general,
                          brevet_note_ecrit_general}, ... ],
         "error": str | None
@@ -714,7 +766,7 @@ def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = No
             placeholders_uai = ",".join("?" for _ in uai_filtre)
             placeholders_sessions = ",".join("?" for _ in sessions_ciblees)
             rows = conn.execute(f"""
-                SELECT e.uai, e.nom, e.commune, e.secteur, s.session, s.score_principal, s.badge_va,
+                SELECT e.uai, e.nom, e.commune, e.secteur, s.session, s.notation, s.badge_va,
                        v.brevet_taux_reussite_general, v.brevet_note_ecrit_general
                 FROM etablissements e
                 JOIN scores s ON e.uai = s.uai

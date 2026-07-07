@@ -398,5 +398,53 @@
       "chunk_page": "76-78",
       "chunk_titre_section": "Résultats scolaires et mixité sociale dans l'enseignement privé sous contrat"
     }
+  },
+  {
+    "id": "notation_2026_manual_000",
+    "contenu": "La notation en lettres des collèges : A+, A, A-, B+, B.\n\nChaque collège reçoit une notation affichée sous forme de lettre : A+ (A plus), A, A- (A moins), B+ (B plus) ou B. Cette notation a été créée par et pour ce site : ce n'est pas une notation officielle du ministère de l'Éducation nationale.\n\nElle est une agrégation de quatre indicateurs officiels du ministère de l'Éducation nationale, publiés dans les indicateurs de valeur ajoutée des collèges (IVAC), combinés à parts égales (25% chacun) dans un score interne jamais affiché : le taux de réussite au brevet, la note moyenne à l'écrit, la valeur ajoutée sur le taux de réussite, et la valeur ajoutée sur la note écrite — comparés uniquement aux autres collèges de la même année scolaire. La valeur ajoutée mesure l'écart entre les résultats réellement obtenus par un collège et les résultats attendus compte tenu du profil scolaire et social de ses élèves. Lui donner autant de poids que les résultats bruts (50% du score au total) est un choix assumé : valoriser les collèges qui réussissent mieux que ce qui était attendu d'eux, pas seulement ceux qui ont déjà les meilleurs résultats bruts.\n\nLa répartition entre les cinq lettres suit le principe du stanine (standard nine), une méthode statistique utilisée en évaluation scolaire qui répartit une population en bandes resserrées aux extrêmes et plus larges au centre. Adaptée ici à 5 groupes au lieu de 9 : B = 10% des collèges, B+ = 15%, A- = 50% (la moitié des collèges), A = 15%, A+ = 10% des collèges.",
+    "metadata": {
+      "dc_title": "La notation en lettres des collèges (A+, A, A-, B+, B)",
+      "dc_creator": "Équipe éditoriale du site",
+      "dc_publisher": "Documentation du site",
+      "dc_date": "2026",
+      "dc_type": "documentation_methodologique",
+      "dc_source": "Méthodologie interne du site",
+      "chunk_domaine": "notation",
+      "dc_niveau": "accessible",
+      "chunk_page": "N/A",
+      "chunk_titre_section": "La notation en lettres des collèges : A+, A, A-, B+, B"
+    }
+  },
+  {
+    "id": "notation_2026_manual_001",
+    "contenu": "Pourquoi « quels sont les meilleurs collèges ? » et « quels collèges ont les meilleurs résultats ? » peuvent donner des réponses différentes.\n\nLa notation en lettres (A+, A, A-, B+, B) d'un collège reflète à la fois ses résultats bruts et sa valeur ajoutée (l'écart entre résultats obtenus et résultats attendus compte tenu du profil des élèves) — quatre indicateurs officiels du ministère de l'Éducation nationale. Une question du type « quels sont les meilleurs collèges ? » s'appuie donc sur cette notation complète.\n\nMais une question du type « quels collèges ont les meilleurs résultats ? » utilise un critère différent : uniquement deux de ces indicateurs officiels, le taux de réussite au brevet et la note moyenne à l'écrit, à parts égales, sans tenir compte de la valeur ajoutée.\n\nConcrètement, un collège peut afficher d'excellents résultats bruts (taux de réussite et note élevés) sans que sa notation en lettres soit la meilleure, si ses élèves réussissaient déjà très bien avant même d'y être scolarisés (valeur ajoutée faible ou négative). À l'inverse, un collège aux résultats bruts plus modestes peut obtenir une notation élevée (A+ ou A) si sa valeur ajoutée est forte. Les deux classements — meilleurs collèges et meilleurs résultats — ne donnent donc pas nécessairement le même ordre, et c'est volontaire : ils répondent à deux questions différentes.",
+    "metadata": {
+      "dc_title": "Meilleurs collèges vs meilleurs résultats : deux classements différents",
+      "dc_creator": "Équipe éditoriale du site",
+      "dc_publisher": "Documentation du site",
+      "dc_date": "2026",
+      "dc_type": "documentation_methodologique",
+      "dc_source": "Méthodologie interne du site",
+      "chunk_domaine": "notation",
+      "dc_niveau": "accessible",
+      "chunk_page": "N/A",
+      "chunk_titre_section": "Pourquoi « meilleurs collèges » et « meilleurs résultats » peuvent différer"
+    }
+  },
+  {
+    "id": "notation_2026_manual_002",
+    "contenu": "Pourquoi l'IPS et la mixité sociale (brassage social) n'entrent pas dans la notation.\n\nLa mixité sociale d'un collège, aussi appelée brassage social, correspond à l'écart-type de l'IPS de ses élèves — comme l'IPS moyen, un indicateur officiel publié par le ministère de l'Éducation nationale. L'écart-type mesure la dispersion des profils sociaux au sein d'un même collège : un écart-type élevé signifie que le collège accueille à la fois des familles très favorisées et des familles très modestes (forte mixité) ; un écart-type faible signifie que les familles des élèves se ressemblent socialement, qu'elles soient plutôt favorisées ou plutôt modestes (peu de mixité, population homogène).\n\nL'IPS moyen et l'écart-type de l'IPS (la mixité sociale) d'un collège sont affichés sur sa fiche d'identité, à titre d'information, mais n'entrent jamais dans le calcul de la notation en lettres (A+, A, A-, B+, B). Un collège, en particulier un collège public soumis à la carte scolaire, ne choisit pas le profil social des familles de son secteur de recrutement : intégrer l'IPS ou la mixité sociale dans une notation présentée comme un indicateur de qualité pénaliserait ou avantagerait un établissement pour une caractéristique indépendante de son action pédagogique.\n\nLa valeur ajoutée, elle, est incluse dans la notation précisément parce qu'elle neutralise cet effet : elle compare les résultats obtenus par un collège aux résultats attendus compte tenu du profil social et scolaire de ses élèves, ce qui permet de reconnaître le travail réel d'un établissement indépendamment de son secteur de recrutement, de son IPS ou de sa mixité sociale.",
+    "metadata": {
+      "dc_title": "Pourquoi l'IPS et la mixité sociale n'entrent pas dans la notation",
+      "dc_creator": "Équipe éditoriale du site",
+      "dc_publisher": "Documentation du site",
+      "dc_date": "2026",
+      "dc_type": "documentation_methodologique",
+      "dc_source": "Méthodologie interne du site",
+      "chunk_domaine": "notation",
+      "dc_niveau": "accessible",
+      "chunk_page": "N/A",
+      "chunk_titre_section": "Pourquoi l'IPS et la mixité sociale n'entrent pas dans la notation"
+    }
   }
 ]

@@ -516,17 +516,31 @@ DICTIONNAIRE = {
     # ================================================================
 
     "scores.score_principal": {
-        "description": "Score agent-ecoles sur 100. Calculé comme la somme pondérée du taux de réussite normalisé (60%) et de la note à l'écrit normalisée (40%). La normalisation min/max est appliquée par session pour ramener chaque métrique sur une échelle 0-100 par rapport aux établissements de la même session. Score absent (NULL) si taux_reussite ou note_ecrit manquants.",
+        "description": "Score interne agent-ecoles sur 100, JAMAIS affiché à l'utilisateur. Calculé comme la moyenne pondérée à parts égales (25% chacun) de 4 indicateurs normalisés min-max par session : taux de réussite, note à l'écrit, valeur ajoutée sur le taux de réussite, valeur ajoutée sur la note à l'écrit. Sert de base au calcul de scores.notation et de critère de tri pour \"le meilleur collège\"/un classement général (par opposition à scores.score_resultats, cf. ci-dessous). NULL si l'un des 4 indicateurs manque (VA notamment, absente pour environ un quart des établissements).",
         "source": "Calculé par agent-ecoles",
-        "synonymes": ["score", "classement", "performance", "note globale"],
-        "notes": "IMPORTANT : ce score mesure la performance brute, pas la valeur ajoutée. Un score élevé peut refléter un bon recrutement plutôt qu'une bonne pédagogie. Toujours présenter le badge VA à côté du score.",
+        "synonymes": ["score global", "score composite"],
+        "notes": "IMPORTANT : jamais affiché tel quel (créerait une fausse précision) — utiliser scores.notation pour l'affichage. Comparable uniquement entre établissements de la même session, jamais d'une année sur l'autre.",
+    },
+
+    "scores.score_resultats": {
+        "description": "Score interne agent-ecoles sur 100, JAMAIS affiché à l'utilisateur. Calculé comme la moyenne pondérée à parts égales (50/50) du taux de réussite normalisé et de la note à l'écrit normalisée (min-max par session) — résultats bruts seuls, sans valeur ajoutée. Sert de critère de tri UNIQUEMENT quand la question porte explicitement sur \"les résultats\" d'un ou plusieurs collèges (jamais pour \"le meilleur collège\", qui utilise scores.score_principal).",
+        "source": "Calculé par agent-ecoles",
+        "synonymes": ["score des résultats bruts"],
+        "notes": "Distinct de score_principal : n'inclut pas la valeur ajoutée. Comparable uniquement entre établissements de la même session.",
+    },
+
+    "scores.notation": {
+        "description": "Notation en lettres affichée à l'utilisateur : A+, A, A- (A moins), B+ (B plus) ou B, du meilleur groupe au plus faible. Dérivée de scores.score_principal par répartition Stanine (standard nine) adaptée à 5 groupes : B=10%, B+=15%, A-=50% (la moitié des établissements de la session), A=15%, A+=10%. Notation propre à agent-ecoles — ce n'est pas une notation officielle du ministère de l'Éducation nationale.",
+        "source": "Calculé par agent-ecoles",
+        "synonymes": ["note", "lettre", "classement en lettres"],
+        "notes": "C'est CE QUI S'AFFICHE — ne jamais afficher score_principal ou score_resultats à la place. NULL si score_principal est NULL (VA manquante).",
     },
 
     "scores.badge_va": {
         "description": "Badge qualitatif de valeur ajoutée. Valeurs : 'positif' (VA taux de réussite > +2 points), 'neutre' (dans l'intervalle -2 à +2), 'negatif' (VA taux de réussite < -2 points). NULL si la VA n'est pas disponible.",
         "source": "Calculé par agent-ecoles",
         "synonymes": ["badge", "niveau valeur ajoutée", "apport pédagogique"],
-        "notes": "Le badge est calculé depuis brevet_va_taux_reussite_general. Il est affiché séparément du score et ne modifie pas le classement.",
+        "notes": "Le badge est calculé depuis brevet_va_taux_reussite_general. Il est affiché séparément de la notation et ne modifie pas le classement.",
     },
 
     # ================================================================

@@ -31,7 +31,7 @@ from guardrails.output_vocabulary import contient_vocabulaire_interdit, MESSAGE_
 from config import (
     LLM_MODEL, AGENT_MAX_TOURS, LLM_TIMEOUT_SECONDS, MAX_LIGNES_SYNTHESE, SPLIT_SECTEUR_N,
     SPLIT_SECTEUR_N_MAX, SPLIT_SECTEUR_INCREMENT,
-    HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite,
+    HISTORIQUE_MAX_TOURS, Categorie, SecteurSouhaite, Secteur, OrdreSouhaite, CritereTriSouhaite,
     SEUIL_CANDIDATS_AVANT_PRECISION, SectionSouhaitee, COLONNE_SECTION, LIBELLE_SECTION,
 )
 from prompts.router_system_prompt import ROUTER_SYSTEM_PROMPT
@@ -54,6 +54,7 @@ class AgentState(TypedDict):
     evolution_demandee: bool
     nb_annees_demandees: Optional[int]
     ordre_souhaite: Optional[OrdreSouhaite]
+    critere_tri_souhaite: Optional[CritereTriSouhaite]
     agregation_demandee: bool
     mentions_demandees: bool
     resultats_geo: Optional[dict]
@@ -145,6 +146,11 @@ ROUTER_TOOL_SCHEMA = {
                     "enum": [o.value for o in OrdreSouhaite],
                     "description": "Sens du tri souhaité si un classement ou une sélection d'établissements est demandé : \"meilleur\" (meilleur, top, en tête, le plus performant...), \"pire\" (pire, le plus mauvais, le moins bon, en difficulté, à éviter...), \"indifferent\" si aucun classement n'est demandé.",
                 },
+                "critere_tri_souhaite": {
+                    "type": "string",
+                    "enum": [c.value for c in CritereTriSouhaite],
+                    "description": "Critère de classement, distinct du sens du tri : \"global\" pour \"le/les meilleur(s)/pire(s) collège(s)\" ou un classement général (sans autre précision) — reflète résultats bruts ET valeur ajoutée. \"resultats\" UNIQUEMENT si la question mentionne explicitement \"les résultats\" (\"les meilleurs résultats\", \"les résultats les plus élevés/faibles\") — dans ce cas, uniquement le taux de réussite et la note à l'écrit, sans valeur ajoutée. Par défaut \"global\" si le mot \"résultats\" n'apparaît pas.",
+                },
                 "agregation_demandee": {
                     "type": "boolean",
                     "description": "true UNIQUEMENT si la question demande une seule moyenne/statistique globale sur un ensemble d'établissements, SANS détail par établissement (ex: \"la moyenne\", \"en moyenne\", \"en général\", \"globalement\", \"dans l'ensemble\"). false si la question demande une liste, une \"répartition\" ou un \"détail par collège/établissement\" — même si elle porte sur une statistique précise (ex: les mentions) : une répartition PAR établissement est une liste à afficher établissement par établissement, jamais une agrégation, quels que soient les mots utilisés par ailleurs dans la question.",
@@ -162,7 +168,7 @@ ROUTER_TOOL_SCHEMA = {
                 "categorie", "zone_detectee", "zone", "elargir_zone_environs", "zones_multiples",
                 "noms_etablissements", "criteres_filtre", "nuance_methodologique_demandee",
                 "requete_rag_nuance", "evolution_demandee", "nb_annees_demandees", "ordre_souhaite",
-                "agregation_demandee", "mentions_demandees", "nouveau_sujet",
+                "critere_tri_souhaite", "agregation_demandee", "mentions_demandees", "nouveau_sujet",
             ],
         },
     },
@@ -248,6 +254,7 @@ def noeud_router(state: AgentState) -> AgentState:
     state["evolution_demandee"] = bool(args.get("evolution_demandee"))
     state["nb_annees_demandees"] = args.get("nb_annees_demandees") or None
     state["ordre_souhaite"] = enum_securise(OrdreSouhaite, args.get("ordre_souhaite") or OrdreSouhaite.INDIFFERENT, OrdreSouhaite.INDIFFERENT)
+    state["critere_tri_souhaite"] = enum_securise(CritereTriSouhaite, args.get("critere_tri_souhaite") or CritereTriSouhaite.GLOBAL, CritereTriSouhaite.GLOBAL)
     state["agregation_demandee"] = bool(args.get("agregation_demandee"))
     state["mentions_demandees"] = bool(args.get("mentions_demandees"))
 
@@ -511,7 +518,8 @@ def noeud_sql(state: AgentState) -> AgentState:
             # général — pas de tableau détaillé par établissement ici, c'est
             # une agrégation statistique, pas une liste à afficher.
             resultat_moyenne = calculer_moyenne_etablissements(
-                uai_filtre, inclure_mentions=state.get("mentions_demandees", False), colonne_section_filtre=colonne_section
+                uai_filtre, inclure_mentions=state.get("mentions_demandees", False), colonne_section_filtre=colonne_section,
+                critere_tri=state.get("critere_tri_souhaite", CritereTriSouhaite.GLOBAL).value,
             )
             state["resultats_sql"] = {
                 "success": resultat_moyenne["success"],
@@ -539,7 +547,10 @@ def noeud_sql(state: AgentState) -> AgentState:
                 uai_environs = [e["uai"] for e in etablissements if e["commune"] != commune_principale]
                 mentions = state.get("mentions_demandees", False)
                 resultat_ville = rechercher_etablissements_par_uai(uai_ville, inclure_mentions=mentions, colonne_section_filtre=colonne_section)
-                resultat_environs = rechercher_top_par_secteur(uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC", inclure_mentions=mentions, colonne_section_filtre=colonne_section)
+                resultat_environs = rechercher_top_par_secteur(
+                    uai_environs, n=SPLIT_SECTEUR_N, ordre="DESC", inclure_mentions=mentions, colonne_section_filtre=colonne_section,
+                    critere_tri=state.get("critere_tri_souhaite", CritereTriSouhaite.GLOBAL).value,
+                )
                 state["resultats_sql"] = {
                     "success": resultat_ville["success"] and resultat_environs["success"],
                     "split_ville_environs": True,
@@ -565,6 +576,7 @@ def noeud_sql(state: AgentState) -> AgentState:
             resultat_split = rechercher_top_par_secteur(
                 uai_filtre, n=SPLIT_SECTEUR_N_MAX, ordre=ordre, inclure_mentions=state.get("mentions_demandees", False),
                 colonne_section_filtre=colonne_section,
+                critere_tri=state.get("critere_tri_souhaite", CritereTriSouhaite.GLOBAL).value,
             )
             state["cache_secteur_public"] = resultat_split["public"]
             state["cache_secteur_prive"] = resultat_split["prive"]
@@ -1005,7 +1017,7 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None, section_so
     # cf. rechercher_etablissements_par_uai, seule fonction qui la fournit).
     colonne_section = COLONNE_SECTION.get(section_souhaitee) if section_souhaitee else None
     contient_section = bool(colonne_section) and colonne_section in lignes[0]
-    entete_colonnes = "Nom | Commune | Secteur | Score | Valeur ajoutée | Taux de réussite | Note écrit"
+    entete_colonnes = "Nom | Commune | Secteur | Notation | Valeur ajoutée | Taux de réussite | Note écrit"
     separateur_colonnes = "---|---|---|---|---|---|---"
     if contient_mentions:
         entete_colonnes += " | Mentions B | Mentions TB | Taux TB"
@@ -1025,14 +1037,14 @@ def _generer_tableau_depuis_lignes(lignes, sessions_disponibles=None, section_so
         nom = r.get("nom", "?")
         commune = r.get("commune", "?")
         secteur = r.get("secteur", "?")
-        score = r.get("score_principal")
-        score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "?"
+        notation = r.get("notation")
+        notation_str = notation if isinstance(notation, str) and notation else "?"
         va = _formater_badge_va(r.get("badge_va"))
         taux = r.get("brevet_taux_reussite_general")
         taux_str = f"{taux:.1f}" if isinstance(taux, (int, float)) else "?"
         note = r.get("brevet_note_ecrit_general")
         note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
-        ligne_colonnes = f"{nom} | {commune} | {secteur} | {score_str} | {va} | {taux_str} | {note_str}"
+        ligne_colonnes = f"{nom} | {commune} | {secteur} | {notation_str} | {va} | {taux_str} | {note_str}"
         if contient_mentions:
             mentions_b = r.get("nb_mentions_b")
             mentions_b_str = str(mentions_b) if isinstance(mentions_b, (int, float)) else "?"
@@ -1182,8 +1194,16 @@ def _generer_intro_ville_environs_template(resultats_sql):
     )
 
 
-def _formater_stats_moyenne(stats, label):
-    """Une ligne de statistiques agrégées formatée pour un secteur ou une moyenne globale."""
+def _formater_stats_moyenne(stats, label, critere_tri_souhaite=None):
+    """
+    Une ligne de statistiques agrégées formatée pour un secteur ou une
+    moyenne globale. Le libellé du score moyen précise sur quoi il porte
+    (cf. config.CritereTriSouhaite) : "score moyen des résultats" quand la
+    question demandait explicitement "les résultats" (résultats bruts
+    seuls), "score moyen" sinon (résultats + valeur ajoutée) — jamais la
+    même chose qu'une moyenne de notations en lettres, qui n'aurait pas de
+    sens (on ne moyenne pas des lettres).
+    """
     if not stats:
         return f"**{label}** : aucune donnée disponible dans cette zone."
     nb = stats.get("nb_etablissements", 0)
@@ -1194,8 +1214,9 @@ def _formater_stats_moyenne(stats, label):
     taux_str = f"{taux:.1f}%" if isinstance(taux, (int, float)) else "?"
     note_str = f"{note:.1f}" if isinstance(note, (int, float)) else "?"
     etablissements = _decrire_quantite(nb, verbe="")
+    libelle_score = "score moyen des résultats" if critere_tri_souhaite == CritereTriSouhaite.RESULTATS else "score moyen"
     ligne = (
-        f"**{label}** (sur {etablissements}) : score moyen {score_str}, "
+        f"**{label}** (sur {etablissements}) : {libelle_score} {score_str}, "
         f"taux de réussite moyen {taux_str}, note écrit moyenne {note_str}"
     )
     # Mentions absentes de stats (clé même pas présente) quand inclure_mentions=False
@@ -1211,7 +1232,7 @@ def _formater_stats_moyenne(stats, label):
     return ligne
 
 
-def _generer_moyennes_geo_template(resultats_sql, secteur_souhaite):
+def _generer_moyennes_geo_template(resultats_sql, secteur_souhaite, critere_tri_souhaite=None):
     """
     Génère le texte des moyennes agrégées sur une zone géographique — pas
     de tableau détaillé par établissement, c'est une agrégation statistique.
@@ -1223,13 +1244,13 @@ def _generer_moyennes_geo_template(resultats_sql, secteur_souhaite):
     if not resultats_sql or not resultats_sql.get("success"):
         return None
     if secteur_souhaite == SecteurSouhaite.PUBLIC:
-        return _formater_stats_moyenne(resultats_sql.get("public"), "Établissements publics")
+        return _formater_stats_moyenne(resultats_sql.get("public"), "Établissements publics", critere_tri_souhaite)
     if secteur_souhaite == SecteurSouhaite.PRIVE:
-        return _formater_stats_moyenne(resultats_sql.get("prive"), "Établissements privés")
-    blocs = [_formater_stats_moyenne(resultats_sql.get("global"), "Moyenne globale (tous secteurs confondus)")]
+        return _formater_stats_moyenne(resultats_sql.get("prive"), "Établissements privés", critere_tri_souhaite)
+    blocs = [_formater_stats_moyenne(resultats_sql.get("global"), "Moyenne globale (tous secteurs confondus)", critere_tri_souhaite)]
     if resultats_sql.get("public") or resultats_sql.get("prive"):
-        blocs.append(_formater_stats_moyenne(resultats_sql.get("public"), "Établissements publics"))
-        blocs.append(_formater_stats_moyenne(resultats_sql.get("prive"), "Établissements privés"))
+        blocs.append(_formater_stats_moyenne(resultats_sql.get("public"), "Établissements publics", critere_tri_souhaite))
+        blocs.append(_formater_stats_moyenne(resultats_sql.get("prive"), "Établissements privés", critere_tri_souhaite))
     return "\n\n".join(blocs)
 
 
@@ -1380,7 +1401,7 @@ def _generer_intro_evolution_geo_template(resultats_geo, evolution):
     )
 
 
-def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None, section_souhaitee=None):
+def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite=None, ordre_souhaite=None, section_souhaitee=None, critere_tri_souhaite=None):
     """
     Prépare le tableau et l'intro à partir des résultats SQL déjà tronqués,
     en gérant les quatre formats possibles (classement normal, split
@@ -1403,7 +1424,7 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
         tableau = _generer_tableau_evolution_geo(resultats_sql, secteur_souhaite)
         intro = _generer_intro_evolution_geo_template(resultats_geo, resultats_sql.get("evolution", []))
     elif resultats_sql and resultats_sql.get("agregation_geo"):
-        tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite)
+        tableau = _generer_moyennes_geo_template(resultats_sql, secteur_souhaite, critere_tri_souhaite)
         intro = _generer_intro_agregation_template(resultats_geo)
     elif resultats_sql and resultats_sql.get("split_ville_environs"):
         tableau = _generer_tableaux_ville_environs(resultats_sql)
@@ -1427,12 +1448,13 @@ def _preparer_affichage_resultats(resultats_sql, resultats_geo, secteur_souhaite
 
 
 def _generer_explication_score_template(tableau_contient_score):
-    """Explication du score 100% template — texte fixe, condition simple."""
+    """Explication de la notation 100% template — texte fixe, condition simple."""
     if not tableau_contient_score:
         return ""
-    return ("\n\nLe score combine le taux de réussite (60%) et la note à l'écrit (40%), "
-            "comparés aux autres établissements de la même année — ce n'est pas une "
-            "note absolue.")
+    return ("\n\nLa notation (de A+ à B) combine à parts égales le taux de réussite, "
+            "la note à l'écrit, et la valeur ajoutée sur ces deux mêmes indicateurs — "
+            "comparés aux autres établissements de la même année. Ce n'est pas une note "
+            "absolue, et elle n'est comparable qu'entre établissements de la même session.")
 
 
 def _generer_explication_va_template(tableau_contient_va):
@@ -1696,7 +1718,7 @@ def _lignes_contiennent(resultats_sql, cle):
     JSON entier, insensible au fait que le texte de la requête SQL
     elle-même (sql_genere) puisse mentionner ce nom sans que la colonne
     soit réellement présente dans les lignes retournées (ex: AVG(score_principal)
-    renommé en "moyenne_score" ne contient plus la clé "score_principal").
+    renommé en "score_moyen" ne contient plus la clé "notation").
     """
     if not resultats_sql:
         return False
@@ -1712,18 +1734,18 @@ def noeud_synthese(state: AgentState) -> AgentState:
 
     tableau, intro = _preparer_affichage_resultats(
         resultats_sql_tronques, state.get("resultats_geo"), state.get("secteur_souhaite"), state.get("ordre_souhaite"),
-        state.get("section_souhaitee"),
+        state.get("section_souhaitee"), state.get("critere_tri_souhaite"),
     )
     # Forme "moyenne/agrégation" (simple ou par session, cf. evolution_geo) :
-    # la clé du score n'est pas "score_principal" (c'est "score_moyen",
-    # agrégé) — _lignes_contiennent ne la détecterait pas, donc court-circuit
-    # explicite : le score moyen est toujours affiché dès que ce type de
-    # tableau existe.
+    # la clé du score n'est pas "notation" (c'est "score_moyen", agrégé,
+    # jamais une lettre) — _lignes_contiennent ne la détecterait pas, donc
+    # court-circuit explicite : le score moyen est toujours affiché dès que
+    # ce type de tableau existe.
     est_agregation_geo = bool(resultats_sql_tronques and (
         resultats_sql_tronques.get("agregation_geo") or resultats_sql_tronques.get("evolution_geo")
     ))
     tableau_contient_va = _lignes_contiennent(resultats_sql_tronques, "badge_va")
-    tableau_contient_score = est_agregation_geo or _lignes_contiennent(resultats_sql_tronques, "score_principal")
+    tableau_contient_score = est_agregation_geo or _lignes_contiennent(resultats_sql_tronques, "notation")
 
     texte_nuance_rag = _generer_nuance_rag(state["question"], state.get("resultats_rag"))
 
@@ -1841,7 +1863,7 @@ def nouvelle_session() -> AgentState:
         "elargir_zone_environs": False, "zones_multiples": False,
         "secteur_souhaite": None, "section_souhaitee": None, "nuance_methodologique_demandee": False,
         "requete_rag_nuance": None, "evolution_demandee": False, "nb_annees_demandees": None,
-        "ordre_souhaite": None, "agregation_demandee": False, "mentions_demandees": False,
+        "ordre_souhaite": None, "critere_tri_souhaite": None, "agregation_demandee": False, "mentions_demandees": False,
         "resultats_geo": None, "resultats_sql": None, "resultats_rag": None,
         "reponse_finale": None, "tours_agent": 0,
         "noms_etablissements": [], "resolution_noms": None, "uai_resolus": None,

@@ -13,6 +13,35 @@ from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, GEO_RA
 
 BAN_API_URL = "https://api-adresse.data.gouv.fr/search/"
 
+# Nombre d'arrondissements par ville — borne la plage valide pour éviter de
+# réécrire un numéro qui n'a rien à voir avec un arrondissement.
+VILLES_ARRONDISSEMENT = {"paris": 20, "lyon": 9, "marseille": 16}
+
+
+def _normaliser_arrondissement_sans_suffixe(adresse: str) -> str:
+    """
+    Ajoute le suffixe ordinal ("8e", "1er") à une ville + numéro
+    d'arrondissement sans suffixe (ex: "Marseille 8" -> "Marseille 8e")
+    avant l'appel à l'API BAN.
+
+    Nécessaire car l'API interprète parfois un numéro nu après "Marseille"
+    comme un numéro de rue plutôt qu'un arrondissement : "marseille 8" seul
+    renvoyait "Route de Marseilles, Précy" (Cher, sans rapport), alors que
+    "marseille 8e" résout correctement "Marseille 8e Arrondissement". Bug
+    non reproduit sur Paris/Lyon dans les cas testés, mais corrigé de façon
+    uniforme sur les 3 villes par prudence — un suffixe déjà présent
+    (e/eme/ème) n'est jamais dupliqué, la chaîne ne matche simplement pas.
+    """
+    match = re.match(r'^\s*(paris|lyon|marseille)\s+(\d{1,2})\s*$', adresse, re.IGNORECASE)
+    if not match:
+        return adresse
+    ville, numero_str = match.group(1), match.group(2)
+    numero = int(numero_str)
+    if not (1 <= numero <= VILLES_ARRONDISSEMENT[ville.lower()]):
+        return adresse
+    suffixe = "1er" if numero == 1 else f"{numero}e"
+    return f"{ville} {suffixe}"
+
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
@@ -24,6 +53,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def geocoder(adresse_ou_ville: str) -> dict:
+    adresse_ou_ville = _normaliser_arrondissement_sans_suffixe(adresse_ou_ville)
     try:
         response = requests.get(
             BAN_API_URL, params={"q": adresse_ou_ville, "limit": 1},
