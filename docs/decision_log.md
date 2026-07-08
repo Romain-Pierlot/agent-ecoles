@@ -1337,3 +1337,17 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : intégration de l'IPS et de la mixité sociale dans le calcul du score, sous toute pondération testée (proximité à la moyenne nationale, diversité interne, ou combinaison des deux) — un établissement ne choisit pas le profil social de son secteur de recrutement, notamment sous carte scolaire ; aucune combinaison testée ne corrige ce biais sans le déplacer ailleurs.
 
 **Conséquence** : à implémenter dans `calculer_scores()` / `config.py`. L'IPS et l'écart-type de mixité sociale restent affichés sur la fiche d'identité de l'établissement (déjà prévu), sans influencer le score ni la notation en lettres. L'explicatif affiché à côté de la notation devra détailler la méthode de calcul et préciser explicitement que le choix méthodologique valorise les établissements à forte valeur ajoutée.
+
+---
+
+# Phase 4 — Frontend : architecture de routes
+
+## S14.1 — Arborescence de routes Next.js calquée sur le sitemap validé
+
+**Décision** : squelette de routes (App Router) avec pages stub minimales pour chaque gabarit prévu : accueil, assistant, recherche, explorer, guides (`/comprendre/{slug}`), hiérarchie géographique région › département › ville (chacune adressable indépendamment), fiche établissement portant le chemin complet (`/region/{r}/departement/{d}/ville/{v}/college/{nom-uai}`), académie en rattachement transverse (`/academie/{slug}`, jamais dans l'URL ni le fil d'Ariane des autres pages), pages utilitaires (méthodologie, sources, à propos, mentions légales).
+
+**Pourquoi** : un squelette de routes avec pages stub permet de valider la structure de navigation (imbrication des segments dynamiques, absence de collision entre les routes courtes région/département/ville et la route complète de la fiche) avant d'investir du temps de design sur le contenu visuel de chaque page. Testé en local après création : les 14 routes se résolvent correctement, y compris les segments dynamiques imbriqués sur 4 niveaux de la fiche établissement.
+
+**Rejeté** : décliner le calendrier scolaire par académie via une sous-route dynamique (`/calendrier/{academie}`) — la page reste unique, toutes les académies affichées ensemble (zones de vacances), une recherche par adresse/ville pour retrouver sa zone étant prévue comme évolution ultérieure de cette même page plutôt qu'un besoin de route supplémentaire.
+
+**Conséquence** : `web/src/components/PagePlaceholder.tsx` (composant de stub partagé par toutes les routes, évite de dupliquer la même logique). Chaque nouvelle page de contenu (département, ville, fiche établissement...) remplacera son placeholder sans changer l'architecture de dossiers. Deux points restent ouverts, à trancher à la conception de chacune des pages concernées : format des slugs (accents, UAI dans l'URL) et existence d'une page dédiée "adresse → collège de secteur".
