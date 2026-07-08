@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&amp;family=Figtree:wght@400;500;600;700;800&amp;family=Caveat:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#F1E7D6;-webkit-font-smoothing:antialiased}
+  *{box-sizing:border-box}
+  a{color:inherit}
+</style>
+</helmet>
+
+<div style="font-family:'Figtree',sans-serif;background:#FCF4E9;min-height:100vh;color:#3A4842">
+  <div style="max-width:960px;margin:0 auto;padding:0 28px 100px">
+
+    <!-- ===== HEADER ===== -->
+    <div style="padding:40px 0 26px;border-bottom:2px solid #EFE1CE;margin-bottom:36px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div style="width:34px;height:34px;border-radius:11px 9px 12px 8px;background:#D9457A;transform:rotate(-4deg)"></div>
+        <div style="font:800 15px 'Figtree';letter-spacing:.04em;color:#8A7B64;text-transform:uppercase">écoles · design system</div>
+      </div>
+      <div style="font:800 42px/1.05 'Baloo 2';color:#223B30;margin-top:16px">La grammaire visuelle</div>
+      <div style="font:400 15.5px/1.6 'Figtree';color:#5C6A60;max-width:640px;margin-top:10px">Le principe fondateur : <b style="color:#223B30">une couleur = un rôle</b>, jamais une décoration. On ne code jamais un hex « en dur » sur une donnée — on lui applique le token qui porte son sens. Le jour où une teinte change, tout le produit se met à jour.</div>
+    </div>
+
+    <!-- ===== 1. LES 3 COUCHES ===== -->
+    <div style="margin-bottom:44px">
+      <div style="font:700 11px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase;margin-bottom:6px">Le modèle</div>
+      <div style="font:800 26px 'Baloo 2';color:#223B30;margin-bottom:16px">Trois couches, jamais court-circuitées</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div style="background:#fff;border:2px solid #EFE1CE;border-radius:18px;padding:20px">
+          <div style="font:800 13px 'Baloo 2';color:#D9457A">1 · Palette brute</div>
+          <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:6px">Les hex physiques. On ne les nomme jamais dans le code produit.</div>
+          <div style="font:500 12px 'JetBrains Mono';color:#8A7B64;margin-top:10px">#2E8F5E · #D9457A…</div>
+        </div>
+        <div style="background:#fff;border:2px solid #EFE1CE;border-radius:18px;padding:20px">
+          <div style="font:800 13px 'Baloo 2';color:#D9457A">2 · Tokens sémantiques</div>
+          <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:6px">On donne un <b>rôle</b> à chaque teinte. C'est ce qu'on manipule.</div>
+          <div style="font:500 12px 'JetBrains Mono';color:#8A7B64;margin-top:10px">--positif · --action…</div>
+        </div>
+        <div style="background:#fff;border:2px solid #EFE1CE;border-radius:18px;padding:20px">
+          <div style="font:800 13px 'Baloo 2';color:#D9457A">3 · Règle par indicateur</div>
+          <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:6px">La logique « valeur → sens » qui choisit le token. Un tableau de seuils.</div>
+          <div style="font:500 12px 'JetBrains Mono';color:#8A7B64;margin-top:10px">ips(112) → positif</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2. TOKENS COULEUR ===== -->
+    <div style="margin-bottom:44px">
+      <div style="font:700 11px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase;margin-bottom:6px">Couche 2 · le cœur du système</div>
+      <div style="font:800 26px 'Baloo 2';color:#223B30;margin-bottom:6px">Les tokens sémantiques</div>
+      <div style="font:400 14px/1.55 'Figtree';color:#5C6A60;max-width:640px;margin-bottom:18px">Chaque couleur a un seul métier. La règle d'or : une teinte ne sert <b>jamais</b> à la fois à décorer le produit et à qualifier une donnée.</div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <!-- action -->
+        <div style="display:flex;align-items:stretch;gap:0;background:#fff;border:2px solid #EFE1CE;border-radius:18px;overflow:hidden">
+          <div style="width:120px;flex:none;background:#D9457A;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff">
+            <div style="font:800 20px 'Baloo 2'">action</div>
+            <div style="font:500 11px 'JetBrains Mono';opacity:.85">#D9457A</div>
+          </div>
+          <div style="padding:16px 20px;flex:1">
+            <div style="font:700 14px 'Baloo 2';color:#223B30">Produit &amp; action — framboise</div>
+            <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:3px">Tout ce qui est cliquable ou incarne le produit : logo, CTA, assistant Camille, liens, intitulés de section. <b style="color:#A82C58">Ne qualifie jamais une donnée.</b> Variante foncée #A82C58 pour le texte sur clair.</div>
+          </div>
+        </div>
+        <!-- positif -->
+        <div style="display:flex;align-items:stretch;background:#fff;border:2px solid #EFE1CE;border-radius:18px;overflow:hidden">
+          <div style="width:120px;flex:none;background:#2E8F5E;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff">
+            <div style="font:800 20px 'Baloo 2'">positif</div>
+            <div style="font:500 11px 'JetBrains Mono';opacity:.85">#2E8F5E</div>
+          </div>
+          <div style="padding:16px 20px;flex:1">
+            <div style="font:700 14px 'Baloo 2';color:#223B30">Résultat favorable — vert</div>
+            <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:3px">Réservé aux données jugées « bonnes » : réussite au brevet, valeur ajoutée positive, note A. Plusieurs intensités (#2E8F5E → #9BCBAF) pour une même famille, jamais une teinte différente.</div>
+          </div>
+        </div>
+        <!-- descriptif -->
+        <div style="display:flex;align-items:stretch;background:#fff;border:2px solid #EFE1CE;border-radius:18px;overflow:hidden">
+          <div style="width:120px;flex:none;background:#3A5A8C;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff">
+            <div style="font:800 20px 'Baloo 2'">descriptif</div>
+            <div style="font:500 11px 'JetBrains Mono';opacity:.85">#3A5A8C</div>
+          </div>
+          <div style="padding:16px 20px;flex:1">
+            <div style="font:700 14px 'Baloo 2';color:#223B30">Indicateur positionnel — bleu encre</div>
+            <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:3px">Pour ce qui n'est <b>ni bon ni mauvais</b> : IPS, mixité sociale. Signale « voici où se situe l'établissement par rapport à la moyenne » — une lecture, pas un jugement.</div>
+          </div>
+        </div>
+        <!-- attention -->
+        <div style="display:flex;align-items:stretch;background:#fff;border:2px solid #EFE1CE;border-radius:18px;overflow:hidden">
+          <div style="width:120px;flex:none;background:#F0A02E;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4A2E00">
+            <div style="font:800 20px 'Baloo 2'">attention</div>
+            <div style="font:500 11px 'JetBrains Mono';opacity:.8">#F0A02E</div>
+          </div>
+          <div style="padding:16px 20px;flex:1">
+            <div style="font:700 14px 'Baloo 2';color:#223B30">Point de vigilance — ambre</div>
+            <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:3px">Une vraie alerte douce sur une donnée : résultat sous la moyenne, note B. <b style="color:#B0741A">Jamais un bouton</b> (c'est le rôle de l'action).</div>
+          </div>
+        </div>
+        <!-- alerte / accent -->
+        <div style="display:flex;align-items:stretch;background:#fff;border:2px solid #EFE1CE;border-radius:18px;overflow:hidden">
+          <div style="width:120px;flex:none;background:#C15A3C;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff">
+            <div style="font:800 20px 'Baloo 2'">accent</div>
+            <div style="font:500 11px 'JetBrains Mono';opacity:.85">#C15A3C</div>
+          </div>
+          <div style="padding:16px 20px;flex:1">
+            <div style="font:700 14px 'Baloo 2';color:#223B30">Accent rare &amp; manuscrit — terracotta</div>
+            <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:3px">Les touches Caveat manuscrites, un tier bas de notation. À doser : c'est le sel, pas le plat.</div>
+          </div>
+        </div>
+        <!-- neutres -->
+        <div style="display:flex;align-items:stretch;background:#fff;border:2px solid #EFE1CE;border-radius:18px;overflow:hidden">
+          <div style="width:120px;flex:none;display:flex">
+            <div style="flex:1;background:#F1E7D6"></div>
+            <div style="flex:1;background:#8A7B64"></div>
+            <div style="flex:1;background:#223B30"></div>
+          </div>
+          <div style="padding:16px 20px;flex:1">
+            <div style="font:700 14px 'Baloo 2';color:#223B30">Neutres — crème, taupe, encre</div>
+            <div style="font:400 13px/1.5 'Figtree';color:#5C6A60;margin-top:3px">Fonds (#F1E7D6 / #FCF4E9 / #fff), repères et libellés secondaires (#8A7B64), texte principal (#223B30). Le socle chaleureux sur lequel les couleurs de rôle ressortent.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3. RÈGLES DE SEUILS ===== -->
+    <div style="margin-bottom:44px">
+      <div style="font:700 11px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase;margin-bottom:6px">Couche 3 · la logique</div>
+      <div style="font:800 26px 'Baloo 2';color:#223B30;margin-bottom:6px">Le tableau des seuils</div>
+      <div style="font:400 14px/1.55 'Figtree';color:#5C6A60;max-width:660px;margin-bottom:18px">Chaque indicateur définit sa propre correspondance « valeur → token ». C'est un <b>choix éditorial</b>, pas une vérité technique — notamment pour l'IPS et la mixité, volontairement classés <b style="color:#3A5A8C">descriptifs</b> plutôt que bons/mauvais.</div>
+
+      <div style="background:#fff;border:2px solid #EFE1CE;border-radius:20px;overflow:hidden">
+        <!-- head -->
+        <div style="display:grid;grid-template-columns:1.3fr 2fr 1fr;gap:12px;padding:13px 22px;background:#FBF6EC;border-bottom:2px solid #EFE1CE;font:700 11px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase">
+          <div>Indicateur</div><div>Règle</div><div>Token</div>
+        </div>
+        <sc-for list="{{ rules }}" as="r" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:1.3fr 2fr 1fr;gap:12px;padding:14px 22px;border-bottom:1px solid #F1E7D6;align-items:center">
+            <div style="font:700 13.5px 'Figtree';color:#223B30">{{ r.name }}</div>
+            <div style="font:500 12.5px/1.5 'JetBrains Mono';color:#5C6A60">{{ r.rule }}</div>
+            <div><span style="display:inline-flex;align-items:center;gap:6px;background:{{ r.tokenBg }};color:{{ r.tokenColor }};border-radius:10px;padding:4px 11px;font:700 11.5px 'Figtree'">{{ r.token }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font:400 12.5px/1.5 'Figtree';color:#8A7B64;margin-top:10px">↑ Ces seuils sont modifiables. La mixité renvoie toujours <b style="color:#3A5A8C">descriptif</b> quel que soit le score — c'est le choix assumé de ne pas hiérarchiser les profils sociaux.</div>
+    </div>
+
+    <!-- ===== 4. LA FONCTION ===== -->
+    <div style="margin-bottom:44px">
+      <div style="font:700 11px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase;margin-bottom:6px">En code</div>
+      <div style="font:800 26px 'Baloo 2';color:#223B30;margin-bottom:16px">Une seule fonction centralise tout</div>
+      <div style="background:#223B30;border-radius:18px;padding:22px 24px;overflow:auto">
+        <pre style="margin:0;font:500 13px/1.7 'JetBrains Mono';color:#D8E6DD;white-space:pre">{{ codeSample }}</pre>
+      </div>
+      <div style="font:400 13px/1.55 'Figtree';color:#5C6A60;margin-top:12px">Le gabarit n'écrit jamais une couleur : il appelle <span style="font:500 12.5px 'JetBrains Mono';color:#A82C58">sentiment('ips', 112)</span> et reçoit le bon token. Ajouter un indicateur = ajouter une ligne dans <span style="font:500 12.5px 'JetBrains Mono';color:#A82C58">rules</span>, sans toucher au reste.</div>
+    </div>
+
+    <!-- ===== 5. TYPO ===== -->
+    <div style="margin-bottom:44px">
+      <div style="font:700 11px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase;margin-bottom:6px">Typographie</div>
+      <div style="font:800 26px 'Baloo 2';color:#223B30;margin-bottom:16px">Trois familles, trois usages</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div style="background:#fff;border:2px solid #EFE1CE;border-radius:18px;padding:20px">
+          <div style="font:800 34px 'Baloo 2';color:#223B30;line-height:1">Baloo 2</div>
+          <div style="font:700 12px 'Figtree';color:#8A7B64;margin-top:10px;text-transform:uppercase;letter-spacing:.05em">Titres &amp; chiffres</div>
+          <div style="font:400 12.5px/1.5 'Figtree';color:#5C6A60;margin-top:4px">Rondeur chaleureuse. Poids 700–800 pour les titres et les grands nombres.</div>
+        </div>
+        <div style="background:#fff;border:2px solid #EFE1CE;border-radius:18px;padding:20px">
+          <div style="font:600 30px 'Figtree';color:#223B30;line-height:1.1">Figtree</div>
+          <div style="font:700 12px 'Figtree';color:#8A7B64;margin-top:10px;text-transform:uppercase;letter-spacing:.05em">Texte courant</div>
+          <div style="font:400 12.5px/1.5 'Figtree';color:#5C6A60;margin-top:4px">Corps, libellés, puces. 400 pour lire, 600–700 pour souligner.</div>
+        </div>
+        <div style="background:#fff;border:2px solid #EFE1CE;border-radius:18px;padding:20px">
+          <div style="font:600 32px 'Caveat';color:#C15A3C;line-height:1">Caveat</div>
+          <div style="font:700 12px 'Figtree';color:#8A7B64;margin-top:10px;text-transform:uppercase;letter-spacing:.05em">Notes manuscrites</div>
+          <div style="font:400 12.5px/1.5 'Figtree';color:#5C6A60;margin-top:4px">Le grain humain, en terracotta. Une aide de lecture, jamais une info critique.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 6. PRINCIPES ===== -->
+    <div>
+      <div style="font:700 11px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase;margin-bottom:6px">À retenir</div>
+      <div style="font:800 26px 'Baloo 2';color:#223B30;margin-bottom:16px">Cinq règles anti-sapin de Noël</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:14px;background:#fff;border:2px solid #EFE1CE;border-radius:16px;padding:15px 18px"><div style="font:800 18px 'Baloo 2';color:#D9457A;flex:none">01</div><div style="font:500 13.5px/1.5 'Figtree';color:#3A4842"><b>Une couleur = un rôle.</b> Si tu hésites sur la teinte, c'est que le sens n'est pas clair — règle le sens d'abord.</div></div>
+        <div style="display:flex;gap:14px;background:#fff;border:2px solid #EFE1CE;border-radius:16px;padding:15px 18px"><div style="font:800 18px 'Baloo 2';color:#D9457A;flex:none">02</div><div style="font:500 13.5px/1.5 'Figtree';color:#3A4842"><b>Jamais de hex en dur sur une donnée.</b> Toujours passer par <span style="font:500 12px 'JetBrains Mono';color:#A82C58">sentiment()</span>.</div></div>
+        <div style="display:flex;gap:14px;background:#fff;border:2px solid #EFE1CE;border-radius:16px;padding:15px 18px"><div style="font:800 18px 'Baloo 2';color:#D9457A;flex:none">03</div><div style="font:500 13.5px/1.5 'Figtree';color:#3A4842"><b>Descriptif ≠ jugement.</b> IPS et mixité en bleu : on situe, on ne note pas.</div></div>
+        <div style="display:flex;gap:14px;background:#fff;border:2px solid #EFE1CE;border-radius:16px;padding:15px 18px"><div style="font:800 18px 'Baloo 2';color:#D9457A;flex:none">04</div><div style="font:500 13.5px/1.5 'Figtree';color:#3A4842"><b>L'action ne qualifie pas, la donnée ne clique pas.</b> Framboise pour agir, vert/bleu/ambre pour informer.</div></div>
+        <div style="display:flex;gap:14px;background:#fff;border:2px solid #EFE1CE;border-radius:16px;padding:15px 18px"><div style="font:800 18px 'Baloo 2';color:#D9457A;flex:none">05</div><div style="font:500 13.5px/1.5 'Figtree';color:#3A4842"><b>Nuancer par l'intensité, pas par la teinte.</b> Trois bons résultats = trois verts, pas vert/orange/rouge.</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#FCF4E9"/><circle cx="38" cy="42" r="15" fill="#D9457A"/><circle cx="62" cy="42" r="15" fill="#2E8F5E"/><circle cx="50" cy="62" r="15" fill="#3A5A8C"/></svg>
+</template>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const tok = {
+      action:    ['#FCE4EC', '#A82C58'],
+      positif:   ['#E7F1E9', '#227049'],
+      descriptif:['#E9EEF6', '#3A5A8C'],
+      attention: ['#FFF3DE', '#B0741A'],
+    };
+    const mk = (name, rule, token) => ({ name, rule, token, tokenBg: tok[token][0], tokenColor: tok[token][1] });
+    const rules = [
+      mk('IPS',              '> 110 → descriptif · sinon descriptif', 'descriptif'),
+      mk('Mixité sociale',   'toujours → descriptif (choix éditorial)', 'descriptif'),
+      mk('Réussite brevet',  '> national → positif · ≈ → positif · < → attention', 'positif'),
+      mk('Valeur ajoutée',   '> 0 → positif · = 0 → descriptif · < 0 → attention', 'positif'),
+      mk('Note écoles',      'A+/A/A- → positif · B+/B → attention', 'positif'),
+    ];
+    const codeSample =
+`sentiment(indicator, value) {
+  const rules = {
+    ips:       v => 'descriptif',      // positionnel, jamais un jugement
+    mixite:    v => 'descriptif',      // choix éditorial assumé
+    reussite:  v => v >= 89 ? 'positif' : 'attention',
+    valeurAj:  v => v > 0 ? 'positif' : v < 0 ? 'attention' : 'descriptif',
+    note:      v => /^A/.test(v) ? 'positif' : 'attention',
+  };
+  const level = rules[indicator](value);
+  return {
+    action:     '#D9457A',   // produit & CTA
+    positif:    '#2E8F5E',   // résultat favorable
+    descriptif: '#3A5A8C',   // indicateur positionnel
+    attention:  '#F0A02E',   // point de vigilance
+  }[level];
+}`;
+    return { rules, codeSample };
+  }
+}
+</script>
+</body>
+</html>

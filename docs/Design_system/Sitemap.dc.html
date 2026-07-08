@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#f2f0ea;-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,sans-serif}
+  *{box-sizing:border-box}
+  a{color:#2a78d6;text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
+</helmet>
+
+<div style="max-width:1220px;margin:0 auto;padding:40px 32px 100px;color:#2a2a2a">
+
+  <!-- ===== HEADER ===== -->
+  <div style="border-bottom:2px solid #dcd8ce;padding-bottom:24px;margin-bottom:32px">
+    <div style="font:600 10px ui-monospace;letter-spacing:.1em;color:#8a877f;text-transform:uppercase;margin-bottom:8px">Plan de site · pour handoff Claude Code</div>
+    <div style="font:700 30px/1.15 'Inter';color:#1a1a1a">écoles.fr — sitemap complet</div>
+    <div style="font:400 13.5px/1.6 'Inter';color:#5a574f;max-width:760px;margin-top:8px">Base : <a href="#">proposition 3a</a> (Wireframes). Ajouts : porte <b>Explorer</b> en tête de la hiérarchie géographique, niveau <b>Académie</b> traité comme rattachement transverse — pas un niveau de navigation.</div>
+  </div>
+
+  <!-- ===== DÉCISIONS ACTÉES ===== -->
+  <div style="margin-bottom:36px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">Décisions actées</div>
+    <div style="font:400 13px/1.5 'Inter';color:#6b685f;margin-bottom:16px;max-width:780px">Suite à l'arbitrage sur l'académie — elle sert d'abord au calendrier scolaire (zones de vacances) et au rattachement administratif, pas au cheminement de découverte : <b>France › Région › Département › Ville-commune › Établissement</b> reste le seul fil.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
+        <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Académie = filtre parallèle, pas un niveau.</b> Elle n'apparaît jamais dans l'URL ni dans le fil d'Ariane. Sur la fiche établissement, un tag <span style="font:600 12px 'Inter';color:#1a1a1a">« Académie de Lyon »</span> devient cliquable → liste les établissements de cette académie (<span style="font:400 10.5px ui-monospace;color:#8a877f">/academie/{slug}</span>). C'est le seul point d'entrée par académie.</div>
+      </div>
+      <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
+        <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Porte 4 renommée « Explorer »</b> — cohérent avec les autres portes en un mot (Demander, Chercher, Comprendre).</div>
+      </div>
+      <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
+        <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Le niveau Ville / commune est confirmé pour la V1.</b> Chaîne complète : Région → Département → Ville-commune → Fiche.</div>
+      </div>
+      <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
+        <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Schéma d'URL :</b> <span style="font:400 11.5px ui-monospace;color:#8a877f">/region/{slug}/departement/{slug}/ville/{slug}/college/{nom-uai}</span> — l'académie n'y figure pas.</div>
+      </div>
+      <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
+        <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Rattachement en base, par établissement :</b> <span style="font:400 11.5px ui-monospace;color:#8a877f">code_commune · code_departement · code_academie · code_region</span> — 4 clés indépendantes, l'académie n'est dérivée d'aucune des trois autres.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SITEMAP COMPLET ===== -->
+  <div style="background:#fbfaf7;border:1px solid #cfccc4;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:26px 28px 30px">
+
+    <!-- légende -->
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:22px;font:400 11px 'Inter';color:#6b685f">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:#2a78d6"></span>Porte principale (accueil)</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:#c2410c"></span>Nouveau (Explorer)</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;border:1.5px solid #1a1a1a;background:#fff"></span>Gabarit à designer</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 8px;font:600 9.5px 'Inter';color:#2a5fa0">généré ×N</span>décliné auto depuis la base</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;border:1.5px dashed #8a877f;background:#fff"></span>rattachement transverse (académie)</span>
+    </div>
+
+    <!-- ACCUEIL -->
+    <div style="display:flex;justify-content:center;margin-bottom:6px">
+      <div style="border:1.5px solid #2a78d6;background:#2a78d6;color:#fff;border-radius:10px;padding:12px 22px;text-align:center">
+        <div style="font:700 14px 'Inter'">Accueil</div><div style="font:400 10px ui-monospace;opacity:.8;margin-top:2px">écoles.fr/</div>
+      </div>
+    </div>
+    <div style="width:1px;height:18px;background:#c9c5bc;margin:0 auto"></div>
+
+    <!-- quatre portes -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+
+      <div style="border:1px dashed #c9c5bc;border-radius:11px;padding:14px;background:#fff">
+        <div style="font:600 9px ui-monospace;letter-spacing:.08em;color:#2a78d6;text-transform:uppercase;margin-bottom:12px">Porte 1 · Demander</div>
+        <div style="border:1.5px solid #1a1a1a;border-radius:9px;padding:11px 13px">
+          <div style="font:600 12px 'Inter';color:#1a1a1a">Assistant</div>
+          <div style="font:400 10px ui-monospace;color:#8a877f;margin-top:3px">/assistant</div>
+          <div style="margin-top:8px;font:400 10.5px/1.5 'Inter';color:#6b685f">Overlay persistant + page plein écran. Cartes établissement cliquables.</div>
+        </div>
+      </div>
+
+      <div style="border:1px dashed #c9c5bc;border-radius:11px;padding:14px;background:#fff">
+        <div style="font:600 9px ui-monospace;letter-spacing:.08em;color:#2a78d6;text-transform:uppercase;margin-bottom:12px">Porte 2 · Chercher</div>
+        <div style="border:1.5px solid #1a1a1a;border-radius:9px;padding:11px 13px">
+          <div style="font:600 12px 'Inter';color:#1a1a1a">Résultats</div>
+          <div style="font:400 10px ui-monospace;color:#8a877f;margin-top:3px">/recherche?q=…</div>
+          <div style="margin-top:8px;font:400 10.5px/1.5 'Inter';color:#6b685f">Routeur : nom → fiche, ville/CP → page Ville, dépt/région → page maillage.</div>
+        </div>
+      </div>
+
+      <div style="border:1px dashed #c9c5bc;border-radius:11px;padding:14px;background:#fff">
+        <div style="font:600 9px ui-monospace;letter-spacing:.08em;color:#2a78d6;text-transform:uppercase;margin-bottom:12px">Porte 3 · Comprendre</div>
+        <div style="border:1.5px solid #1a1a1a;border-radius:9px;padding:11px 13px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:600 12px 'Inter';color:#1a1a1a">Guides</div><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 8px;font:600 9px 'Inter';color:#2a5fa0">×6</span></div>
+          <div style="font:400 10px ui-monospace;color:#8a877f;margin-top:3px">/comprendre/{slug}</div>
+          <div style="margin-top:8px;font:400 10.5px/1.5 'Inter';color:#6b685f">IPS, valeur ajoutée, carte scolaire, bourses… + calendrier (par académie).</div>
+        </div>
+      </div>
+
+      <div style="border:1.5px dashed #c2410c;border-radius:11px;padding:14px;background:#fff">
+        <div style="font:600 9px ui-monospace;letter-spacing:.08em;color:#c2410c;text-transform:uppercase;margin-bottom:12px">Porte 4 · Explorer — nouveau</div>
+        <div style="border:1.5px solid #c2410c;border-radius:9px;padding:11px 13px">
+          <div style="font:600 12px 'Inter';color:#1a1a1a">Explorer tous les établissements</div>
+          <div style="font:400 10px ui-monospace;color:#8a877f;margin-top:3px">/explorer</div>
+          <div style="margin-top:8px;font:400 10.5px/1.5 'Inter';color:#6b685f">Hub géographique racine — 3 sorties : recherche, maillage (régions), chatbot.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- séparateur -->
+    <div style="display:flex;align-items:center;gap:12px;margin:26px 0 18px"><div style="flex:1;height:1px;background:#e0dcd2"></div><div style="font:600 9px ui-monospace;letter-spacing:.1em;color:#a8a49a;text-transform:uppercase">Hiérarchie géographique — un seul fil : Région › Département › Ville-commune › Fiche</div><div style="flex:1;height:1px;background:#e0dcd2"></div></div>
+
+    <!-- geo chain -->
+    <div style="display:flex;align-items:stretch;gap:0">
+      <div style="flex:1;border:1.5px solid #1a1a1a;border-radius:9px;padding:12px 13px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:600 12.5px 'Inter';color:#1a1a1a">Région</div><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 7px;font:600 9px 'Inter';color:#2a5fa0">×18</span></div>
+        <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/region/{slug}</div>
+        <div style="margin-top:8px;font:400 10px/1.45 'Inter';color:#6b685f">Agrégats (IPS moyen, brevet, val. ajoutée) + carte + départements.</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;width:34px;font:600 16px 'Inter';color:#c9c5bc">›</div>
+      <div style="flex:1;border:1.5px solid #1a1a1a;border-radius:9px;padding:12px 13px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:600 12.5px 'Inter';color:#1a1a1a">Département</div><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 7px;font:600 9px 'Inter';color:#2a5fa0">×101</span></div>
+        <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/departement/{slug}</div>
+        <div style="margin-top:8px;font:400 10px/1.45 'Inter';color:#6b685f">Idem région, un étage plus bas + tri &amp; pagination.</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;width:34px;font:600 16px 'Inter';color:#c9c5bc">›</div>
+      <div style="flex:1;border:1.5px solid #1a1a1a;border-radius:9px;padding:12px 13px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:600 12.5px 'Inter';color:#1a1a1a">Ville / commune</div><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 7px;font:600 9px 'Inter';color:#2a5fa0">~4 000</span></div>
+        <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/ville/{slug}</div>
+        <div style="margin-top:8px;font:400 10px/1.45 'Inter';color:#6b685f">Confirmé pour la V1. Collèges de la commune + secteurs. Aimant SEO.</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;width:34px;font:600 16px 'Inter';color:#c9c5bc">›</div>
+      <div style="flex:1;border:2px solid #2a78d6;border-radius:9px;padding:12px 13px;background:#f7faff">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:700 12.5px 'Inter';color:#1a1a1a">Fiche établissement</div><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 7px;font:600 9px 'Inter';color:#2a5fa0">9 143</span></div>
+        <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/region/{r}/departement/{d}/ville/{v}/college/{nom-uai}</div>
+        <div style="margin-top:8px;font:400 10px/1.45 'Inter';color:#6b685f">Page pivot. Fil d'Ariane : France › Région › Département › Ville · Académie en tag à part.</div>
+      </div>
+    </div>
+
+    <!-- branche académie -->
+    <sc-if value="{{ showAcademieBranch }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;justify-content:flex-end;margin-top:2px;padding-right:calc(25% - 6px)">
+        <div style="width:1px;height:16px;background:#c9c5bc"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <div style="width:25%;min-width:230px;border:1.5px dashed #8a877f;border-radius:9px;padding:11px 13px;background:#fafaf7">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:600 12px 'Inter';color:#1a1a1a">Académie <span style="font:400 10px;color:#8a877f">(tag cliquable)</span></div><span style="background:#f1ede3;border:1px solid #ded6c4;border-radius:10px;padding:1px 7px;font:600 9px 'Inter';color:#7a6e50">×30</span></div>
+          <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/academie/{slug}</div>
+          <div style="margin-top:7px;font:400 10px/1.45 'Inter';color:#6b685f">Rattachement affiché sur la fiche → clic → liste des établissements de l'académie. Sert aussi au calendrier des vacances. N'entre jamais dans l'URL ni le fil d'Ariane.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="text-align:center;margin-top:14px;font:400 15px/1.3 'Caveat';color:#c2410c;font-weight:600">Les 3 boîtes Région/Département/Ville réutilisent le même composant liste — en-tête agrégats + carte + tri par IPS / valeur ajoutée / brevet + filtres + pagination.</div>
+
+    <!-- footer utility + counts -->
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:24px">
+      <div style="border:1px dashed #c9c5bc;border-radius:11px;padding:14px;background:#fff">
+        <div style="font:600 9px ui-monospace;letter-spacing:.08em;color:#a8a49a;text-transform:uppercase;margin-bottom:10px">Pages utilitaires (pied de page)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span style="border:1px solid #e0dcd2;border-radius:7px;padding:6px 11px;font:500 11px 'Inter';color:#5a574f">Méthodologie</span>
+          <span style="border:1px solid #e0dcd2;border-radius:7px;padding:6px 11px;font:500 11px 'Inter';color:#5a574f">Sources &amp; données</span>
+          <span style="border:1px solid #e0dcd2;border-radius:7px;padding:6px 11px;font:500 11px 'Inter';color:#5a574f">À propos</span>
+          <span style="border:1px solid #e0dcd2;border-radius:7px;padding:6px 11px;font:500 11px 'Inter';color:#5a574f">Mentions légales</span>
+        </div>
+      </div>
+      <div style="border:1.5px solid #2a78d6;border-radius:11px;padding:14px 16px;background:#f7faff">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><div style="font:700 13px 'Inter';color:#1a1a1a">À designer</div><div style="font:700 22px 'Inter';color:#2a78d6">~10 gabarits</div></div>
+        <div style="font:400 10.5px/1.6 'Inter';color:#5a574f">Accueil · Assistant · Résultats · Explorer · Région · Département · Ville · Fiche · Calendrier · Guide</div>
+        <div style="border-top:1px dashed #cfe0f5;margin:10px 0;padding-top:9px;display:flex;justify-content:space-between;align-items:baseline"><div style="font:600 12px 'Inter';color:#1a1a1a">Générées auto</div><div style="font:700 16px 'Inter';color:#6b685f">~13 000+</div></div>
+        <div style="font:400 10px 'Inter';color:#8a877f">18 régions · 101 dépts · ~4 000 villes · 9 143 fiches · 30 académies (rattachement) · guides · calendrier</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1180px;font:400 15px/1.4 'Caveat';color:#c2410c;font-weight:600;margin-top:14px;padding-left:4px">Décisions encore ouvertes : (1) slug avec accents ? UAI dans l'URL ? (2) « adresse → collège de secteur » : page dédiée ou liste centrée ? (3) le calendrier /calendrier se décline-t-il par académie (/calendrier/{academie}) ?</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1220,&quot;height&quot;:1500},&quot;showAcademieBranch&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { showAcademieBranch: this.props.showAcademieBranch ?? true };
+  }
+}
+</script>
+</body>
+</html>
