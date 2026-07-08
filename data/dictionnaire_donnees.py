@@ -325,6 +325,20 @@ DICTIONNAIRE = {
         "notes": "Un écart-type élevé indique une bonne mixité sociale. Un écart-type faible indique une population homogène (soit très favorisée, soit très défavorisée).",
     },
 
+    "ips.ecart_type_ips_national": {
+        "description": "Moyenne nationale de l'écart-type IPS (mixité sociale), pour l'année scolaire considérée, tous établissements confondus.",
+        "source": "Calculé par agent-ecoles à l'ingestion (moyenne simple, non fournie par le fichier IPS brut — contrairement à ips_national qui lui est fourni tel quel)",
+        "synonymes": ["moyenne nationale mixité"],
+        "notes": None,
+    },
+
+    "ips.ecart_type_ips_departemental": {
+        "description": "Moyenne départementale de l'écart-type IPS (mixité sociale, même code_departement que l'établissement), pour l'année scolaire considérée.",
+        "source": "Calculé par agent-ecoles à l'ingestion (moyenne simple par annee_scolaire et code_departement)",
+        "synonymes": ["moyenne départementale mixité"],
+        "notes": None,
+    },
+
     "ips.ips_national_public": {
         "description": "IPS moyen national pour les établissements publics. Référence de comparaison nationale pour le secteur public.",
         "source": "IPS DEPP",
@@ -511,6 +525,34 @@ DICTIONNAIRE = {
         "notes": None,
     },
 
+    "ivac.brevet_taux_reussite_national": {
+        "description": "Moyenne nationale du taux de réussite au brevet (série générale) pour la session considérée, tous établissements confondus.",
+        "source": "Calculé par agent-ecoles à l'ingestion (moyenne simple sur brevet_taux_reussite_general, non fournie par le fichier IVAC brut)",
+        "synonymes": ["moyenne nationale brevet", "taux de réussite national"],
+        "notes": "À distinguer des comparatifs ips.*, qui eux sont fournis tels quels par la source DEPP plutôt que recalculés.",
+    },
+
+    "ivac.brevet_note_ecrit_national": {
+        "description": "Moyenne nationale de la note à l'écrit du brevet (série générale) pour la session considérée, tous établissements confondus.",
+        "source": "Calculé par agent-ecoles à l'ingestion (moyenne simple sur brevet_note_ecrit_general)",
+        "synonymes": ["moyenne nationale note écrite"],
+        "notes": None,
+    },
+
+    "ivac.brevet_taux_reussite_departemental": {
+        "description": "Moyenne départementale du taux de réussite au brevet (même code_departement que l'établissement, série générale) pour la session considérée.",
+        "source": "Calculé par agent-ecoles à l'ingestion (moyenne simple par session et code_departement)",
+        "synonymes": ["moyenne départementale brevet"],
+        "notes": None,
+    },
+
+    "ivac.brevet_note_ecrit_departemental": {
+        "description": "Moyenne départementale de la note à l'écrit du brevet (même code_departement que l'établissement, série générale) pour la session considérée.",
+        "source": "Calculé par agent-ecoles à l'ingestion (moyenne simple par session et code_departement)",
+        "synonymes": ["moyenne départementale note écrite"],
+        "notes": None,
+    },
+
     # ================================================================
     # TABLE : scores
     # ================================================================
@@ -566,6 +608,120 @@ DICTIONNAIRE = {
         "source": "Manuel agent-ecoles",
         "synonymes": [],
         "notes": "Utilisé par l'agent quand un utilisateur mentionne une année sans préciser s'il veut la session brevet ou l'année scolaire.",
+    },
+
+    # ================================================================
+    # TABLE : zones_academiques
+    # ================================================================
+
+    "zones_academiques.code_academie": {
+        "description": "Code académie (même valeur que etablissements.code_academie), clé de jointure.",
+        "source": "Manuel agent-ecoles",
+        "synonymes": [],
+        "notes": None,
+    },
+
+    "zones_academiques.libelle_academie": {
+        "description": "Libellé de l'académie, ex: 'Lyon', 'Aix-Marseille'.",
+        "source": "Manuel agent-ecoles",
+        "synonymes": [],
+        "notes": None,
+    },
+
+    "zones_academiques.zone": {
+        "description": "Zone de vacances scolaires (A, B ou C) à laquelle appartient l'académie, pour l'échelonnement national des vacances d'hiver et de printemps. NULL pour la Corse et les académies d'outre-mer (Guadeloupe, Guyane, Martinique, Mayotte, La Réunion, Nouvelle-Calédonie, Polynésie française, Saint-Pierre-et-Miquelon, Wallis-et-Futuna), qui fixent leur calendrier indépendamment de ce zonage.",
+        "source": "Arrêtés ministériels (ex: arrêté du 22 octobre 2025 fixant le calendrier scolaire 2026-2027, Légifrance JORFTEXT000052416058)",
+        "synonymes": ["zone de vacances", "zone A", "zone B", "zone C"],
+        "notes": "Regroupement académie→zone stable dans le temps (change au rythme d'un arrêté rare), à ne pas confondre avec vacances_scolaires qui, elle, se rafraîchit chaque année.",
+    },
+
+    # ================================================================
+    # TABLE : langues_offertes
+    # ================================================================
+
+    "langues_offertes.uai": {
+        "description": "Identifiant UAI de l'établissement, clé étrangère vers etablissements.uai.",
+        "source": "Offre de langues et sections 2nd degré (DEPP)",
+        "synonymes": [],
+        "notes": "Environ 7093 collèges sur 9143 ont au moins une ligne (~78% de couverture) — l'absence d'établissement dans cette table n'est pas une erreur, juste une donnée non renseignée par la source.",
+    },
+
+    "langues_offertes.type_enseignement": {
+        "description": "Type d'enseignement de langue proposé : 'LV1' (langue vivante 1), 'LV2' (langue vivante 2) ou 'LCA' (langue et culture de l'Antiquité, latin/grec).",
+        "source": "Offre de langues et sections 2nd degré (DEPP)",
+        "synonymes": ["première langue", "deuxième langue", "langues anciennes"],
+        "notes": "La source ne précise ni le niveau (6e/5e/4e/3e) ni un éventuel dispositif bilangue, ni la langue associée à une section européenne — uniquement la liste des langues proposées par établissement.",
+    },
+
+    "langues_offertes.langue": {
+        "description": "Langue proposée (ex: 'Anglais', 'Espagnol', 'Allemand').",
+        "source": "Offre de langues et sections 2nd degré (DEPP)",
+        "synonymes": [],
+        "notes": None,
+    },
+
+    # ================================================================
+    # TABLE : sections_sportives
+    # ================================================================
+
+    "sections_sportives.uai": {
+        "description": "Identifiant UAI de l'établissement, clé étrangère vers etablissements.uai.",
+        "source": "Sections sportives scolaires (DEPP)",
+        "synonymes": [],
+        "notes": "Environ 2300 collèges sur 9143 ont au moins une ligne (~25% de couverture) — l'absence d'établissement dans cette table n'est pas une erreur, juste une donnée non renseignée par la source (l'établissement peut malgré tout avoir etablissements.section_sport = 1 sans détail du sport précis).",
+    },
+
+    "sections_sportives.sport": {
+        "description": "Sport précis de la section sportive de l'établissement (ex: 'Football', 'Escalade', 'Karate'). Un établissement peut avoir plusieurs sports (plusieurs lignes).",
+        "source": "Sections sportives scolaires (DEPP)",
+        "synonymes": ["section sport", "sport section", "quel sport"],
+        "notes": None,
+    },
+
+    # ================================================================
+    # TABLE : vacances_scolaires
+    # ================================================================
+
+    "vacances_scolaires.annee_scolaire": {
+        "description": "Année scolaire concernée par cette ligne de calendrier, ex: '2026-2027'.",
+        "source": "Arrêtés ministériels (Légifrance)",
+        "synonymes": [],
+        "notes": "Donnée de référence à rafraîchir chaque année (le ministère publie le calendrier ~1 an à l'avance) — un nouveau millésime s'ajoute via un nouveau fichier data/vacances_scolaires_AAAA_AAAA.csv, sans modification de code (cf. ingerer_vacances).",
+    },
+
+    "vacances_scolaires.zone": {
+        "description": "Zone concernée par cette période : 'A', 'B', 'C', ou 'TOUTES' pour les périodes communes aux 3 zones (Toussaint, Noël, prérentrée, rentrée, fin d'année) — stockées une seule fois plutôt que dupliquées ×3.",
+        "source": "Arrêtés ministériels (Légifrance)",
+        "synonymes": [],
+        "notes": "Une lecture pour une académie donnée doit filtrer sur zone = <sa zone> OU zone = 'TOUTES'.",
+    },
+
+    "vacances_scolaires.periode": {
+        "description": "Nom de la période : 'Prérentrée', 'Rentrée', 'Toussaint', 'Noël', 'Hiver', 'Printemps' ou 'Fin d'année scolaire'.",
+        "source": "Arrêtés ministériels (Légifrance)",
+        "synonymes": [],
+        "notes": None,
+    },
+
+    "vacances_scolaires.type_periode": {
+        "description": "'vacances' pour une période de congés (date_debut et date_fin renseignées), 'jalon' pour une date ponctuelle hors vacances (prérentrée, rentrée, fin d'année — date_fin NULL).",
+        "source": "Manuel agent-ecoles",
+        "synonymes": [],
+        "notes": "La recherche de 'prochaines vacances' doit filtrer type_periode = 'vacances' pour ignorer les jalons.",
+    },
+
+    "vacances_scolaires.date_debut": {
+        "description": "Date de début de la période, au format ISO 'YYYY-MM-DD'.",
+        "source": "Arrêtés ministériels (Légifrance)",
+        "synonymes": [],
+        "notes": None,
+    },
+
+    "vacances_scolaires.date_fin": {
+        "description": "Date de fin de la période, au format ISO 'YYYY-MM-DD'. NULL pour un jalon ponctuel (prérentrée, rentrée, fin d'année).",
+        "source": "Arrêtés ministériels (Légifrance)",
+        "synonymes": [],
+        "notes": None,
     },
 }
 

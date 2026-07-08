@@ -17,6 +17,7 @@ import numpy as np
 import re
 import sys
 import os
+import glob
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import (
@@ -32,6 +33,9 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_ANNUAIRE = os.path.join(DIR, "frenannuaireeducation_col_lycees.csv")
 CSV_IPS      = os.path.join(DIR, "frenipscollegesap2023.csv")
 CSV_IVAC     = os.path.join(DIR, "frenindicateursvaleurajouteecolleges.csv")
+CSV_LANGUES  = os.path.join(DIR, "fr-en-offre-langues-2d.csv")
+CSV_SECTIONS_SPORTIVES = os.path.join(DIR, "fr-en-sections-sportives-scolaires.csv")
+CSV_ZONES_ACADEMIQUES = os.path.join(DIR, "zones_academiques.csv")
 
 
 def creer_connexion():
@@ -49,6 +53,10 @@ def creer_tables(conn):
         DROP TABLE IF EXISTS ivac;
         DROP TABLE IF EXISTS etablissements;
         DROP TABLE IF EXISTS referentiel_temporel;
+        DROP TABLE IF EXISTS langues_offertes;
+        DROP TABLE IF EXISTS vacances_scolaires;
+        DROP TABLE IF EXISTS zones_academiques;
+        DROP TABLE IF EXISTS sections_sportives;
 
         CREATE TABLE etablissements (
             uai                                 TEXT PRIMARY KEY,
@@ -111,6 +119,11 @@ def creer_tables(conn):
             ips_departemental_public    REAL,
             ips_departemental_prive     REAL,
             ips_departemental           REAL,
+            -- Comparatifs mixité sociale (calculés à l'ingestion, cf.
+            -- _ajouter_comparatifs_ips — la source ne fournit de comparatifs
+            -- que pour ips_moyen, pas pour ecart_type_ips)
+            ecart_type_ips_national       REAL,
+            ecart_type_ips_departemental  REAL,
             PRIMARY KEY (uai, annee_scolaire),
             FOREIGN KEY (uai) REFERENCES etablissements(uai)
         );
@@ -133,6 +146,12 @@ def creer_tables(conn):
             nb_mentions_b                   INTEGER,
             nb_mentions_tb                  INTEGER,
             nb_mentions_total               INTEGER,
+            -- Comparatifs brevet (calculés à l'ingestion, cf. _ajouter_comparatifs_ivac
+            -- — contrairement à ips.*, non fournis par le fichier source)
+            brevet_taux_reussite_national       REAL,
+            brevet_note_ecrit_national          REAL,
+            brevet_taux_reussite_departemental  REAL,
+            brevet_note_ecrit_departemental     REAL,
             PRIMARY KEY (uai, session),
             FOREIGN KEY (uai) REFERENCES etablissements(uai)
         );
@@ -152,6 +171,37 @@ def creer_tables(conn):
             session_ivac        TEXT PRIMARY KEY,
             annee_scolaire_ips  TEXT,
             libelle_affichage   TEXT
+        );
+
+        CREATE TABLE zones_academiques (
+            code_academie     TEXT PRIMARY KEY,
+            libelle_academie  TEXT,
+            zone              TEXT  -- 'A' | 'B' | 'C' | NULL (Corse, outre-mer)
+        );
+
+        CREATE TABLE langues_offertes (
+            uai                TEXT,
+            type_enseignement  TEXT,  -- 'LV1' | 'LV2' | 'LCA'
+            langue             TEXT,
+            PRIMARY KEY (uai, type_enseignement, langue),
+            FOREIGN KEY (uai) REFERENCES etablissements(uai)
+        );
+
+        CREATE TABLE sections_sportives (
+            uai    TEXT,
+            sport  TEXT,
+            PRIMARY KEY (uai, sport),
+            FOREIGN KEY (uai) REFERENCES etablissements(uai)
+        );
+
+        CREATE TABLE vacances_scolaires (
+            annee_scolaire  TEXT,
+            zone            TEXT,  -- 'A' | 'B' | 'C' | 'TOUTES'
+            periode         TEXT,  -- 'Prérentrée' | 'Rentrée' | 'Toussaint' | 'Noël' | 'Hiver' | 'Printemps' | 'Fin d''année scolaire'
+            type_periode    TEXT,  -- 'vacances' | 'jalon'
+            date_debut      TEXT,  -- ISO 'YYYY-MM-DD'
+            date_fin        TEXT,  -- ISO, NULL pour un jalon ponctuel
+            PRIMARY KEY (annee_scolaire, zone, periode)
         );
     """)
     print("✓ Tables créées")
@@ -337,8 +387,53 @@ def ingerer_ips(conn):
                 df[col].astype(str).str.replace(',', '.'), errors='coerce'
             )
 
+    df = _ajouter_comparatifs_ips(df, conn)
+
     df.to_sql('ips', conn, if_exists='append', index=False)
     print(f"  ✓ {len(df)} lignes IPS")
+
+
+def _ajouter_comparatifs_ips(df, conn):
+    """
+    Ajoute les comparatifs national/départemental de la mixité sociale
+    (ecart_type_ips) — la source ne fournit des comparatifs que pour
+    ips_moyen (ips_national/ips_departemental...), pas pour ecart_type_ips.
+    Même principe que _ajouter_comparatifs_ivac pour le brevet.
+    """
+    dept_par_uai = pd.read_sql(
+        "SELECT uai, code_departement FROM etablissements", conn
+    ).set_index('uai')['code_departement']
+    df = df.copy()
+    df['code_departement'] = df['uai'].map(dept_par_uai)
+
+    df['ecart_type_ips_national'] = df.groupby('annee_scolaire')['ecart_type_ips'].transform('mean')
+    df['ecart_type_ips_departemental'] = df.groupby(['annee_scolaire', 'code_departement'])['ecart_type_ips'].transform('mean')
+
+    return df.drop(columns=['code_departement'])
+
+
+def _ajouter_comparatifs_ivac(df, conn):
+    """
+    Ajoute les 4 colonnes de comparaison national/départemental — calculées
+    ICI par simple moyenne, contrairement à ips.* qui les reçoit déjà toutes
+    faites de sa source. Département de chaque UAI lu depuis
+    `etablissements` (déjà ingérée à ce stade, cf. ordre d'appel dans
+    main()). transform('mean') inclut la propre valeur de l'établissement
+    dans sa moyenne de comparaison (biais négligeable au nombre
+    d'établissements par session/département, pas un souci en pratique).
+    """
+    dept_par_uai = pd.read_sql(
+        "SELECT uai, code_departement FROM etablissements", conn
+    ).set_index('uai')['code_departement']
+    df = df.copy()
+    df['code_departement'] = df['uai'].map(dept_par_uai)
+
+    df['brevet_taux_reussite_national'] = df.groupby('session')['brevet_taux_reussite_general'].transform('mean')
+    df['brevet_note_ecrit_national'] = df.groupby('session')['brevet_note_ecrit_general'].transform('mean')
+    df['brevet_taux_reussite_departemental'] = df.groupby(['session', 'code_departement'])['brevet_taux_reussite_general'].transform('mean')
+    df['brevet_note_ecrit_departemental'] = df.groupby(['session', 'code_departement'])['brevet_note_ecrit_general'].transform('mean')
+
+    return df.drop(columns=['code_departement'])
 
 
 def ingerer_ivac(conn):
@@ -374,8 +469,71 @@ def ingerer_ivac(conn):
                 df[col].astype(str).str.replace(',', '.'), errors='coerce'
             )
 
+    df = _ajouter_comparatifs_ivac(df, conn)
+
     df.to_sql('ivac', conn, if_exists='append', index=False)
     print(f"  ✓ {len(df)} lignes IVAC")
+
+
+def ingerer_langues(conn):
+    print("→ Chargement langues & options...")
+    df = pd.read_csv(CSV_LANGUES, sep=';', encoding='utf-8-sig', dtype=str)
+
+    # Le fichier source couvre aussi les lycées — hors périmètre ici (V1
+    # limitée aux collèges, cf. decision_log.md S1.2).
+    df = df[df["Type d'établissement"] == 'Collège']
+
+    colonnes = {'UAI': 'uai', 'Enseignements': 'type_enseignement', 'Langues': 'langue'}
+    df = df[list(colonnes.keys())].rename(columns=colonnes).dropna()
+    df = df.drop_duplicates(subset=['uai', 'type_enseignement', 'langue'])
+
+    uai_valides = set(pd.read_sql("SELECT uai FROM etablissements", conn)['uai'])
+    df = df[df['uai'].isin(uai_valides)]
+
+    df.to_sql('langues_offertes', conn, if_exists='append', index=False)
+    print(f"  ✓ {len(df)} lignes langues/options ({df['uai'].nunique()} établissements)")
+
+
+def ingerer_sections_sportives(conn):
+    print("→ Chargement sections sportives...")
+    df = pd.read_csv(CSV_SECTIONS_SPORTIVES, sep=';', encoding='utf-8-sig', dtype=str)
+    df = df[df["Type d'établissement"] == 'Collège']
+
+    df = df[['UAI', 'Sections scolaires']].rename(columns={'UAI': 'uai', 'Sections scolaires': 'sports'}).dropna()
+    # Une ligne source peut lister plusieurs sports séparés par une virgule
+    # (ex: "FOOTBALL EN SALLE (FUTSAL),KARATE") — une ligne par sport en base.
+    df['sport'] = df['sports'].str.split(',')
+    df = df.explode('sport')
+    df['sport'] = df['sport'].str.strip().str.title()
+    df = df[['uai', 'sport']].drop_duplicates()
+
+    uai_valides = set(pd.read_sql("SELECT uai FROM etablissements", conn)['uai'])
+    df = df[df['uai'].isin(uai_valides)]
+
+    df.to_sql('sections_sportives', conn, if_exists='append', index=False)
+    print(f"  ✓ {len(df)} lignes sections sportives ({df['uai'].nunique()} établissements)")
+
+
+def ingerer_zones_academiques(conn):
+    print("→ Chargement zones académiques (vacances scolaires)...")
+    df = pd.read_csv(CSV_ZONES_ACADEMIQUES, sep=';', dtype=str)
+    df['zone'] = df['zone'].replace('', None)
+    df.to_sql('zones_academiques', conn, if_exists='append', index=False)
+    n_avec_zone = df['zone'].notna().sum()
+    print(f"  ✓ {len(df)} académies ({n_avec_zone} en zone A/B/C)")
+
+
+def ingerer_vacances(conn):
+    print("→ Chargement calendrier vacances scolaires...")
+    fichiers = sorted(glob.glob(os.path.join(DIR, "vacances_scolaires_*.csv")))
+    if not fichiers:
+        print("  ⚠ aucun fichier vacances_scolaires_*.csv trouvé")
+        return
+    df = pd.concat([pd.read_csv(f, sep=';', dtype=str) for f in fichiers], ignore_index=True)
+    df = df.drop_duplicates(subset=['annee_scolaire', 'zone', 'periode'])
+    df.to_sql('vacances_scolaires', conn, if_exists='append', index=False)
+    annees = ', '.join(sorted(df['annee_scolaire'].unique()))
+    print(f"  ✓ {len(df)} lignes vacances scolaires ({df['annee_scolaire'].nunique()} année(s) : {annees})")
 
 
 def _bornes_repartition(valeurs, repartition_pct):
@@ -519,13 +677,20 @@ def creer_index(conn):
             ON scores(uai);
         CREATE INDEX IF NOT EXISTS idx_scores_session
             ON scores(session);
+        CREATE INDEX IF NOT EXISTS idx_langues_uai
+            ON langues_offertes(uai);
+        CREATE INDEX IF NOT EXISTS idx_vacances_zone
+            ON vacances_scolaires(zone, date_debut);
+        CREATE INDEX IF NOT EXISTS idx_sections_sportives_uai
+            ON sections_sportives(uai);
     """)
-    print("  ✓ 11 index créés")
+    print("  ✓ 14 index créés")
 
 
 def verifier(conn):
     print("\n=== VÉRIFICATION ===")
-    for table in ['etablissements', 'ips', 'ivac', 'scores', 'referentiel_temporel']:
+    for table in ['etablissements', 'ips', 'ivac', 'scores', 'referentiel_temporel',
+                  'langues_offertes', 'vacances_scolaires', 'zones_academiques', 'sections_sportives']:
         n = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         print(f"  {table:<30} : {n:>6} lignes")
 
@@ -568,6 +733,10 @@ def main():
     ingerer_annuaire(conn)
     ingerer_ips(conn)
     ingerer_ivac(conn)
+    ingerer_langues(conn)
+    ingerer_sections_sportives(conn)
+    ingerer_zones_academiques(conn)
+    ingerer_vacances(conn)
     calculer_scores(conn)
     inserer_referentiel(conn)
     creer_index(conn)

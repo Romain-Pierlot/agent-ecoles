@@ -1,7 +1,7 @@
 // Appel à l'API Python (api/main.py) — séparé de l'affichage (page.tsx),
 // pour rester testable et remplaçable seul (ex. si l'URL change en prod).
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type OptionChoix = {
   label: string;

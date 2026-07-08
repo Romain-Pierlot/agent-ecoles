@@ -6,15 +6,16 @@ testables séparément. Aucune règle métier ici.
 """
 import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from graph_router import AgentState, poser_question, poser_resolution_choix
 from config import API_CORS_ORIGINS, SEUIL_CANDIDATS_AVANT_PRECISION, SPLIT_SECTEUR_INCREMENT
 from api.graphe import obtenir_graphe
 from api.sessions import obtenir_ou_creer_session, enregistrer_session
-from api.schemas import ChatRequest, ChatResponse, Choix
+from api.schemas import ChatRequest, ChatResponse, Choix, FicheEtablissement
 from api.journalisation import journaliser_echange
+from agent.tools.etablissement_tool import obtenir_fiche_etablissement
 
 app = FastAPI(title="agent-ecoles API")
 
@@ -99,6 +100,16 @@ def _construire_choix(etat: AgentState) -> Choix | None:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/etablissement/{uai}", response_model=FicheEtablissement)
+def obtenir_etablissement(uai: str):
+    resultat = obtenir_fiche_etablissement(uai)
+    if not resultat["success"]:
+        raise HTTPException(status_code=500, detail=resultat["error"])
+    if resultat["fiche"] is None:
+        raise HTTPException(status_code=404, detail=f"Établissement {uai} introuvable")
+    return resultat["fiche"]
 
 
 @app.post("/chat", response_model=ChatResponse)

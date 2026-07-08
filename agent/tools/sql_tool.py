@@ -52,7 +52,7 @@ def _filtre_section_sql(colonne_section_filtre: str = None) -> tuple[str, str]:
     return f" AND e.{colonne_section_filtre} = 1", None
 
 SCHEMA_PROMPT = """
-Tu as accès à une base SQLite avec 5 tables sur les établissements scolaires français.
+Tu as accès à une base SQLite avec 9 tables sur les établissements scolaires français.
 
 TABLE etablissements — 1 ligne par établissement
   uai TEXT PRIMARY KEY
@@ -85,6 +85,8 @@ TABLE ips
   ips_national_public REAL
   ips_academique REAL
   ips_departemental REAL
+  ecart_type_ips_national REAL       -- comparatif mixité, calculé à l'ingestion
+  ecart_type_ips_departemental REAL
 
 TABLE ivac
   uai TEXT FK
@@ -99,6 +101,10 @@ TABLE ivac
   nb_mentions_b INTEGER
   nb_mentions_tb INTEGER
   nb_mentions_total INTEGER
+  brevet_taux_reussite_national REAL       -- moyenne nationale de la session, calculée à l'ingestion
+  brevet_note_ecrit_national REAL
+  brevet_taux_reussite_departemental REAL  -- moyenne du département de l'établissement, même session
+  brevet_note_ecrit_departemental REAL
 
 TABLE scores
   uai TEXT FK
@@ -112,6 +118,28 @@ TABLE referentiel_temporel
   session_ivac TEXT PRIMARY KEY
   annee_scolaire_ips TEXT
   libelle_affichage TEXT
+
+TABLE zones_academiques — 1 ligne par académie (rattachement via etablissements.code_academie)
+  code_academie TEXT PRIMARY KEY
+  libelle_academie TEXT
+  zone TEXT  -- 'A'/'B'/'C', NULL pour la Corse et les académies d'outre-mer
+
+TABLE langues_offertes — 0 à N lignes par établissement (uniquement collèges, ~78% de couverture)
+  uai TEXT FK
+  type_enseignement TEXT  -- 'LV1'/'LV2'/'LCA' — pas de niveau (6e/5e) ni de bilangue dans cette donnée
+  langue TEXT
+
+TABLE sections_sportives — 0 à N lignes par établissement (uniquement collèges, ~25% de couverture)
+  uai TEXT FK
+  sport TEXT  -- ex: 'Football', 'Escalade', 'Karate' — sport précis de la section sportive
+
+TABLE vacances_scolaires — calendrier des vacances par zone et par année scolaire
+  annee_scolaire TEXT
+  zone TEXT           -- 'A'/'B'/'C', ou 'TOUTES' pour une période commune aux 3 zones
+  periode TEXT         -- 'Toussaint'/'Noël'/'Hiver'/'Printemps'/'Prérentrée'/'Rentrée'/'Fin d'année scolaire'
+  type_periode TEXT    -- 'vacances' (date_fin renseignée) ou 'jalon' (date ponctuelle, date_fin NULL)
+  date_debut TEXT       -- ISO 'YYYY-MM-DD'
+  date_fin TEXT         -- ISO, NULL pour un jalon
 
 RÈGLES IMPORTANTES :
 - Toujours filtrer WHERE type_etablissement = 'Collège' sauf demande explicite sur les lycées
@@ -149,7 +177,16 @@ RÈGLES IMPORTANTES :
 - Synonymes : école/établissement/collège → etablissements, résultats/notes → ivac,
   social/milieu → ips_moyen, section arts/option arts → section_arts, section
   cinéma/option cinéma/audiovisuel → section_cinema, section théâtre/option
-  théâtre/art dramatique → section_theatre
+  théâtre/art dramatique → section_theatre, langues/LV1/LV2/latin/grec →
+  langues_offertes, quel sport/section sport précise → sections_sportives,
+  zone de vacances/quand sont les vacances → zones_academiques JOIN
+  vacances_scolaires
+- Pour "quand sont les prochaines vacances d'un établissement" : joindre
+  etablissements → zones_academiques ON code_academie, puis filtrer
+  vacances_scolaires WHERE type_periode = 'vacances' AND zone IN (za.zone,
+  'TOUTES') AND date_debut >= date('now') ORDER BY date_debut LIMIT 1. Si
+  za.zone est NULL (Corse, outre-mer), dire que cette académie fixe son
+  calendrier indépendamment plutôt que de deviner une zone.
 - DEUX critères de tri distincts selon la formulation exacte de la question —
   ne jamais les confondre :
   1. "quels sont les meilleurs/pires collèges", "classe les collèges",

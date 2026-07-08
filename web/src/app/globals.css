@@ -11,6 +11,44 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Design system "écoles" — tokens sémantiques (docs/Design_system/design_handoff_fiche_etablissement/DESIGN_SYSTEM.md) */
+  --color-action: #D9457A;
+  --color-action-dark: #A82C58;
+  --color-action-pale: #FCE4EC;
+  --color-positif: #2E8F5E;
+  --color-positif-pale: #E7F1E9;
+  --color-descriptif: #3A5A8C;
+  --color-descriptif-pale: #E9EEF6;
+  --color-attention: #F0A02E;
+  --color-attention-dark: #B0741A;
+  --color-accent: #C15A3C;
+
+  --color-fond-creme: #FCF4E9;
+  --color-fond-sable: #F1E7D6;
+  --color-fond-carte: #FBF6EC;
+  --color-texte: #223B30;
+  --color-texte-doux: #5C6A60;
+  --color-filet: #EFE1CE;
+  --color-filet-fonce: #EBD9BF;
+
+  --font-baloo: var(--font-baloo-2);
+  --font-figtree: var(--font-figtree-sans);
+  --font-caveat: var(--font-caveat-hand);
+  --font-jetbrains: var(--font-jetbrains-mono);
+
+  /* Nuances au-delà des 4 tokens sémantiques de base — pastille de notation
+     (A+/A/A-/B+/B) et donut des mentions au brevet. Jamais un hex en dur sur
+     une donnée : ces variables sont le point de passage obligé. */
+  --color-notation-a-plus: #2E8F5E;
+  --color-notation-a: #4FA772;
+  --color-notation-a-moins: #7FB65E;
+  --color-notation-b-plus: #F0A02E;
+  --color-notation-b: #E58A3C;
+  --color-mention-tb: #2E8F5E;
+  --color-mention-b: #5DB98B;
+  --color-mention-ab: #9BCBAF;
+  --color-mention-sans: #D8CBB4;
 }
 
 @media (prefers-color-scheme: dark) {
