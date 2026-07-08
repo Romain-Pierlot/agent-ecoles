@@ -46,11 +46,15 @@
       </div>
       <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
         <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
-        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Schéma d'URL :</b> <span style="font:400 11.5px ui-monospace;color:#8a877f">/region/{slug}/departement/{slug}/ville/{slug}/college/{nom-uai}</span> — l'académie n'y figure pas.</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Schéma d'URL :</b> <span style="font:400 11.5px ui-monospace;color:#8a877f">/region/{slug}/departement/{slug}/ville/{slug}/college/{nom-slugifié}-{uai}</span> — l'académie n'y figure pas.</div>
       </div>
       <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
         <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
         <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Rattachement en base, par établissement :</b> <span style="font:400 11.5px ui-monospace;color:#8a877f">code_commune · code_departement · code_academie · code_region</span> — 4 clés indépendantes, l'académie n'est dérivée d'aucune des trois autres.</div>
+      </div>
+      <div style="display:flex;gap:14px;background:#fff;border:1px solid #d7ead9;border-radius:10px;padding:14px 16px">
+        <div style="font:700 13px ui-monospace;color:#1f8a5b;flex:none;width:20px">✓</div>
+        <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Format du slug établissement tranché :</b> <span style="font:400 11.5px ui-monospace;color:#8a877f">{nom-slugifié}-{uai}</span> — ex. <span style="font:400 11.5px ui-monospace;color:#8a877f">college-jean-moulin-0341065y</span>. Accents supprimés, minuscules, UAI toujours en suffixe (unicité et stabilité de l'URL même si le nom change). Implémenté dans <span style="font:400 11.5px ui-monospace;color:#8a877f">web/src/lib/slug.ts</span>.</div>
       </div>
     </div>
   </div>
@@ -140,7 +144,7 @@
       <div style="display:flex;align-items:center;justify-content:center;width:34px;font:600 16px 'Inter';color:#c9c5bc">›</div>
       <div style="flex:1;border:2px solid #2a78d6;border-radius:9px;padding:12px 13px;background:#f7faff">
         <div style="display:flex;justify-content:space-between;align-items:center"><div style="font:700 12.5px 'Inter';color:#1a1a1a">Fiche établissement</div><span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:10px;padding:1px 7px;font:600 9px 'Inter';color:#2a5fa0">9 143</span></div>
-        <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/region/{r}/departement/{d}/ville/{v}/college/{nom-uai}</div>
+        <div style="font:400 9.5px ui-monospace;color:#8a877f;margin-top:3px">/region/{r}/departement/{d}/ville/{v}/college/{nom-slugifié}-{uai}</div>
         <div style="margin-top:8px;font:400 10px/1.45 'Inter';color:#6b685f">Page pivot. Fil d'Ariane : France › Région › Département › Ville · Académie en tag à part.</div>
       </div>
     </div>
@@ -181,7 +185,7 @@
     </div>
   </div>
 
-  <div style="max-width:1180px;font:400 15px/1.4 'Caveat';color:#c2410c;font-weight:600;margin-top:14px;padding-left:4px">Décisions encore ouvertes : (1) slug avec accents ? UAI dans l'URL ? (2) « adresse → collège de secteur » : page dédiée ou liste centrée ? (3) le calendrier /calendrier se décline-t-il par académie (/calendrier/{academie}) ?</div>
+  <div style="max-width:1180px;font:400 15px/1.4 'Caveat';color:#c2410c;font-weight:600;margin-top:14px;padding-left:4px">Décision encore ouverte : « adresse → collège de secteur » : page dédiée ou liste centrée ?</div>
 
 </div>
 </x-dc>

@@ -1326,7 +1326,7 @@ Appliqués de façon constante v3 à v6.
 
 ## S13.4 — Refonte de la formule de score : 4 indicateurs à parts égales, VA à 50% du poids total, mixité sortie du calcul
 
-**Décision** : Score = 25% taux de réussite + 25% note écrite + 25% VA taux de réussite + 25% VA note écrite (normalisation min-max par session, remplace la formule S1.3/S8.6 à 60%/40% sur les seuls résultats bruts). Notation finale en lettres façon agence de notation (BB/BBB/A/AA/AAA), répartition par quantiles selon le Stanine adapté à 5 groupes (10/15/50/15/10%).
+**Décision** : Score = 25% taux de réussite + 25% note écrite + 25% VA taux de réussite + 25% VA note écrite (normalisation min-max par session, remplace la formule S1.3/S8.6 à 60%/40% sur les seuls résultats bruts). Notation finale en lettres (B/B+/A-/A/A+, du plus faible au plus élevé), répartition par quantiles selon le Stanine adapté à 5 groupes (10/15/50/15/10%).
 
 **Options testées** : poids égal par indicateur (retenu) / VA renforcée à 30% puis 35% chacune (60%/70% du poids total sur la VA).
 
@@ -1351,3 +1351,36 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : décliner le calendrier scolaire par académie via une sous-route dynamique (`/calendrier/{academie}`) — la page reste unique, toutes les académies affichées ensemble (zones de vacances), une recherche par adresse/ville pour retrouver sa zone étant prévue comme évolution ultérieure de cette même page plutôt qu'un besoin de route supplémentaire.
 
 **Conséquence** : `web/src/components/PagePlaceholder.tsx` (composant de stub partagé par toutes les routes, évite de dupliquer la même logique). Chaque nouvelle page de contenu (département, ville, fiche établissement...) remplacera son placeholder sans changer l'architecture de dossiers. Deux points restent ouverts, à trancher à la conception de chacune des pages concernées : format des slugs (accents, UAI dans l'URL) et existence d'une page dédiée "adresse → collège de secteur".
+
+## S15.2 — Implémentation de la fiche établissement en tranche verticale (DB → API → page Next.js), sans carte scolaire ni synthèse IA
+
+**Décision** : Construire d'abord une tranche verticale complète et fonctionnelle de la fiche établissement (nouvelles tables SQL, route API, composants front) plutôt que d'intégrer immédiatement la carte scolaire, les établissements voisins ou la synthèse IA.
+
+**Périmètre livré** :
+- Données : nouvelles tables `langues_scolaires`, `langues_offertes`, `sections_sportives` ; colonnes précalculées `ivac.brevet_taux_reussite_national/departemental` et `ivac.brevet_note_ecrit_national/departemental`. Nouvelles sources : `data/zones_academiques.csv` (34 académies, zones A/B/C vérifiées sur l'arrêté Légifrance du 22/10/2025, NULL pour la Corse et les DOM-TOM), `data/vacances_scolaires_2026_2027.csv`.
+- Backend : `agent/tools/etablissement_tool.py::obtenir_fiche_etablissement(uai)`.
+- API : route `GET /etablissement/{uai}`, nouveaux modèles dans `api/schemas.py`.
+- Frontend : page `web/.../college/[collegeSlug]/page.tsx` remplace le placeholder ; composants `_components/` (FicheIdentite, ResultatsBrevet, ValeurAjoutee, PositionnementSocial, DispositifsExpliques) ; format de slug `{nom-slugifié}-{uai}`.
+
+**Principe appliqué** : toute donnée potentiellement interrogeable par une question utilisateur doit vivre en base (table + entrée `SCHEMA_PROMPT`), jamais en config applicative — appliqué ici au mapping académie → zone de vacances scolaires.
+
+**Rejeté** : intégration immédiate de la carte scolaire, des établissements voisins et de la synthèse IA dans ce même chantier — différée à un chantier séparé (cf. S1.4 pour la carte scolaire).
+
+**Conséquence** : la couverture des données livrées est partielle par nature (langues ~78% des collèges, sections sportives ~25%) — état réel des sources, pas un bug. La convention de couleur des badges de dispositifs/sections (8-9 catégories) reste à trancher, notée dans `journal_de_bord.md`.
+
+## S15.3 — Finalisation de la fiche établissement : données manquantes explicites, pas de catégorisation inventée sur l'IPS, harmonisation visuelle brevet/VA/milieu social
+
+**Décision** : Trois ajustements sur la fiche établissement issue de la S15.2, après retours sur le rendu réel :
+1. Absence de données (langues, sections sportives) toujours signalée explicitement, jamais silencieuse.
+2. IPS et mixité sociale affichés sans catégorie qualitative ("favorisé"/"défavorisé") — seulement les bornes de l'échelle nommées et le positionnement réel de l'établissement / de la moyenne nationale.
+3. Les 3 sections de contenu (brevet, valeur ajoutée, milieu social) suivent désormais la même grammaire visuelle : titre nu sur fond de page pour les données descriptives (brevet, milieu social), cadre teinté réservé aux données évaluatives (valeur ajoutée) ; cartes internes toutes en blanc.
+
+**Pourquoi (données manquantes)** : `langues_offertes` et `sections_sportives` ont une couverture partielle (~78% et ~25% des collèges, cf. S15.2) pour des raisons différentes — LV1/LV2 sont une obligation légale (absence = quasi certainement un trou de collecte), alors qu'une section sportive est un dispositif optionnel réellement absent dans la majorité des collèges. Un même message masquerait cette différence : "Données non disponibles" pour les langues (on affirme un vide de collecte), "Aucune donnée répertoriée — à vérifier auprès de l'établissement" pour le sport (on ne garantit pas une absence qu'on ne peut pas confirmer à 100%).
+
+**Pourquoi (pas de catégorisation IPS)** : la notation en lettres du score (S13.4) est une méthode propre au produit, assumée et documentée comme telle. L'IPS et l'écart-type IPS sont en revanche des indicateurs officiels publiés par le ministère — leur attribuer une catégorie qualitative maison sans base officielle ferait passer un jugement du produit pour une lecture ministérielle. Vérification faite dans les 4 sources DEPP déjà ingérées dans le RAG (guide méthodologique IVAC, construction de l'IPS, actualisation 2022, note d'information 23.16) : aucune catégorisation officielle par seuils n'existe. D'où le choix de n'afficher que les bornes de l'échelle, sans trancher où se situe la limite entre les deux.
+
+**Pourquoi (harmonisation visuelle)** : le fond `fond-carte` (#FBF6EC) utilisé initialement pour les cartes descriptives est visuellement quasi indissociable du fond de page `fond-creme` (#FCF4E9) — la distinction ne tenait qu'à une fine bordure, jugée insuffisamment lisible en test réel. Le blanc uniforme sur toutes les cartes de données résout ce problème de contraste, en gardant le cadre teinté de la valeur ajoutée comme seul signal visuel réservé aux données évaluatives.
+
+**Rejeté** : catégorisation IPS/mixité par quantiles calculés sur la distribution réelle des établissements (seuils Stanine 10/15/50/15/10, même méthode que la notation en lettres) — écartée après vérification qu'aucune source officielle ne la justifie. Fond beige (`fond-carte`) pour toutes les cartes de données — écarté pour manque de lisibilité face au fond de page, de teinte quasi identique.
+
+**Conséquence** : `FicheIdentite.tsx` (messages de repli différenciés), `PositionnementSocial.tsx` (jauge sans catégorie, aide contextuelle au clic pour les termes techniques IPS/écart-type, cartes blanches, titre de section renommé "Le milieu social des élèves"), `ResultatsBrevet.tsx` (cartes de stats passées en blanc). Aucun changement de schéma de données — ces trois ajustements sont purement côté frontend.

@@ -9,6 +9,8 @@ Les fichiers `.dc.html` de ce paquet sont des **références de design réalisé
 ## Fidélité
 **Haute fidélité (hifi).** Couleurs, typographie, espacements et hiérarchie sont définitifs. À reproduire fidèlement avec les composants/libs du repo. Les **données affichées sont illustratives** (Collège Jean Moulin, IPS 112, etc.) — à brancher sur les vraies données par UAI.
 
+**Depuis l'implémentation réelle (S15.2/S15.3, cf. `decision_log.md`), la fiche établissement diverge volontairement de ce prototype statique sur plusieurs points** — le prototype n'est pas remaintenu en continu, la source de vérité est le code + le journal de décisions : messages explicites en cas de donnée manquante (langues, sections sportives), jauge IPS/mixité sociale sans catégorie qualitative ("favorisé"/"défavorisé", absente de ce prototype), et cartes de données toutes en blanc plutôt qu'en beige.
+
 ## Le principe fondateur
 **Une couleur = un rôle, jamais une décoration.** On ne code jamais un hex « en dur » sur une donnée : on lui applique le token sémantique qui porte son sens. Voir `DESIGN_SYSTEM.md` pour la règle complète et la fonction `sentiment()`.
 
@@ -21,13 +23,12 @@ Sections dans l'ordre :
 1. **Top bar** (sticky) — logo « écoles », nav (Chercher / Explorer / Comprendre), CTA « Demander à Camille ».
 2. **Fil d'Ariane + URL** — région › département › commune › établissement.
 3. **Fiche identité** (grille 2 colonnes `1fr 340px`) :
-   - Carte identité : statut, nom (Baloo 2 800/34px), adresse, **pastille de notation maison** (A+/A/A-/B+/B), badges dispositifs, coordonnées (UAI, tél, courriel, site, académie, zone), langues & options intégrées, bandeau vacances.
+   - Carte identité : statut, nom (Baloo 2 800/34px), adresse, **pastille de notation maison** (A+/A/A-/B+/B), badges dispositifs, coordonnées (UAI, tél, courriel, site, zone, académie en lien cliquable), langues & options intégrées, bandeau vacances.
    - Rail droit : vignette carte de secteur, CTA « Suis-je dans le secteur ? », carte assistant Camille (compacte).
-4. **Barre d'ancres** (sticky) — Identité / Localisation / Résultats & public / Dispositifs / Voisins.
-5. **Résultats au brevet** (`#brevet`) : 3 cartes stats (libellé au-dessus, chiffre 40px vedette, repères National/Rhône), donut des mentions, histogramme d'évolution (vert uni), bloc **valeur ajoutée** (2 cartes), et bloc **positionnement social** rattaché (IPS + mixité en bleu descriptif).
-6. **Dispositifs expliqués** — REP+, ULIS, SEGPA en clair (sans jargon).
-7. **Synthèse IA** — résumé « par Camille » + CTA.
-8. **Voisins** — collèges à proximité (IPS + VA).
+4. **Résultats au brevet** (`#brevet`) : 3 cartes stats (libellé au-dessus, chiffre 40px vedette, repères National/Rhône), donut des mentions, histogramme d'évolution (vert uni), bloc **valeur ajoutée** (2 cartes), et bloc **positionnement social** rattaché (IPS + mixité en bleu descriptif).
+5. **Dispositifs expliqués** — REP+, ULIS, SEGPA en clair (sans jargon).
+6. **Synthèse IA** — résumé « par Camille » + CTA.
+7. **Voisins** — collèges à proximité (IPS + VA).
 
 ## Tokens & règles
 Voir **`DESIGN_SYSTEM.md`** — palette, 6 tokens sémantiques, tableau de seuils par indicateur, fonction `sentiment()`, typographie, principes.
