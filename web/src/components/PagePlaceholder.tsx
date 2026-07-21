@@ -12,12 +12,22 @@ const LIENS_SQUELETTE: { label: string; href: string }[] = [
   { label: "Recherche", href: "/recherche" },
   { label: "Explorer", href: "/explorer" },
   { label: "Comprendre (exemple : IPS)", href: "/comprendre/ips" },
-  { label: "Région (exemple : Rhône-Alpes)", href: "/region/rhone-alpes" },
-  { label: "Département (exemple : Rhône)", href: "/departement/rhone" },
-  { label: "Ville (exemple : Lyon)", href: "/ville/lyon" },
+  { label: "Régions (liste)", href: "/region" },
+  {
+    label: "Région (exemple : Auvergne-Rhône-Alpes)",
+    href: "/region/auvergne-rhone-alpes",
+  },
+  {
+    label: "Département (exemple : Rhône)",
+    href: "/region/auvergne-rhone-alpes/departement/69-rhone",
+  },
+  {
+    label: "Ville (exemple : Lyon)",
+    href: "/region/auvergne-rhone-alpes/departement/69-rhone/ville/lyon",
+  },
   {
     label: "Fiche établissement (exemple : Jean Moulin)",
-    href: "/region/rhone-alpes/departement/rhone/ville/lyon/college/jean-moulin",
+    href: "/region/auvergne-rhone-alpes/departement/69-rhone/ville/lyon/college/college-jean-moulin-0692696f",
   },
   { label: "Académie (exemple : Lyon)", href: "/academie/lyon" },
   { label: "Calendrier scolaire", href: "/calendrier" },
