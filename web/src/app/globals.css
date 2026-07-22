@@ -50,6 +50,15 @@
   --color-mention-b: #5DB98B;
   --color-mention-ab: #9BCBAF;
   --color-mention-sans: #D8CBB4;
+
+  /* Statut public/privé (chip sur la carte collège, page ville) — rôle
+     distinct des 4 tokens sémantiques de base : ici on décrit un type
+     d'établissement, pas un jugement positif/négatif ni une donnée
+     positionnelle (cf. docs/Design_system/hub_departement_comparateur/README.md). */
+  --color-statut-public: #227049;
+  --color-statut-public-pale: #E7F1E9;
+  --color-statut-prive: #2C6FA6;
+  --color-statut-prive-pale: #EAF2FA;
 }
 
 body {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { EtablissementIdentite, LanguesOffertes, ProchainesVacances } from "@/lib/types";
 import { slugifier } from "@/lib/slug";
 import { NOM_ASSISTANT } from "@/lib/constants";
+import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { BoutonAide } from "@/components/BoutonAide";
 
 const NOTATION_CLASSES: Record<string, string> = {
@@ -11,15 +12,6 @@ const NOTATION_CLASSES: Record<string, string> = {
   "B+": "bg-notation-b-plus",
   "B": "bg-notation-b",
 };
-
-const SECTIONS: { cle: keyof EtablissementIdentite; label: string }[] = [
-  { cle: "section_sport", label: "Section sportive" },
-  { cle: "section_arts", label: "Section arts" },
-  { cle: "section_cinema", label: "Section cinéma" },
-  { cle: "section_theatre", label: "Section théâtre" },
-  { cle: "section_internationale", label: "Section internationale" },
-  { cle: "section_europeenne", label: "Section européenne" },
-];
 
 function formaterDate(iso: string): string {
   const [annee, mois, jour] = iso.split("-").map(Number);
@@ -107,13 +99,7 @@ export function FicheIdentite({
   zoneVacances: string | null;
   prochainesVacances: ProchainesVacances | null;
 }) {
-  const badges: string[] = [];
-  if (identite.appartenance_education_prioritaire) badges.push(identite.appartenance_education_prioritaire);
-  if (identite.ulis) badges.push("ULIS");
-  if (identite.segpa) badges.push("SEGPA");
-  for (const s of SECTIONS) {
-    if (identite[s.cle]) badges.push(s.label);
-  }
+  const badges = deriveBadgesDispositifs(identite);
 
   const coordonnees: { label: string; valeur: string; classe?: string; lien?: string }[] = [
     { label: "Identifiant UAI", valeur: identite.uai, classe: "font-jetbrains" },

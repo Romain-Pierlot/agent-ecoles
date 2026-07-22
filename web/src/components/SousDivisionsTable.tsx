@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import type { LigneSousDivision } from "@/components/ZoneHub";
 
-const NB_AFFICHEES_INITIALEMENT = 15;
+// Assez haut pour que régions (19) et départements (≤13 par région) s'affichent
+// toujours en entier sans pagination — seule une liste de communes très
+// dense (page département) peut dépasser ce seuil et déclencher "voir plus".
+const NB_AFFICHEES_INITIALEMENT = 25;
 
 function formaterTaux(taux: number | null): string {
   return taux === null ? "—" : `${taux.toFixed(0)} %`;
@@ -35,7 +38,7 @@ export function SousDivisionsTable({
           href={sd.href}
           className="grid grid-cols-[1fr_70px_84px_18px] items-center gap-2 border-t border-[#F0E6D2] px-4 py-2.5 hover:bg-fond-carte/60"
         >
-          <span className="truncate text-[13px] font-bold text-texte">{sd.libelle}</span>
+          <span className="min-w-0 truncate text-[13px] font-bold text-texte">{sd.libelle}</span>
           <span className="text-right font-baloo text-[13px] font-bold text-texte">
             {sd.nb_etablissements}
           </span>

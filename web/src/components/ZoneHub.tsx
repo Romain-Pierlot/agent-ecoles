@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { AgregatEtablissements, SousDivision } from "@/lib/types";
 import { AgentBlock } from "@/components/AgentBlock";
+import { RechercheBloc } from "@/components/RechercheBloc";
 import { SousDivisionsTable } from "@/components/SousDivisionsTable";
 
 export type LigneSousDivision = SousDivision & { href: string };
@@ -25,7 +26,7 @@ export function ZoneHub({
   exempleAgent: string;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
       {/* ===== FIL D'ARIANE ===== */}
       <div className="flex flex-wrap items-center gap-1.5 py-3.5 text-[12px] font-semibold text-texte-doux/70">
         {filAriane.map((item, index) => (
@@ -44,7 +45,7 @@ export function ZoneHub({
 
       {/* ===== HERO ===== */}
       <div className="flex flex-wrap items-start justify-between gap-6">
-        <div>
+        <div className="min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">{eyebrow}</span>
           <h1 className="mt-1 font-baloo text-[30px] font-extrabold leading-tight text-texte">{titre}</h1>
           <p className="mt-1.5 text-[12.5px] text-texte-doux">{sousTitre}</p>
@@ -63,25 +64,7 @@ export function ZoneHub({
         </div>
       </div>
 
-      {/* ===== BLOC RECHERCHE (provisoire — conception séparée en cours) ===== */}
-      <form
-        action="/recherche"
-        method="get"
-        className="mt-6 flex flex-wrap items-center gap-2.5 rounded-2xl border border-filet bg-white p-4"
-      >
-        <input
-          type="text"
-          name="q"
-          placeholder="Rechercher une ville ou une adresse…"
-          className="min-w-[240px] flex-1 rounded-xl border border-filet-fonce bg-fond-carte px-3.5 py-2.5 text-[13.5px] text-texte outline-none placeholder:text-texte-doux/60"
-        />
-        <button
-          type="submit"
-          className="rounded-xl bg-action px-5 py-2.5 text-[13px] font-bold text-white hover:bg-action-dark"
-        >
-          Rechercher
-        </button>
-      </form>
+      <RechercheBloc />
 
       {/* ===== LISTE SOUS-DIVISIONS ===== */}
       <div className="mt-7">

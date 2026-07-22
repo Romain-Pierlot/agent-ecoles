@@ -138,3 +138,38 @@ export type DepartementHub = {
   global: AgregatEtablissements;
   communes: SousDivision[];
 };
+
+// Miroir TypeScript de api/schemas.py (CollegeVille, VilleHub) —
+// GET /region/{slug}/departement/{slug}/ville/{slug}.
+
+export type CollegeVille = {
+  uai: string;
+  nom: string;
+  secteur: string;
+  notation: string | null;
+  badge_va: string | null;
+  va_imputee: boolean;
+  appartenance_education_prioritaire: string | null;
+  ulis: boolean;
+  segpa: boolean;
+  section_arts: boolean;
+  section_cinema: boolean;
+  section_theatre: boolean;
+  section_sport: boolean;
+  section_internationale: boolean;
+  section_europeenne: boolean;
+  brevet_taux_reussite_general: number | null;
+};
+
+export type VilleHub = {
+  libelle_region: string;
+  code_departement: string;
+  libelle_departement: string;
+  commune: string;
+  session_utilisee: string | null;
+  global: AgregatEtablissements;
+  nb_publics: number;
+  nb_prives: number;
+  taux_reussite_national: number | null;
+  colleges: CollegeVille[];
+};

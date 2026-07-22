@@ -1,5 +1,5 @@
 import { API_URL } from "@/lib/api";
-import type { NationalHub, RegionHub, DepartementHub } from "@/lib/types";
+import type { NationalHub, RegionHub, DepartementHub, VilleHub } from "@/lib/types";
 
 // Appels côté serveur (composants serveur Next.js, SSR) — même pattern que
 // lib/etablissement.ts. 404 traduit en null (slug inconnu, pas une erreur).
@@ -33,4 +33,20 @@ export async function recupererDepartement(
     throw new Error(`L'API a répondu avec le statut ${reponse.status}`);
   }
   return (await reponse.json()) as DepartementHub;
+}
+
+export async function recupererVille(
+  regionSlug: string,
+  deptSlug: string,
+  villeSlug: string
+): Promise<VilleHub | null> {
+  const reponse = await fetch(
+    `${API_URL}/region/${regionSlug}/departement/${deptSlug}/ville/${villeSlug}`,
+    { cache: "no-store" }
+  );
+  if (reponse.status === 404) return null;
+  if (!reponse.ok) {
+    throw new Error(`L'API a répondu avec le statut ${reponse.status}`);
+  }
+  return (await reponse.json()) as VilleHub;
 }
