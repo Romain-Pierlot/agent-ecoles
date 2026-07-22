@@ -1,5 +1,5 @@
 // Première implémentation réelle de la fonction sentiment() documentée dans
-// docs/Design_system/design_handoff_fiche_etablissement/DESIGN_SYSTEM.md
+// docs/Design_system/fiche_etablissement/DESIGN_SYSTEM.md
 // (jusqu'ici du pseudo-code JS dans la doc, jamais implémenté). Un gabarit
 // n'écrit jamais une couleur en dur sur une donnée : il appelle une de ces
 // fonctions et reçoit le nom du token sémantique à utiliser.

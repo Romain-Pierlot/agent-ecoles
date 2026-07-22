@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700;800&amp;family=Caveat:wght@600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#EDEAE3;-webkit-font-smoothing:antialiased}
+  *{box-sizing:border-box}
+  a{color:#A82C58;text-decoration:none}
+  a:hover{color:#D9457A}
+  .wf{font-family:'Figtree',sans-serif}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .hand{font-family:'Caveat',cursive}
+</style>
+</helmet>
+
+<section class="wf" style="padding:38px 40px 0;display:flex;flex-direction:column;gap:16px">
+  <div style="font:800 12px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase">Comparateur de collèges · maquette retenue</div>
+  <div style="font:400 13px/1.65 'Figtree';color:#5C6A60;max-width:940px">Maquette retenue pour le comparateur, calée sur la grammaire de la fiche établissement : surface blanche, filets fins, couleur porteuse de sens uniquement (notation, brevet, valeur ajoutée, milieu social), chips dispositifs aux couleurs du design system, eyebrows framboise. La ligne « dans mon secteur » est retirée (elle exige l'adresse de l'élève).</div>
+
+  <div style="display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start">
+
+    <!-- ============ 5a — COMPARATEUR ÉPURÉ ============ -->
+    <div id="2a" style="display:flex;flex-direction:column;gap:12px;width:820px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="background:#D9457A;color:#fff;border-radius:8px;padding:4px 11px;font:800 13px 'Baloo 2'">2a</span>
+        <span style="font:800 16px 'Baloo 2';color:#223B30">Comparateur de collèges</span>
+        <span style="font:600 11.5px 'Figtree';color:#8A7B64">grammaire unique · couleur = sens uniquement</span>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:18px;box-shadow:0 6px 22px rgba(34,59,48,.06);padding:22px 26px 24px">
+        <div style="display:flex;align-items:center;gap:6px;font:600 11.5px 'Figtree';color:#8A7B64"><span>Rhône</span><span style="color:#C9B79A">›</span><span>Lyon 5ᵉ</span><span style="color:#C9B79A">›</span><span style="color:#223B30">Comparer</span></div>
+        <div style="font:800 24px 'Baloo 2';color:#223B30;margin-top:5px;margin-bottom:4px">Comparer 3 collèges</div>
+
+        <!-- ==== EN-TÊTE (même grille, pas d'encadré) — sticky en cible ==== -->
+        <div style="position:sticky;top:0;background:#fff;z-index:2;display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:end;padding:14px 0 14px;border-bottom:2px solid #E7DECB">
+          <div></div>
+          <div style="text-align:center;position:relative">
+            <span style="position:absolute;top:-6px;right:6px;color:#C9B79A;font:700 13px 'Figtree';cursor:pointer">×</span>
+            <div style="width:50px;height:50px;margin:0 auto;border-radius:15px;background:#2E8F5E;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 9px rgba(46,143,94,.22)"><span style="font:800 22px 'Baloo 2';color:#fff;line-height:1">A+</span></div>
+            <div style="font:800 17px 'Baloo 2';color:#223B30;margin-top:8px;line-height:1.05">Jean Moulin</div>
+            <div style="font:600 10.5px 'Figtree';color:#8A7B64;margin-top:2px">Public · Lyon 5ᵉ</div>
+          </div>
+          <div style="text-align:center;position:relative">
+            <span style="position:absolute;top:-6px;right:6px;color:#C9B79A;font:700 13px 'Figtree';cursor:pointer">×</span>
+            <div style="width:50px;height:50px;margin:0 auto;border-radius:15px;background:#7FB65E;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 9px rgba(122,163,74,.22)"><span style="font:800 22px 'Baloo 2';color:#fff;line-height:1">A-</span></div>
+            <div style="font:800 17px 'Baloo 2';color:#223B30;margin-top:8px;line-height:1.05">Saint-Just</div>
+            <div style="font:600 10.5px 'Figtree';color:#8A7B64;margin-top:2px">Privé · Lyon 5ᵉ</div>
+          </div>
+          <div style="text-align:center;position:relative">
+            <span style="position:absolute;top:-6px;right:6px;color:#C9B79A;font:700 13px 'Figtree';cursor:pointer">×</span>
+            <div style="width:50px;height:50px;margin:0 auto;border-radius:15px;background:#4FA772;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 9px rgba(46,143,94,.2)"><span style="font:800 22px 'Baloo 2';color:#fff;line-height:1">A</span></div>
+            <div style="font:800 17px 'Baloo 2';color:#223B30;margin-top:8px;line-height:1.05">Les Battières</div>
+            <div style="font:600 10.5px 'Figtree';color:#8A7B64;margin-top:2px">Public · Lyon 8ᵉ</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;margin:9px 0 -4px;font:600 10.5px 'Figtree';color:#B6A488">Notation synthétique écoles <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#F4EFE6;color:#8A7B64;font:800 9.5px 'Figtree';cursor:help" title="Note synthétique écoles (A+ → B), calculée à partir des résultats au brevet et de la valeur ajoutée. Voir la méthode.">?</span></div>
+
+        <!-- ==== DESCRIPTION ==== -->
+        <div style="font:700 10px 'Figtree';letter-spacing:.1em;color:#D9457A;text-transform:uppercase;margin:22px 0 2px">Description</div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="font:600 11.5px 'Figtree';color:#8A7B64">Langues</div>
+          <div style="text-align:center;font:600 11.5px 'Figtree';color:#3A4842">Angl · Esp · All · It</div>
+          <div style="text-align:center;font:600 11.5px 'Figtree';color:#3A4842">Angl · Esp</div>
+          <div style="text-align:center;font:600 11.5px 'Figtree';color:#3A4842">Angl · All</div>
+        </div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="display:flex;align-items:center;gap:5px;font:600 11.5px 'Figtree';color:#8A7B64">Dispositifs <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#F4EFE6;color:#8A7B64;font:800 9.5px 'Figtree';cursor:help" title="REP+ : moyens renforcés en éducation prioritaire. ULIS : classe pour l'inclusion d'élèves en situation de handicap. SEGPA : enseignement adapté aux grandes difficultés scolaires.">?</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center"><span style="background:#E7F1E9;color:#227049;border:1px solid #CDE6D7;border-radius:7px;padding:2px 7px;font:700 9.5px 'Figtree'">REP+</span><span style="background:#EAF2FA;color:#2C6FA6;border:1px solid #D3E4F2;border-radius:7px;padding:2px 7px;font:700 9.5px 'Figtree'">ULIS</span><span style="background:#FFF3DE;color:#B0741A;border:1px solid #F0DFB8;border-radius:7px;padding:2px 7px;font:700 9.5px 'Figtree'">SEGPA</span></div>
+          <div style="text-align:center;font:500 11px 'Figtree';color:#B6A488">—</div>
+          <div style="text-align:center;font:500 11px 'Figtree';color:#B6A488">—</div>
+        </div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="font:600 11.5px 'Figtree';color:#8A7B64">Sections &amp; options</div>
+          <div style="text-align:center"><span style="background:#FDEBE4;color:#C15A3C;border:1px solid #F5D6C9;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">Sportive escalade</span></div>
+          <div style="text-align:center"><span style="background:#EAF2FA;color:#2C6FA6;border:1px solid #D3E4F2;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">Section euro. esp.</span></div>
+          <div style="text-align:center;font:500 11px 'Figtree';color:#B6A488">—</div>
+        </div>
+
+        <!-- ==== RÉSULTATS AU BREVET ==== -->
+        <div style="font:700 10px 'Figtree';letter-spacing:.1em;color:#D9457A;text-transform:uppercase;margin:22px 0 2px">Résultats au brevet · 2024</div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="display:flex;align-items:center;gap:5px;font:600 11.5px 'Figtree';color:#8A7B64">Taux de réussite <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#F4EFE6;color:#8A7B64;font:800 9.5px 'Figtree';cursor:help" title="Part des candidats reçus au diplôme national du brevet (session 2024). Vert dès 89 %, ambre en dessous.">?</span></div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">91%</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">94%</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#F0A02E">88%</div>
+        </div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="font:600 11.5px 'Figtree';color:#8A7B64">Note moy. à l'écrit</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#3A4842">13,2<span style="font:600 10px 'Figtree';color:#8A7B64">/20</span></div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#3A4842">13,6<span style="font:600 10px 'Figtree';color:#8A7B64">/20</span></div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#3A4842">12,9<span style="font:600 10px 'Figtree';color:#8A7B64">/20</span></div>
+        </div>
+
+        <!-- ==== VALEUR AJOUTÉE (rubrique comme les autres) ==== -->
+        <div style="display:flex;align-items:center;gap:5px;margin:22px 0 2px"><span style="font:700 10px 'Figtree';letter-spacing:.1em;color:#D9457A;text-transform:uppercase">Valeur ajoutée</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#F4EFE6;color:#8A7B64;font:800 9.5px 'Figtree';cursor:help" title="Écart entre les résultats obtenus et ceux attendus vu le profil des élèves. Positif = le collège fait progresser au-delà des prévisions. Neutralise l'effet du milieu social.">?</span></div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="font:600 11.5px 'Figtree';color:#8A7B64">Réussite vs attendu</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">+6</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">+2</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">+4</div>
+        </div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="font:600 11.5px 'Figtree';color:#8A7B64">Note écrit vs attendu</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">+0,8</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">+0,4</div>
+          <div style="text-align:center;font:800 19px 'Baloo 2';color:#2E8F5E">+0,6</div>
+        </div>
+
+        <!-- ==== MILIEU SOCIAL ==== -->
+        <div style="display:flex;align-items:center;gap:6px;margin:22px 0 2px"><span style="font:700 10px 'Figtree';letter-spacing:.1em;color:#D9457A;text-transform:uppercase">Milieu social</span><span style="font:500 10px 'Figtree';color:#B6A488">on situe, on ne juge pas</span></div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="display:flex;align-items:center;gap:5px;font:600 11.5px 'Figtree';color:#8A7B64">Public accueilli <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#F4EFE6;color:#8A7B64;font:800 9.5px 'Figtree';cursor:help" title="Indice de position sociale (IPS) : milieu social moyen des familles. Plus il est élevé, plus le public est favorisé. Repère national ≈ 101.">?</span></div>
+          <div style="text-align:center"><div style="font:800 19px 'Baloo 2';color:#3A5A8C">112</div><div style="font:500 9.5px 'Figtree';color:#8A7B64">plutôt favorisé</div></div>
+          <div style="text-align:center"><div style="font:800 19px 'Baloo 2';color:#3A5A8C">121</div><div style="font:500 9.5px 'Figtree';color:#8A7B64">très favorisé</div></div>
+          <div style="text-align:center"><div style="font:800 19px 'Baloo 2';color:#3A5A8C">108</div><div style="font:500 9.5px 'Figtree';color:#8A7B64">plutôt favorisé</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:176px 1fr 1fr 1fr;column-gap:8px;align-items:center;padding:13px 0;border-top:1px solid #F0E6D2">
+          <div style="display:flex;align-items:center;gap:5px;font:600 11.5px 'Figtree';color:#8A7B64">Mixité sociale <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#F4EFE6;color:#8A7B64;font:800 9.5px 'Figtree';cursor:help" title="Écart-type de l'IPS au sein du collège : plus il est élevé, plus les profils sociaux sont variés (fort brassage). Repère national ≈ 28.">?</span></div>
+          <div style="text-align:center"><div style="font:800 19px 'Baloo 2';color:#3A5A8C">35.9</div><div style="font:500 9.5px 'Figtree';color:#8A7B64">fort brassage</div></div>
+          <div style="text-align:center"><div style="font:800 19px 'Baloo 2';color:#3A5A8C">22</div><div style="font:500 9.5px 'Figtree';color:#8A7B64">plutôt homogène</div></div>
+          <div style="text-align:center"><div style="font:800 19px 'Baloo 2';color:#3A5A8C">30</div><div style="font:500 9.5px 'Figtree';color:#8A7B64">intermédiaire</div></div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #F0E6D2">
+          <span style="font:600 10.5px 'Figtree';color:#8A7B64;background:#FBF6EC;border:1.5px dashed #E4D8C2;border-radius:9px;padding:6px 11px">+ Ajouter un collège <span style="color:#B6A488">(max 3)</span></span>
+          <span class="hand" style="font-size:14px;color:#C15A3C">↝ surface blanche, un seul filet, en-têtes non encadrés · couleur = sens · même poids pour chaque rubrique</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="wf" style="padding:38px 40px 90px;display:flex;flex-direction:column;gap:16px">
+  <div style="font:800 12px 'Figtree';letter-spacing:.09em;color:#D9457A;text-transform:uppercase">Maquettes haute-fidélité · hub &amp; page terminale</div>
+  <div style="font:400 13px/1.65 'Figtree';color:#5C6A60;max-width:940px">Le hub est <b>un seul gabarit paramétré</b> par un prop <span class="mono" style="font-size:12px">zoneLevel</span> (région / département / ville) : mêmes zones (fil d’Ariane, hero + agrégats, recherche, liste de la sous-division, bloc Camille), seuls le contenu et les libellés varient. La page terminale ville (1c) est une vraie page de résultats qui alimente le comparateur (<a href="#2a" style="color:#D9457A">2a</a>). Détails d’intégration dans le document de handoff.</div>
+  <div style="display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start">
+    <div id="1a" style="display:flex;flex-direction:column;gap:12px;width:820px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="background:#D9457A;color:#fff;border-radius:8px;padding:4px 11px;font:800 13px 'Baloo 2'">1a</span><span style="font:800 16px 'Baloo 2';color:#223B30">Hub — niveau région</span><span style="font:600 11.5px 'Figtree';color:#8A7B64">gabarit unique · <span class="mono">zoneLevel</span> = région</span></div>
+      <div style="background:#FCF4E9;border:1.5px solid #EFE1CE;border-radius:16px;overflow:hidden;box-shadow:0 6px 22px rgba(34,59,48,.06)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #EFE1CE;background:#FCF4E9">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:23px;height:23px;border-radius:8px 6px 9px 5px;background:#D9457A;transform:rotate(-4deg)"></div><div style="font:800 18px 'Baloo 2';color:#223B30">écoles</div></div>
+          <div style="display:flex;align-items:center;gap:16px;font:600 12px 'Figtree';color:#5C6A60"><span>Chercher</span><span>Explorer</span><span>Comprendre</span><span style="display:flex;align-items:center;gap:7px;background:#D9457A;color:#fff;border-radius:16px;padding:6px 12px;font:700 11.5px 'Figtree'"><span style="width:17px;height:17px;border-radius:50%;background:#fff;color:#D9457A;display:flex;align-items:center;justify-content:center;font:800 10px 'Baloo 2'">C</span>Demander à Camille</span></div>
+        </div>
+        <div style="padding:16px 22px 22px">
+          <div style="display:flex;align-items:center;gap:7px;font:600 11.5px 'Figtree';color:#8A7B64"><span>Accueil</span><span style="color:#C9B79A">›</span><span>France</span><span style="color:#C9B79A">›</span><span style="color:#223B30">Auvergne-Rhône-Alpes</span></div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-top:14px">
+            <div style="flex:1"><div style="font:700 11px 'Figtree';letter-spacing:.06em;color:#D9457A;text-transform:uppercase">Région</div><div style="font:800 30px 'Baloo 2';color:#223B30;margin-top:2px">Auvergne-Rhône-Alpes</div><div style="font:400 12.5px/1.5 'Figtree';color:#5C6A60;margin-top:5px;max-width:440px">12 départements · Académies de Lyon, Grenoble et Clermont-Ferrand.</div></div>
+            <div style="flex:none;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:246px">
+              <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:12px;padding:11px 13px"><div style="font:800 22px 'Baloo 2';color:#223B30">1 240</div><div style="font:600 10px 'Figtree';color:#8A7B64;margin-top:2px">collèges</div></div>
+              <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:12px;padding:11px 13px"><div style="font:800 22px 'Baloo 2';color:#227049">A-</div><div style="font:600 10px 'Figtree';color:#8A7B64;margin-top:2px">notation médiane</div></div>
+            </div>
+          </div>
+          <div style="margin-top:16px;background:#fff;border:1.5px solid #EFE1CE;border-radius:14px;padding:16px 18px">
+            <div style="font:800 15px 'Baloo 2';color:#223B30">Trouver un collège</div>
+            <div style="font:500 11px 'Figtree';color:#8A7B64;margin:2px 0 11px">Le plus simple : cherchez votre ville ou votre adresse.</div>
+            <div style="display:flex;align-items:center;gap:10px;background:#FBF6EC;border:1.5px solid #EFE1CE;border-radius:11px;padding:11px 14px">
+              <span style="font-size:15px;color:#B6A488">🔍</span>
+              <span style="flex:1;font:500 13px 'Figtree';color:#B6A488">Rechercher une ville ou une adresse…</span>
+              <span style="flex:none;background:#D9457A;color:#fff;border-radius:9px;padding:7px 14px;font:800 11px 'Baloo 2'">Rechercher</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px">
+              <span style="font:700 10px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase;margin-right:2px">Accès rapide</span>
+              <span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Lyon</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Grenoble</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Saint-Étienne</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Clermont-Ferrand</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Annecy</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Valence</span>
+            </div>
+          </div>
+          <div style="margin-top:18px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font:800 15px 'Baloo 2';color:#223B30">Explorer les départements</div><div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:9px;padding:6px 11px;font:600 11px 'Figtree';color:#5C6A60">Trier : A→Z ⇅</div></div>
+            <div style="margin-top:10px;border:1.5px solid #EFE1CE;border-radius:12px;overflow:hidden;background:#fff">
+              <div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:8px 15px;background:#FBF6EC;border-bottom:1px solid #EFE1CE;font:700 9.5px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase"><span>Département</span><span style="text-align:right">Collèges</span><span>Notation</span><span style="text-align:right">Réussite</span><span></span></div>
+              <div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Ain</div><div style="font:500 10px 'Figtree';color:#8A7B64">01</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">88</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">88%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Ardèche</div><div style="font:500 10px 'Figtree';color:#8A7B64">07</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">34</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">87%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Drôme</div><div style="font:500 10px 'Figtree';color:#8A7B64">26</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">63</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">88%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Isère</div><div style="font:500 10px 'Figtree';color:#8A7B64">38</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">176</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#227049">89%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Loire</div><div style="font:500 10px 'Figtree';color:#8A7B64">42</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">97</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">88%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Rhône</div><div style="font:500 10px 'Figtree';color:#8A7B64">69</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">214</div><div><span style="background:#E7F1E9;color:#227049;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">A-</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#227049">90%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;align-items:center"><div><div style="font:700 13px 'Figtree';color:#223B30">Haute-Savoie</div><div style="font:500 10px 'Figtree';color:#8A7B64">74</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">82</div><div><span style="background:#E7F1E9;color:#227049;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">A-</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#227049">90%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div>
+            </div>
+            <div style="margin-top:7px;font:500 10.5px 'Figtree';color:#8A7B64">+ 5 autres départements · tri par notation ou nombre de collèges disponible.</div>
+          </div>
+          <div style="margin-top:16px;background:linear-gradient(160deg,#D9457A,#A82C58);border-radius:16px;padding:16px 18px;color:#fff;box-shadow:0 8px 20px rgba(168,44,88,.18)">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="flex:none;width:36px;height:36px;border-radius:50%;background:#fff;color:#D9457A;display:flex;align-items:center;justify-content:center;font:800 17px 'Baloo 2';box-shadow:0 2px 8px rgba(0,0,0,.14)">C</div>
+              <div><div style="font:800 15px 'Baloo 2';color:#fff">Demander à Camille</div><div style="font:600 11px 'Figtree';color:#ffffffcc">Décrivez votre situation, elle vous oriente : une ville, des filtres, une shortlist.</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;background:#ffffff1f;border:1px solid #ffffff45;border-radius:11px;padding:10px 13px;margin-top:12px">
+              <span style="flex:1;font:500 12px 'Figtree';color:#fff">« Un bon collège public près de chez moi, avec une section sportive… »</span>
+              <span style="flex:none;background:#fff;color:#A82C58;border-radius:9px;padding:6px 13px;font:800 11px 'Baloo 2'">Demander →</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px">
+              <span style="font:700 9.5px 'Figtree';letter-spacing:.05em;color:#ffffffb3;text-transform:uppercase;margin-right:1px">Exemples</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Comment trouver le collège de mon secteur ?</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Public ou privé, comment choisir ?</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Explique-moi la notation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="1d" style="display:flex;flex-direction:column;gap:12px;width:820px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="background:#D9457A;color:#fff;border-radius:8px;padding:4px 11px;font:800 13px 'Baloo 2'">1d</span><span style="font:800 16px 'Baloo 2';color:#223B30">Hub — niveau département</span><span style="font:600 11.5px 'Figtree';color:#8A7B64">même gabarit · <span class="mono">zoneLevel</span> = département</span></div>
+      <div style="background:#FCF4E9;border:1.5px solid #EFE1CE;border-radius:16px;overflow:hidden;box-shadow:0 6px 22px rgba(34,59,48,.06)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #EFE1CE;background:#FCF4E9">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:23px;height:23px;border-radius:8px 6px 9px 5px;background:#D9457A;transform:rotate(-4deg)"></div><div style="font:800 18px 'Baloo 2';color:#223B30">écoles</div></div>
+          <div style="display:flex;align-items:center;gap:16px;font:600 12px 'Figtree';color:#5C6A60"><span>Chercher</span><span>Explorer</span><span>Comprendre</span><span style="display:flex;align-items:center;gap:7px;background:#D9457A;color:#fff;border-radius:16px;padding:6px 12px;font:700 11.5px 'Figtree'"><span style="width:17px;height:17px;border-radius:50%;background:#fff;color:#D9457A;display:flex;align-items:center;justify-content:center;font:800 10px 'Baloo 2'">C</span>Demander à Camille</span></div>
+        </div>
+        <div style="padding:16px 22px 22px">
+          <div style="display:flex;align-items:center;gap:7px;font:600 11.5px 'Figtree';color:#8A7B64"><span>Accueil</span><span style="color:#C9B79A">›</span><span>Auvergne-Rhône-Alpes</span><span style="color:#C9B79A">›</span><span style="color:#223B30">Rhône</span></div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-top:14px">
+            <div style="flex:1"><div style="font:700 11px 'Figtree';letter-spacing:.06em;color:#D9457A;text-transform:uppercase">Département</div><div style="font:800 30px 'Baloo 2';color:#223B30;margin-top:2px">Rhône</div><div style="font:400 12.5px/1.5 'Figtree';color:#5C6A60;margin-top:5px;max-width:440px">78 communes · Académie de Lyon.</div></div>
+            <div style="flex:none;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:246px">
+              <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:12px;padding:11px 13px"><div style="font:800 22px 'Baloo 2';color:#223B30">214</div><div style="font:600 10px 'Figtree';color:#8A7B64;margin-top:2px">collèges</div></div>
+              <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:12px;padding:11px 13px"><div style="font:800 22px 'Baloo 2';color:#227049">A-</div><div style="font:600 10px 'Figtree';color:#8A7B64;margin-top:2px">notation médiane</div></div>
+            </div>
+          </div>
+          <div style="margin-top:16px;background:#fff;border:1.5px solid #EFE1CE;border-radius:14px;padding:16px 18px">
+            <div style="font:800 15px 'Baloo 2';color:#223B30">Trouver un collège</div>
+            <div style="font:500 11px 'Figtree';color:#8A7B64;margin:2px 0 11px">Le plus simple : cherchez votre ville ou votre adresse.</div>
+            <div style="display:flex;align-items:center;gap:10px;background:#FBF6EC;border:1.5px solid #EFE1CE;border-radius:11px;padding:11px 14px">
+              <span style="font-size:15px;color:#B6A488">🔍</span>
+              <span style="flex:1;font:500 13px 'Figtree';color:#B6A488">Rechercher une ville ou une adresse…</span>
+              <span style="flex:none;background:#D9457A;color:#fff;border-radius:9px;padding:7px 14px;font:800 11px 'Baloo 2'">Rechercher</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px">
+              <span style="font:700 10px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase;margin-right:2px">Accès rapide</span>
+              <span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Lyon</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Villeurbanne</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Vénissieux</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Caluire-et-Cuire</span><span style="background:#FBF6EC;border:1.5px solid #EAD9BF;border-radius:20px;padding:6px 13px;font:700 11.5px 'Figtree';color:#3A4842">Bron</span>
+            </div>
+          </div>
+          <div style="margin-top:18px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font:800 15px 'Baloo 2';color:#223B30">Explorer les communes</div><div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:9px;padding:6px 11px;font:600 11px 'Figtree';color:#5C6A60">Trier : A→Z ⇅</div></div>
+            <div style="margin-top:10px;border:1.5px solid #EFE1CE;border-radius:12px;overflow:hidden;background:#fff">
+              <div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:8px 15px;background:#FBF6EC;border-bottom:1px solid #EFE1CE;font:700 9.5px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase"><span>Commune</span><span style="text-align:right">Collèges</span><span>Note méd.</span><span style="text-align:right">Réussite</span><span></span></div>
+              <div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center;"><div><div style="font:700 13px 'Figtree';color:#223B30">Bron</div><div style="font:500 10px 'Figtree';color:#8A7B64">69500</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">4</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">86%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center;"><div><div style="font:700 13px 'Figtree';color:#223B30">Caluire-et-Cuire</div><div style="font:500 10px 'Figtree';color:#8A7B64">69300</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">3</div><div><span style="background:#E7F1E9;color:#227049;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">A-</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#227049">92%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center;"><div><div style="font:700 13px 'Figtree';color:#223B30">Décines-Charpieu</div><div style="font:500 10px 'Figtree';color:#8A7B64">69150</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">3</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">88%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center;background:#FBF7F1;"><div><div style="font:700 13px 'Figtree';color:#223B30">Lyon <span style="font:600 10px 'Figtree';color:#8A7B64">· 9 arrondissements</span></div><div style="font:500 10px 'Figtree';color:#8A7B64">Déplier pour choisir l’arrondissement</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">42</div><div><span style="font:600 10px 'Figtree';color:#B6A488">au détail</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#227049">90%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">▾</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;border-bottom:1px solid #F0E6D2;align-items:center;"><div><div style="font:700 13px 'Figtree';color:#223B30">Meyzieu</div><div style="font:500 10px 'Figtree';color:#8A7B64">69330</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">2</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#B0741A">88%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div><div style="display:grid;grid-template-columns:1fr 70px 92px 66px 18px;gap:11px;padding:11px 15px;align-items:center;"><div><div style="font:700 13px 'Figtree';color:#223B30">Oullins-Pierre-Bénite</div><div style="font:500 10px 'Figtree';color:#8A7B64">69600</div></div><div style="text-align:right;font:700 13px 'Baloo 2';color:#3A4842">3</div><div><span style="background:#FBF4E4;color:#B0741A;border-radius:8px;padding:3px 10px;font:700 11px 'Figtree'">B+</span></div><div style="text-align:right"><span style="font:700 12px 'Baloo 2';color:#227049">89%</span></div><span style="color:#C9B79A;text-align:center;font-weight:700">›</span></div>
+            </div>
+            <div style="margin-top:7px;font:500 10.5px 'Figtree';color:#8A7B64">Lyon regroupé (arrondissements dépliables) · + 64 autres communes (recherche &amp; pagination).</div>
+          </div>
+          <div style="margin-top:16px;background:linear-gradient(160deg,#D9457A,#A82C58);border-radius:16px;padding:16px 18px;color:#fff;box-shadow:0 8px 20px rgba(168,44,88,.18)">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="flex:none;width:36px;height:36px;border-radius:50%;background:#fff;color:#D9457A;display:flex;align-items:center;justify-content:center;font:800 17px 'Baloo 2';box-shadow:0 2px 8px rgba(0,0,0,.14)">C</div>
+              <div><div style="font:800 15px 'Baloo 2';color:#fff">Demander à Camille</div><div style="font:600 11px 'Figtree';color:#ffffffcc">Décrivez votre situation, elle vous oriente : une ville, des filtres, une shortlist.</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;background:#ffffff1f;border:1px solid #ffffff45;border-radius:11px;padding:10px 13px;margin-top:12px">
+              <span style="flex:1;font:500 12px 'Figtree';color:#fff">« Un bon collège public près de chez moi, avec une section sportive… »</span>
+              <span style="flex:none;background:#fff;color:#A82C58;border-radius:9px;padding:6px 13px;font:800 11px 'Baloo 2'">Demander →</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px">
+              <span style="font:700 9.5px 'Figtree';letter-spacing:.05em;color:#ffffffb3;text-transform:uppercase;margin-right:1px">Exemples</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Comment trouver le collège de mon secteur ?</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Public ou privé, comment choisir ?</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Explique-moi la notation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="1c" style="display:flex;flex-direction:column;gap:12px;width:820px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="background:#D9457A;color:#fff;border-radius:8px;padding:4px 11px;font:800 13px 'Baloo 2'">1c</span><span style="font:800 16px 'Baloo 2';color:#223B30">Page terminale — collèges d’une ville</span><span style="font:600 11.5px 'Figtree';color:#8A7B64">vraie page de résultats · alimente le comparateur (<a href="#2a" style="color:#D9457A">2a</a>)</span></div>
+      <div style="background:#FCF4E9;border:1.5px solid #EFE1CE;border-radius:16px;overflow:hidden;box-shadow:0 6px 22px rgba(34,59,48,.06)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #EFE1CE;background:#FCF4E9">
+          <div style="display:flex;align-items:center;gap:9px"><div style="width:23px;height:23px;border-radius:8px 6px 9px 5px;background:#D9457A;transform:rotate(-4deg)"></div><div style="font:800 18px 'Baloo 2';color:#223B30">écoles</div></div>
+          <div style="display:flex;align-items:center;gap:16px;font:600 12px 'Figtree';color:#5C6A60"><span>Chercher</span><span>Explorer</span><span>Comprendre</span><span style="display:flex;align-items:center;gap:7px;background:#D9457A;color:#fff;border-radius:16px;padding:6px 12px;font:700 11.5px 'Figtree'"><span style="width:17px;height:17px;border-radius:50%;background:#fff;color:#D9457A;display:flex;align-items:center;justify-content:center;font:800 10px 'Baloo 2'">C</span>Demander à Camille</span></div>
+        </div>
+        <div style="padding:16px 22px 22px">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;font:600 11.5px 'Figtree';color:#8A7B64"><span>Accueil</span><span style="color:#C9B79A">›</span><span>Auvergne-Rhône-Alpes</span><span style="color:#C9B79A">›</span><span>Rhône</span><span style="color:#C9B79A">›</span><span style="color:#223B30">Lyon 5ᵉ</span></div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-top:14px">
+            <div><div style="font:700 11px 'Figtree';letter-spacing:.06em;color:#D9457A;text-transform:uppercase">Ville</div><div style="font:800 28px 'Baloo 2';color:#223B30;margin-top:2px">Collèges à Lyon 5ᵉ</div><div style="font:400 12px 'Figtree';color:#5C6A60;margin-top:4px">7 collèges · 5 publics, 2 privés</div></div>
+            <div style="flex:none;display:flex;gap:8px"><div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:12px;padding:9px 13px;text-align:center"><div style="font:800 18px 'Baloo 2';color:#227049">89%</div><div style="font:600 9.5px 'Figtree';color:#8A7B64">réussite moy.</div></div><div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:12px;padding:9px 13px;text-align:center"><div style="font:800 18px 'Baloo 2';color:#227049">A-</div><div style="font:600 9.5px 'Figtree';color:#8A7B64">notation médiane</div></div></div>
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:10px;background:#FBF6EC;border:1.5px solid #EFE1CE;border-radius:11px;padding:11px 14px">
+            <span style="font-size:14px;color:#B6A488">🔍</span><span style="flex:1;font:500 12.5px 'Figtree';color:#B6A488">Rechercher une autre ville, ou saisir une adresse pour trouver son secteur…</span><span style="flex:none;background:#D9457A;color:#fff;border-radius:9px;padding:6px 13px;font:800 11px 'Baloo 2'">Rechercher</span>
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font:700 10px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase;margin-right:2px">Filtrer</span>
+            <span style="background:#FDEBE4;color:#A82C58;border:1.5px solid #E9A9C0;border-radius:9px;padding:6px 11px;font:700 11px 'Figtree'">Public / Privé ▾</span>
+            <span style="background:#fff;color:#5C6A60;border:1.5px solid #EFE1CE;border-radius:9px;padding:6px 11px;font:600 11px 'Figtree'">Dispositifs ▾</span>
+            <span style="background:#fff;color:#5C6A60;border:1.5px solid #EFE1CE;border-radius:9px;padding:6px 11px;font:600 11px 'Figtree'">Sections ▾</span>
+            <span style="background:#fff;color:#5C6A60;border:1.5px solid #EFE1CE;border-radius:9px;padding:6px 11px;font:600 11px 'Figtree'">Notation min. ▾</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px"><div style="font:700 12px 'Figtree';color:#5C6A60">7 résultats</div><div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:9px;padding:6px 11px;font:600 11px 'Figtree';color:#5C6A60">Trier : Notation ↓ ⇅</div></div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:9px">
+            <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:13px;padding:13px 16px;display:flex;align-items:center;gap:14px">
+              <span style="flex:none;width:44px;height:44px;border-radius:13px;background:linear-gradient(155deg,#2E8F5E,#1F6B44);display:flex;align-items:center;justify-content:center;font:800 19px 'Baloo 2';color:#fff;box-shadow:0 5px 13px rgba(46,143,94,.3)">A+</span>
+              <div style="flex:1;min-width:0"><div style="font:700 15px 'Baloo 2';color:#223B30">Collège Jean Moulin</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px"><span style="background:#E7F1E9;color:#227049;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">Public</span><span style="background:#EAF2FA;color:#2C6FA6;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">REP+</span><span style="background:#EAF2FA;color:#2C6FA6;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">ULIS</span><span style="background:#FFF3DE;color:#B0741A;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">SEGPA</span></div></div>
+              <div style="flex:none;text-align:center"><div style="font:800 17px 'Baloo 2';color:#227049">91%</div><div style="font:600 9px 'Figtree';color:#8A7B64">réussite brevet</div></div>
+              <div style="flex:none;display:flex;flex-direction:column;gap:5px;align-items:center"><span style="display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #EFE1CE;color:#5C6A60;border-radius:9px;padding:6px 10px;font:700 10.5px 'Figtree'"><span style="width:13px;height:13px;border:1.5px solid #C9B79A;border-radius:4px;display:inline-block"></span>Comparer</span><span style="font:700 15px 'Baloo 2';color:#C9B79A">→</span></div>
+            </div>
+            <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:13px;padding:13px 16px;display:flex;align-items:center;gap:14px">
+              <span style="flex:none;width:44px;height:44px;border-radius:13px;background:linear-gradient(155deg,#7FB65E,#5E9642);display:flex;align-items:center;justify-content:center;font:800 19px 'Baloo 2';color:#fff;box-shadow:0 5px 13px rgba(122,163,74,.3)">A-</span>
+              <div style="flex:1;min-width:0"><div style="font:700 15px 'Baloo 2';color:#223B30">Collège Saint-Just</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px"><span style="background:#EAF2FA;color:#2C6FA6;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">Privé</span><span style="background:#EAF2FA;color:#2C6FA6;border-radius:7px;padding:2px 8px;font:700 10px 'Figtree'">Section euro.</span></div></div>
+              <div style="flex:none;text-align:center"><div style="font:800 17px 'Baloo 2';color:#227049">94%</div><div style="font:600 9px 'Figtree';color:#8A7B64">réussite brevet</div></div>
+              <div style="flex:none;display:flex;flex-direction:column;gap:5px;align-items:center"><span style="display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #EFE1CE;color:#5C6A60;border-radius:9px;padding:6px 10px;font:700 10.5px 'Figtree'"><span style="width:13px;height:13px;border:1.5px solid #C9B79A;border-radius:4px;display:inline-block"></span>Comparer</span><span style="font:700 15px 'Baloo 2';color:#C9B79A">→</span></div>
+            </div>
+            <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:13px;padding:13px 16px;display:flex;align-items:center;gap:14px;opacity:.6">
+              <span style="flex:none;width:44px;height:44px;border-radius:13px;background:linear-gradient(155deg,#F0A02E,#CE821A);display:flex;align-items:center;justify-content:center;font:800 19px 'Baloo 2';color:#fff;box-shadow:0 5px 13px rgba(240,160,46,.28)">B+</span>
+              <div style="flex:1;min-width:0"><div style="font:700 15px 'Baloo 2';color:#223B30">Collège des Farges</div><div style="font:500 10px 'Figtree';color:#8A7B64;margin-top:4px">+ 4 autres résultats · scroll / pagination</div></div>
+              <div style="flex:none;text-align:center"><div style="font:800 17px 'Baloo 2';color:#B0741A">85%</div></div><span style="font:700 15px 'Baloo 2';color:#C9B79A">→</span>
+            </div>
+          </div>
+          <div style="margin-top:12px;background:#223B30;border-radius:12px;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="font:700 12px 'Figtree';color:#fff">2 collèges sélectionnés — <span style="color:#EAD9BF;font-weight:500">Jean Moulin · Saint-Just</span></span><a href="#2a" style="background:#D9457A;color:#fff;border-radius:9px;padding:7px 14px;font:800 11px 'Baloo 2';text-decoration:none">Comparer →</a></div>
+          <div style="margin-top:16px;background:linear-gradient(160deg,#D9457A,#A82C58);border-radius:16px;padding:16px 18px;color:#fff;box-shadow:0 8px 20px rgba(168,44,88,.18)">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="flex:none;width:36px;height:36px;border-radius:50%;background:#fff;color:#D9457A;display:flex;align-items:center;justify-content:center;font:800 17px 'Baloo 2';box-shadow:0 2px 8px rgba(0,0,0,.14)">C</div>
+              <div><div style="font:800 15px 'Baloo 2';color:#fff">Demander à Camille</div><div style="font:600 11px 'Figtree';color:#ffffffcc">Décrivez votre situation, elle vous oriente : une ville, des filtres, une shortlist.</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;background:#ffffff1f;border:1px solid #ffffff45;border-radius:11px;padding:10px 13px;margin-top:12px">
+              <span style="flex:1;font:500 12px 'Figtree';color:#fff">« Entre Jean Moulin et Saint-Just, lequel fait le plus progresser ses élèves ? »</span>
+              <span style="flex:none;background:#fff;color:#A82C58;border-radius:9px;padding:6px 13px;font:800 11px 'Baloo 2'">Demander →</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px">
+              <span style="font:700 9.5px 'Figtree';letter-spacing:.05em;color:#ffffffb3;text-transform:uppercase;margin-right:1px">Exemples</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Comment trouver le collège de mon secteur ?</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Public ou privé, comment choisir ?</span>
+              <span style="background:#ffffff1f;border:1px solid #ffffff38;border-radius:16px;padding:5px 11px;font:600 11px 'Figtree';color:#fff">Explique-moi la notation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#EDEAE3"></rect><rect x="20" y="26" width="60" height="10" rx="3" fill="#CFC8BB"></rect><rect x="20" y="44" width="42" height="7" rx="3" fill="#D8D2C6"></rect><rect x="20" y="57" width="52" height="7" rx="3" fill="#D8D2C6"></rect><rect x="20" y="70" width="34" height="7" rx="3" fill="#D8D2C6"></rect></svg>
+</template>
+</x-dc>
+</body>
+</html>
