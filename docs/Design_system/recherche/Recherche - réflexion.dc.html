@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#f2f0ea;-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,sans-serif}
+  *{box-sizing:border-box}
+  a{color:#2a78d6;text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
+</helmet>
+
+<div style="max-width:1220px;margin:0 auto;padding:40px 32px 100px;color:#2a2a2a">
+
+  <!-- HEADER -->
+  <div style="border-bottom:2px solid #dcd8ce;padding-bottom:24px;margin-bottom:34px">
+    <div style="font:600 10px ui-monospace;letter-spacing:.1em;color:#8a877f;text-transform:uppercase;margin-bottom:8px">Réflexion produit · Porte 2 « Chercher »</div>
+    <div style="font:700 30px/1.15 'Inter';color:#1a1a1a">Recherche — mécanisme &amp; contenu</div>
+    <div style="font:400 13.5px/1.6 'Inter';color:#5a574f;max-width:820px;margin-top:8px">Le bloc de recherche est <b>transverse</b> : il vit dans plusieurs pages (accueil, hub Explorer, en-tête des pages internes). Ce document pose ce qu'on peut y chercher, comment l'autocomplétion réagit, et ce que contient la page <span style="font:400 12px ui-monospace;color:#8a877f">/recherche</span>.</div>
+  </div>
+
+  <!-- 1. LE PARTI PRIS -->
+  <div style="margin-bottom:38px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">1 · Le parti pris — deux portes, deux intentions</div>
+    <div style="font:400 13px/1.55 'Inter';color:#6b685f;max-width:820px;margin-bottom:16px">La recherche ne doit pas essayer d'être une mini-Camille. On sépare nettement l'intention pour que chaque porte reste lisible.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:#fff;border:1.5px solid #cfe0f5;border-radius:12px;padding:18px 20px">
+        <div style="font:600 10px ui-monospace;letter-spacing:.08em;color:#2a78d6;text-transform:uppercase;margin-bottom:8px">Chercher — la recherche</div>
+        <div style="font:700 19px 'Inter';color:#1a1a1a;margin-bottom:6px">OÙ &amp; QUEL</div>
+        <div style="font:400 13px/1.55 'Inter';color:#4a4a4a">Accès <b>direct</b> à une destination qu'on connaît déjà : un nom d'établissement, une ville, un code postal, un département. « Je sais ce que je cherche, emmène-moi. »</div>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+          <span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:14px;padding:3px 10px;font:600 11px 'Inter';color:#2a5fa0">Jean Moulin</span>
+          <span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:14px;padding:3px 10px;font:600 11px 'Inter';color:#2a5fa0">Lyon 5ᵉ</span>
+          <span style="background:#eef2f8;border:1px solid #cfe0f5;border-radius:14px;padding:3px 10px;font:600 11px 'Inter';color:#2a5fa0">69005</span>
+        </div>
+      </div>
+      <div style="background:#fff;border:1.5px solid #f0d9c4;border-radius:12px;padding:18px 20px">
+        <div style="font:600 10px ui-monospace;letter-spacing:.08em;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Demander — Camille</div>
+        <div style="font:700 19px 'Inter';color:#1a1a1a;margin-bottom:6px">LEQUEL, POUR MOI</div>
+        <div style="font:400 13px/1.55 'Inter';color:#4a4a4a">Le <b>choix</b> selon des critères et des arbitrages : chorale, allemand LV1, pas trop loin, bonne valeur ajoutée. « Aide-moi à décider. » — c'est une conversation, pas une requête.</div>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+          <span style="background:#fbeee4;border:1px solid #f0d9c4;border-radius:14px;padding:3px 10px;font:600 11px 'Inter';color:#b45309">un collège avec chorale</span>
+          <span style="background:#fbeee4;border:1px solid #f0d9c4;border-radius:14px;padding:3px 10px;font:600 11px 'Inter';color:#b45309">pas trop loin</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:14px;font:600 15px/1.4 'Caveat';color:#c2410c">La règle V1 — volontairement simple : la recherche route vers une FICHE (nom de collège) ou un LIEU (ville, CP, département, région). C'est tout. Les CRITÈRES (options, langues, dispositifs, notation) deviennent des filtres sur la page de résultats. Camille reste la porte conversationnelle, à part.</div>
+  </div>
+
+  <!-- 2. QUE PEUT-ON RECHERCHER -->
+  <div style="margin-bottom:38px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">2 · Que peut-on taper ? — types de requête → destination</div>
+    <div style="font:400 13px/1.55 'Inter';color:#6b685f;max-width:820px;margin-bottom:16px">Deux familles seulement en V1 : un <b>nom d'établissement</b>, ou un <b>lieu</b>. On détecte le type par des heuristiques simples (regex CP, correspondance base villes / établissements) puis on route. Un seul champ.</div>
+    <div style="background:#fbfaf7;border:1px solid #cfccc4;border-radius:12px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1.1fr 1.3fr 1.4fr;gap:0;background:#efece4;border-bottom:1px solid #dcd8ce;font:600 10px ui-monospace;letter-spacing:.06em;color:#8a877f;text-transform:uppercase">
+        <div style="padding:10px 16px">Type détecté</div>
+        <div style="padding:10px 16px;border-left:1px solid #dcd8ce">Exemple tapé</div>
+        <div style="padding:10px 16px;border-left:1px solid #dcd8ce">Destination</div>
+      </div>
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="7">
+        <div style="display:grid;grid-template-columns:1.1fr 1.3fr 1.4fr;border-top:1px solid #eae6dd">
+          <div style="padding:13px 16px;display:flex;align-items:center;gap:9px">
+            <span style="width:9px;height:9px;border-radius:3px;flex:none;background:{{ r.dot }}"></span>
+            <span style="font:600 13px 'Inter';color:#1a1a1a">{{ r.type }}</span>
+          </div>
+          <div style="padding:13px 16px;border-left:1px solid #eae6dd;font:500 13px 'Inter';color:#4a4a4a">{{ r.ex }}</div>
+          <div style="padding:13px 16px;border-left:1px solid #eae6dd">
+            <div style="font:600 12.5px 'Inter';color:#1a1a1a">{{ r.destName }}</div>
+            <div style="font:400 10.5px ui-monospace;color:#8a877f;margin-top:2px">{{ r.destUrl }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:14px;background:#fff;border:1.5px dashed #cfe0f5;border-radius:11px;padding:14px 16px;margin-top:14px">
+      <div style="font:700 15px 'Inter';color:#2a78d6;flex:none">→</div>
+      <div style="font:400 13px/1.55 'Inter';color:#3a3a3a"><b>Ce qui n'est PAS dans la barre en V1.</b> Les critères (chorale, allemand, ULIS, latin, notation…) ne se tapent pas dans la recherche : ce sont des <b>filtres sur la page de résultats</b> (bloc 5). En revanche l'<b>adresse complète est bien acceptée</b> → elle renvoie les collèges les plus proches du lieu (tri par distance), et le <b>code UAI</b> ouvre direct la fiche. On garde une barre bête et rapide.</div>
+    </div>
+  </div>
+
+  <!-- 3. LE BLOC TRANSVERSE -->
+  <div style="margin-bottom:38px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">3 · Le bloc de recherche transverse — une seule densité, partout</div>
+    <div style="font:400 13px/1.55 'Inter';color:#6b685f;max-width:820px;margin-bottom:18px">Un seul composant, <b>une seule taille</b>, identique partout : <b>accueil</b> (bande sous le héros Camille), <b>hub Explorer</b> (héros de la page), <b>en-tête des pages internes</b> (région / département / ville) et <b>haut de la page de résultats</b>. Pas de version réduite — le bloc garde la même présence sur toutes les pages.</div>
+
+    <div style="max-width:620px">
+      <div style="background:#fff;border:1.5px solid #cfccc4;border-radius:14px;padding:22px 22px 20px">
+        <div style="font:700 17px 'Inter';color:#1a1a1a">Trouvez un collège ou un lieu</div>
+        <div style="font:400 12.5px 'Inter';color:#6b685f;margin-top:3px;margin-bottom:14px">Tapez un nom de collège, un code UAI, une commune, un code postal, un département — ou une adresse complète.</div>
+        <div style="display:flex;gap:10px;align-items:center;border:1.5px solid #bcd4f2;border-radius:12px;padding:11px 11px 11px 16px;background:#fff;box-shadow:0 2px 8px rgba(42,120,214,.08)">
+          <span style="font:400 17px;color:#9aa0a8">⌕</span>
+          <div style="flex:1;font:400 13.5px 'Inter';color:#a8a49a">Ex : Jean Moulin · 0690123B · Lyon · 69005 · 12 rue des Farges…</div>
+          <div style="background:#2a78d6;color:#fff;border-radius:9px;padding:9px 20px;font:700 13px 'Inter'">Chercher</div>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;align-items:center">
+          <span style="font:600 11px 'Inter';color:#8a877f">Fréquent :</span>
+          <span style="border:1px solid #dcd8ce;border-radius:14px;padding:4px 11px;font:600 11.5px 'Inter';color:#5a574f">Paris</span>
+          <span style="border:1px solid #dcd8ce;border-radius:14px;padding:4px 11px;font:600 11.5px 'Inter';color:#5a574f">Lyon</span>
+          <span style="border:1px solid #dcd8ce;border-radius:14px;padding:4px 11px;font:600 11.5px 'Inter';color:#5a574f">Rhône (69)</span>
+          <span style="border:1px solid #dcd8ce;border-radius:14px;padding:4px 11px;font:600 11.5px 'Inter';color:#5a574f">Toulouse</span>
+        </div>
+      </div>
+      <div style="font:600 13px/1.4 'Caveat';color:#c2410c;margin-top:12px;padding-left:2px">Même bloc, même autocomplétion, même routeur — on ne code le comportement qu'une fois, et il ne rétrécit jamais.</div>
+    </div>
+  </div>
+
+  <!-- 4. AUTOCOMPLETION -->
+  <div style="margin-bottom:38px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">4 · L'autocomplétion — suggestions groupées</div>
+    <div style="font:400 13px/1.55 'Inter';color:#6b685f;max-width:820px;margin-bottom:18px">Dès la 2ᵉ lettre, un panneau groupé par type : <b>établissements</b>, puis <b>communes</b>, puis <b>départements / régions</b>. Rien d'autre — pas d'action spéciale, on garde ça simple. Entrée valide le 1ᵉ résultat, sinon la page de résultats.</div>
+
+    <div style="max-width:560px">
+      <!-- input with query -->
+      <div style="display:flex;gap:10px;align-items:center;border:1.5px solid #2a78d6;border-radius:12px 12px 0 0;padding:11px 11px 11px 16px;background:#fff;box-shadow:0 2px 8px rgba(42,120,214,.1)">
+        <span style="font:400 17px;color:#2a78d6">⌕</span>
+        <div style="flex:1;font:500 14px 'Inter';color:#1a1a1a">jean m<span style="border-left:1.5px solid #1a1a1a;margin-left:1px">&nbsp;</span></div>
+      </div>
+      <!-- dropdown -->
+      <div style="border:1.5px solid #2a78d6;border-top:none;border-radius:0 0 12px 12px;background:#fff;box-shadow:0 12px 30px rgba(0,0,0,.12);overflow:hidden">
+
+        <div style="padding:9px 16px 5px;font:600 9.5px ui-monospace;letter-spacing:.08em;color:#8a877f;text-transform:uppercase">Établissements</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;background:#f5f9ff;border-left:3px solid #2a78d6">
+          <span style="width:26px;height:26px;border-radius:7px;background:#e4eefc;display:flex;align-items:center;justify-content:center;font:700 12px 'Inter';color:#2a78d6;flex:none">C</span>
+          <div style="flex:1"><div style="font:600 13.5px 'Inter';color:#1a1a1a">Collège <b style="color:#2a78d6">Jean M</b>oulin</div><div style="font:400 11px 'Inter';color:#8a877f">Lyon 5ᵉ · Rhône · public</div></div>
+          <span style="background:#2E8F5E;color:#fff;border-radius:7px;padding:3px 9px;font:800 12px 'Inter'">A</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 16px">
+          <span style="width:26px;height:26px;border-radius:7px;background:#f0ede5;display:flex;align-items:center;justify-content:center;font:700 12px 'Inter';color:#8a877f;flex:none">C</span>
+          <div style="flex:1"><div style="font:600 13.5px 'Inter';color:#1a1a1a">Collège <b style="color:#2a78d6">Jean M</b>acé</div><div style="font:400 11px 'Inter';color:#8a877f">Villeurbanne · Rhône · public</div></div>
+          <span style="background:#B0741A;color:#fff;border-radius:7px;padding:3px 9px;font:800 12px 'Inter'">B+</span>
+        </div>
+
+        <div style="padding:9px 16px 5px;border-top:1px solid #eee;font:600 9.5px ui-monospace;letter-spacing:.08em;color:#8a877f;text-transform:uppercase">Communes</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 16px">
+          <span style="width:26px;height:26px;border-radius:7px;background:#f0ede5;display:flex;align-items:center;justify-content:center;font:400 14px;color:#8a877f;flex:none">⌂</span>
+          <div style="flex:1"><div style="font:600 13.5px 'Inter';color:#1a1a1a">Saint-<b style="color:#2a78d6">Jean</b>-de-Braye</div><div style="font:400 11px 'Inter';color:#8a877f">Loiret · 4 collèges</div></div>
+        </div>
+
+        <div style="border-top:1px solid #eae6dd;padding:11px 16px;font:600 12.5px 'Inter';color:#2a5fa0">Voir tous les résultats pour « jean m »</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:22px;margin-top:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:230px;font:400 12.5px/1.55 'Inter';color:#5a574f"><b style="color:#1a1a1a">Groupes &amp; ordre.</b> Établissements → Communes → Départements/Régions. On masque un groupe vide. Max ~3 par groupe, « voir tous les résultats » en pied si &gt;.</div>
+      <div style="flex:1;min-width:230px;font:400 12.5px/1.55 'Inter';color:#5a574f"><b style="color:#1a1a1a">Mise en avant.</b> Le fragment tapé est surligné. Un mini-repère par établissement (la <b>notation écoles</b>, A+ → B) donne du sens dès la liste, sans surcharger.</div>
+      <div style="flex:1;min-width:230px;font:400 12.5px/1.55 'Inter';color:#5a574f"><b style="color:#1a1a1a">Clavier.</b> ↑ ↓ pour naviguer, Entrée = 1ᵉ résultat (ou page de résultats si aucun item survolé), Échap ferme.</div>
+    </div>
+  </div>
+
+  <!-- 5. PAGE /recherche -->
+  <div style="margin-bottom:34px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">5 · La page <span style="font:400 15px ui-monospace;color:#8a877f">/recherche</span> — les résultats, et c'est là que tout se filtre</div>
+    <div style="font:400 13px/1.55 'Inter';color:#6b685f;max-width:820px;margin-bottom:16px">Un nom unique va direct à la fiche. Sinon on arrive ici : les résultats peuvent <b>mêler communes et établissements</b> — on les groupe (communes d'abord, puis établissements). Le rail de filtres agit sur les établissements. C'est le seul endroit où interviennent options, langues, dispositifs et notation.</div>
+
+    <div style="background:#fff;border:1.5px solid #bcd4f2;border-radius:12px;padding:10px 10px 10px 16px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 8px rgba(42,120,214,.08);max-width:620px">
+      <span style="font:400 17px;color:#9aa0a8">⌕</span>
+      <div style="flex:1;font:500 14px 'Inter';color:#1a1a1a">moulin</div>
+      <div style="background:#2a78d6;color:#fff;border-radius:9px;padding:8px 18px;font:700 13px 'Inter'">Chercher</div>
+    </div>
+    <div style="font:600 13px/1.4 'Caveat';color:#c2410c;margin:8px 0 16px;padding-left:2px">Le même bloc de recherche (bloc 3) reste en haut de la page de résultats — on relance une recherche sans revenir en arrière.</div>
+
+    <div style="background:#fff;border:1.5px solid #cfccc4;border-radius:14px;overflow:hidden">
+      <div style="padding:8px 16px;background:#efece4;font:600 9.5px ui-monospace;letter-spacing:.06em;color:#8a877f;text-transform:uppercase">Page de résultats — liste + filtres</div>
+      <div style="padding:16px 18px 20px">
+        <div style="font:400 12.5px 'Inter';color:#6b685f">Résultats pour</div>
+        <div style="font:700 20px 'Inter';color:#1a1a1a;margin-bottom:16px">« moulin » <span style="font:500 14px 'Inter';color:#8a877f">· 2 communes · 14 établissements</span></div>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start">
+
+          <!-- filter rail -->
+          <div style="border:1px solid #e4e0d6;border-radius:11px;padding:14px 15px">
+            <div style="font:600 9.5px ui-monospace;letter-spacing:.06em;color:#8a877f;text-transform:uppercase;margin-bottom:2px">Filtrer</div>
+            <div style="font:400 10.5px 'Inter';color:#a8a49a;margin-bottom:4px">sur les établissements</div>
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+              <div style="border-top:1px solid #eee;padding:11px 0 3px">
+                <div style="font:600 12px 'Inter';color:#1a1a1a;margin-bottom:8px">{{ f.name }}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <sc-for list="{{ f.opts }}" as="o" hint-placeholder-count="3">
+                    <span style="border:1px solid #dcd8ce;border-radius:13px;padding:3px 10px;font:500 11.5px 'Inter';color:#5a574f">{{ o }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- results -->
+          <div style="display:flex;flex-direction:column;gap:18px">
+
+            <!-- communes group -->
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font:600 9.5px ui-monospace;letter-spacing:.06em;color:#8a877f;text-transform:uppercase">Communes · 2</div>
+                <span style="border:1px solid #dcd8ce;border-radius:8px;padding:5px 11px;font:600 11px 'Inter';color:#5a574f">Trier : A→Z ⇅</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ communes }}" as="v" hint-placeholder-count="2">
+                  <div style="border:1px solid #e4e0d6;border-radius:10px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
+                    <div style="display:flex;align-items:center;gap:11px">
+                      <span style="width:28px;height:28px;border-radius:8px;background:#f0ede5;display:flex;align-items:center;justify-content:center;font:400 15px;color:#8a877f;flex:none">⌂</span>
+                      <div><div style="font:600 14px 'Inter';color:#1a1a1a">{{ v.name }}</div><div style="font:400 11px 'Inter';color:#8a877f">{{ v.meta }}</div></div>
+                    </div>
+                    <span style="font:600 12px 'Inter';color:#2a78d6;flex:none">Voir la commune →</span>
+                  </div>
+                </sc-for>
+                <div style="font:400 11.5px/1.5 'Inter';color:#8a877f;margin-top:4px;padding-left:2px">Requête courte (ex : « mou ») → beaucoup de communes : on pagine (20/page) et le tri A→Z rend la liste parcourable ; « voir toutes les communes » en pied.</div>
+              </div>
+            </div>
+
+            <!-- établissements group -->
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font:600 9.5px ui-monospace;letter-spacing:.06em;color:#8a877f;text-transform:uppercase">Établissements · 14</div>
+                <span style="border:1px solid #dcd8ce;border-radius:8px;padding:5px 11px;font:600 11px 'Inter';color:#5a574f">Trier : Notation ↓ ⇅</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <sc-for list="{{ results }}" as="c" hint-placeholder-count="3">
+                  <div style="border:1px solid #e4e0d6;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:14px">
+                    <div style="min-width:0">
+                      <div style="font:600 14px 'Inter';color:#1a1a1a">{{ c.name }}</div>
+                      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                        <sc-for list="{{ c.badges }}" as="b" hint-placeholder-count="3">
+                          <span style="background:{{ b.bg }};color:{{ b.fg }};border-radius:7px;padding:2px 9px;font:700 10.5px 'Inter'">{{ b.label }}</span>
+                        </sc-for>
+                        <sc-if value="{{ c.more }}" hint-placeholder-val="{{ true }}">
+                          <span style="background:#eef2f8;color:#2a78d6;border:1px solid #cfe0f5;border-radius:7px;padding:2px 9px;font:700 10.5px 'Inter';cursor:pointer">{{ c.moreLabel }}</span>
+                        </sc-if>
+                      </div>
+                    </div>
+                    <div style="flex:none;display:flex;align-items:center;gap:12px">
+                      <span style="background:{{ c.noteColor }};color:#fff;border-radius:8px;padding:3px 10px;font:800 13px 'Inter'">{{ c.note }}</span>
+                      <span style="font:600 12px 'Inter';color:#2a78d6">Voir le collège →</span>
+                    </div>
+                  </div>
+                </sc-for>
+                <div style="font:400 11.5px/1.5 'Inter';color:#8a877f;margin-top:4px;padding-left:2px">Aucun résultat après filtrage → message simple « élargissez vos filtres » + bouton « tout réinitialiser ».</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- notes résultats -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0 22px">
+    <div style="background:#fff;border:1.5px dashed #cfe0f5;border-radius:11px;padding:14px 16px">
+      <div style="font:600 10px ui-monospace;letter-spacing:.06em;color:#2a78d6;text-transform:uppercase;margin-bottom:6px">Q1 · Filtres exhaustifs</div>
+      <div style="font:400 12.5px/1.55 'Inter';color:#3a3a3a">Les filtres se <b>cumulent (ET)</b> et un <b>compteur live</b> suit chaque changement. Pour éviter les impasses : on <b>grïse les valeurs qui mèneraient à 0</b> résultat. Si 0 malgré tout → état vide : <b>retirer le dernier filtre</b> / <b>tout réinitialiser</b>. Filtres actifs en puces détachables au-dessus de la liste.</div>
+    </div>
+    <div style="background:#fff;border:1.5px dashed #cfe0f5;border-radius:11px;padding:14px 16px">
+      <div style="font:600 10px ui-monospace;letter-spacing:.06em;color:#2a78d6;text-transform:uppercase;margin-bottom:6px">Q2 · Tris — deux listes, deux tris</div>
+      <div style="font:400 12.5px/1.55 'Inter';color:#3a3a3a"><b>Établissements :</b> Notation (défaut) · Réussite brevet · Distance (si adresse saisie) · <b>Nom A→Z</b>. <b>Communes :</b> <b>Nom A→Z</b> (défaut) · Nombre de collèges · Proximité (si adresse). Le A→Z est le repli sûr quand aucune métrique ne s'impose — indispensable sur une requête courte qui remonte beaucoup de communes.</div>
+    </div>
+    <div style="background:#fff;border:1.5px dashed #cfe0f5;border-radius:11px;padding:14px 16px">
+      <div style="font:600 10px ui-monospace;letter-spacing:.06em;color:#2a78d6;text-transform:uppercase;margin-bottom:6px">Q3 · Tags &amp; le « +N »</div>
+      <div style="font:400 12.5px/1.55 'Inter';color:#3a3a3a">Statut d'abord (Public / Privé), puis <b>2 tags max</b> dans un ordre de priorité fixe (prioritaire &gt; dispositif &gt; section/langue &gt; option). Le <b>« +N » est cliquable</b> : il déplie les tags restants <b>dans la carte</b> (et tooltip au survol) — jamais une nouvelle page. Couleurs par famille : statut vert, prioritaire ambre, dispositifs &amp; sections bleu.</div>
+    </div>
+  </div>
+
+  <!-- OPEN -->
+  <div style="font:600 15px/1.5 'Caveat';color:#227049;padding-left:4px">Décisions tranchées (V1) : (1) filtres au lancement — Public/Privé, Dispositifs, Sections &amp; langues, Notation min. (4 chips, voir README hi-fi — pas de catégorie "Options &amp; activités" séparée). (2) un lieu unique route direct vers sa page (nom → fiche, ville/CP → page ville, dépt/région → maillage). (3) autocomplétion : max 4 suggestions par groupe. (4) « adresse → collège de secteur » confirmé hors scope V1.</div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rows: [
+        { dot:'#2a78d6', type:'Nom d\u2019établissement', ex:'Jean Moulin', destName:'Fiche établissement (ou liste si plusieurs)', destUrl:'/…/college/{nom-uai}' },
+        { dot:'#2a78d6', type:'Code UAI', ex:'0690123B', destName:'Fiche établissement (direct)', destUrl:'/…/college/{uai}' },
+        { dot:'#2a78d6', type:'Ville / commune', ex:'Lyon 5ᵉ', destName:'Page Ville — collèges + secteurs', destUrl:'/ville/{slug}' },
+        { dot:'#2a78d6', type:'Code postal', ex:'69005', destName:'Page Ville de ce CP', destUrl:'/ville/{slug}' },
+        { dot:'#1f8a5b', type:'Département', ex:'Rhône · 69', destName:'Maillage département', destUrl:'/departement/{slug}' },
+        { dot:'#1f8a5b', type:'Région', ex:'Auvergne-Rhône-Alpes', destName:'Maillage région', destUrl:'/region/{slug}' },
+        { dot:'#c2410c', type:'Adresse complète', ex:'12 rue des Farges, 69005 Lyon', destName:'Collèges les plus proches (tri distance)', destUrl:'/recherche?près=…' },
+      ],
+      filters: [
+        { name:'Notation / valeur ajoutée', opts:['Très positive','Positive','Toutes'] },
+        { name:'Options & activités', opts:['Chorale','Latin','Section euro','Théâtre'] },
+        { name:'Langues', opts:['Allemand','Espagnol','Section internationale'] },
+        { name:'Dispositifs', opts:['ULIS','SEGPA','UPE2A'] },
+        { name:'Type', opts:['Public','Privé'] },
+      ],
+      communes: [
+        { name:'Moulins', meta:'Allier (03) · 5 collèges' },
+        { name:'Moulins-lès-Metz', meta:'Moselle (57) · 1 collège' },
+      ],
+      results: [
+        { name:'Collège Jean Moulin', note:'A', noteColor:'#2E8F5E', more:1, moreLabel:'+1',
+          badges:[ {label:'Public',bg:'#E7F1E9',fg:'#227049'}, {label:'REP+',bg:'#FFF3DE',fg:'#B0741A'}, {label:'ULIS',bg:'#EAF2FA',fg:'#2C6FA6'} ] },
+        { name:'Collège des Battières', note:'B', noteColor:'#B0741A', more:0, moreLabel:'',
+          badges:[ {label:'Public',bg:'#E7F1E9',fg:'#227049'}, {label:'Chorale',bg:'#EAF2FA',fg:'#2C6FA6'} ] },
+        { name:'Collège Charcot', note:'B+', noteColor:'#3E9A6B', more:1, moreLabel:'+1',
+          badges:[ {label:'Public',bg:'#E7F1E9',fg:'#227049'}, {label:'Allemand',bg:'#EAF2FA',fg:'#2C6FA6'}, {label:'Section euro',bg:'#EAF2FA',fg:'#2C6FA6'} ] },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&amp;family=Figtree:wght@400;500;600;700;800&amp;family=Caveat:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#FCF4E9;-webkit-font-smoothing:antialiased;font-family:'Figtree',system-ui,sans-serif}
+  *{box-sizing:border-box}
+  a{color:#A82C58;text-decoration:none}
+  a:hover{color:#D9457A}
+  input{font-family:'Figtree',system-ui,sans-serif}
+  input::placeholder{color:#A8987F}
+  input:focus{outline:none}
+</style>
+</helmet>
+
+<div style="background:#FCF4E9;min-height:100vh;color:#3A4842">
+
+  <!-- ===== NAV ===== -->
+  <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:20px 32px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:30px;height:30px;border-radius:11px 9px 12px 8px;background:#D9457A;transform:rotate(-4deg)"></div>
+      <div style="font:800 22px 'Baloo 2';color:#223B30">écoles</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:26px;font:600 13.5px 'Figtree';color:#4C5A50">
+      <span style="cursor:pointer;color:#223B30;font-weight:700">Chercher</span>
+      <span style="cursor:pointer">Explorer</span>
+      <span style="cursor:pointer">Comprendre</span>
+      <span style="background:#D9457A;color:#fff;border-radius:22px;padding:9px 18px;font:700 13px 'Figtree';cursor:pointer;box-shadow:0 4px 12px rgba(217,69,122,.28)">Demander à {{ assistantName }}</span>
+    </div>
+  </div>
+
+  <!-- ===== SEARCH HERO (with autocomplete) ===== -->
+  <div style="max-width:920px;margin:0 auto;padding:14px 32px 8px">
+    <div style="font:800 30px/1.1 'Baloo 2';color:#223B30;text-align:center">Chercher un collège ou un lieu</div>
+    <div style="font:400 14.5px/1.5 'Figtree';color:#5C6A60;text-align:center;margin-top:8px">Un nom de collège, un code UAI, une ville, un code postal, un département — ou une adresse complète.</div>
+
+    <!-- search field + dropdown -->
+    <div style="position:relative;max-width:680px;margin:20px auto 0;z-index:20">
+      <div style="display:flex;gap:10px;align-items:center;background:#fff;border:2px solid {{ fieldBorder }};border-radius:18px;padding:9px 9px 9px 18px;box-shadow:0 10px 30px rgba(34,59,48,.10)">
+        <span style="font:400 19px 'Figtree';color:#C9A98A">⌕</span>
+        <input value="{{ query }}" onChange="{{ onChange }}" onFocus="{{ onFocus }}" onBlur="{{ onBlur }}" placeholder="Ex : Jean Moulin · 0690123B · Lyon · 69005 · 12 rue des Farges" style="flex:1;border:none;background:transparent;font:500 15px 'Figtree';color:#223B30;padding:6px 0">
+        <div onMouseDown="{{ onSubmit }}" style="background:#D9457A;color:#fff;border-radius:13px;padding:11px 22px;font:700 14px 'Figtree';cursor:pointer;box-shadow:0 4px 12px rgba(217,69,122,.28)">Chercher</div>
+      </div>
+
+      <!-- dropdown -->
+      <sc-if value="{{ showDropdown }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;left:0;right:0;top:calc(100% + 8px);background:#fff;border:1.5px solid #EFE1CE;border-radius:18px;box-shadow:0 18px 44px rgba(34,59,48,.16);overflow:hidden;padding:6px 0">
+          <sc-if value="{{ addressMode }}" hint-placeholder-val="{{ false }}">
+            <div onMouseDown="{{ onPickAddress }}" style="display:flex;align-items:center;gap:12px;padding:11px 18px;background:#FDEFF4;cursor:pointer;border-bottom:1px solid #F1EADA" style-hover="background:#FCE4EC">
+              <span style="width:32px;height:32px;border-radius:10px;background:#D9457A;color:#fff;display:flex;align-items:center;justify-content:center;font:400 16px 'Figtree';flex:none">📍</span>
+              <div style="flex:1;min-width:0"><div style="font:700 14px 'Figtree';color:#A82C58">Chercher les collèges les plus proches</div><div style="font:500 11.5px 'Figtree';color:#8A7B64">Adresse reconnue · {{ addressLabel }}</div></div>
+              <span style="font:700 15px 'Baloo 2';color:#D9457A">→</span>
+            </div>
+          </sc-if>
+          <sc-for list="{{ suggestionGroups }}" as="g" hint-placeholder-count="2">
+            <div style="padding:10px 18px 5px;font:700 9.5px 'Figtree';letter-spacing:.08em;color:#B6A488;text-transform:uppercase">{{ g.label }}</div>
+            <sc-for list="{{ g.items }}" as="s" hint-placeholder-count="2">
+              <div onMouseDown="{{ s.onPick }}" style="display:flex;align-items:center;gap:12px;padding:9px 18px;cursor:pointer" style-hover="background:#FBF6EC">
+                <sc-if value="{{ s.grade }}" hint-placeholder-val="{{ true }}">
+                  <span style="width:32px;height:32px;border-radius:10px;background:linear-gradient(155deg,{{ s.gradFrom }},{{ s.gradTo }});color:#fff;display:flex;align-items:center;justify-content:center;font:800 13px 'Baloo 2';flex:none">{{ s.grade }}</span>
+                </sc-if>
+                <sc-if value="{{ s.icon }}" hint-placeholder-val="{{ true }}">
+                  <span style="width:32px;height:32px;border-radius:10px;background:#F1E7D6;color:#8A7B64;display:flex;align-items:center;justify-content:center;font:400 16px 'Figtree';flex:none">{{ s.icon }}</span>
+                </sc-if>
+                <div style="flex:1;min-width:0"><div style="font:700 14px 'Figtree';color:#223B30">{{ s.name }}</div><div style="font:500 11.5px 'Figtree';color:#8A7B64">{{ s.meta }}</div></div>
+                <span style="font:700 15px 'Baloo 2';color:#DCC7AC">→</span>
+              </div>
+            </sc-for>
+          </sc-for>
+          <sc-if value="{{ noSuggestions }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:16px 18px;font:500 13px 'Figtree';color:#8A7B64">Aucune correspondance directe pour « {{ query }} ».</div>
+          </sc-if>
+          <div onMouseDown="{{ onSubmit }}" style="border-top:1px solid #F1EADA;margin-top:4px;padding:11px 18px;font:700 13px 'Figtree';color:#A82C58;cursor:pointer" style-hover="background:#FDEFF4">Voir tous les résultats pour « {{ query }} » →</div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- popular -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;align-items:center">
+      <span style="font:600 11.5px 'Figtree';color:#8A7B64">Fréquent :</span>
+      <sc-for list="{{ popular }}" as="p" hint-placeholder-count="4">
+        <span onMouseDown="{{ p.onPick }}" style="background:#fff;border:1px solid #EBD9BF;border-radius:16px;padding:5px 13px;font:600 12px 'Figtree';color:#4C5A50;cursor:pointer" style-hover="border-color:#D9457A;color:#A82C58">{{ p.name }}</span>
+      </sc-for>
+      <span onMouseDown="{{ onPickAddress }}" style="background:#FDEFF4;border:1px solid #F0C9D8;border-radius:16px;padding:5px 13px;font:700 12px 'Figtree';color:#A82C58;cursor:pointer" style-hover="border-color:#D9457A">📍 12 rue des Farges, Lyon</span>
+    </div>
+  </div>
+
+  <!-- ===== RESULTS ===== -->
+  <div style="max-width:1000px;margin:14px auto 0;padding:18px 32px 40px">
+    <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:22px;box-shadow:0 2px 8px rgba(34,59,48,.05);padding:22px 24px 24px">
+
+      <div style="font:500 13px 'Figtree';color:#8A7B64">Résultats pour</div>
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div style="font:800 26px 'Baloo 2';color:#223B30">« {{ query }} »</div>
+        <div style="font:600 13px 'Figtree';color:#8A7B64">{{ communeCount }} communes · {{ estTotal }} établissements</div>
+      </div>
+      <sc-if value="{{ addressMode }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:10px;background:#FDEFF4;border:1.5px solid #F0C9D8;border-radius:12px;padding:10px 14px;margin-top:12px">
+          <span style="font:400 16px 'Figtree'">📍</span>
+          <div style="flex:1;font:600 12.5px 'Figtree';color:#A82C58">Autour de {{ addressLabel }} — établissements triés par distance</div>
+          <span style="font:700 11.5px 'Figtree';color:#A82C58;cursor:pointer">Modifier</span>
+        </div>
+      </sc-if>
+
+      <!-- COMMUNES (masqué en mode adresse) -->
+      <sc-if value="{{ showCommunes }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font:700 11px 'Figtree';letter-spacing:.06em;color:#D9457A;text-transform:uppercase">Communes · {{ communeCount }}</div>
+          <span onClick="{{ onCommSort }}" style="background:#fff;border:1.5px solid #EFE1CE;border-radius:10px;padding:6px 12px;font:600 11.5px 'Figtree';color:#5C6A60;cursor:pointer" style-hover="border-color:#D9457A">Trier : {{ commSortLabel }} ⇅</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ communes }}" as="v" hint-placeholder-count="2">
+            <a href="#" style="border:1.5px solid #EFE1CE;border-radius:13px;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;background:#fff" style-hover="border-color:#D9457A;background:#FDEFF4">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="width:34px;height:34px;border-radius:11px;background:#F1E7D6;color:#8A7B64;display:flex;align-items:center;justify-content:center;font:400 17px 'Figtree';flex:none">⌂</span>
+                <div><div style="font:700 14.5px 'Baloo 2';color:#223B30">{{ v.name }}</div><div style="font:500 11.5px 'Figtree';color:#8A7B64">{{ v.meta }}</div></div>
+              </div>
+              <span style="font:700 12.5px 'Figtree';color:#A82C58;flex:none">Voir la commune →</span>
+            </a>
+          </sc-for>
+          <div style="font:500 11px 'Figtree';color:#A8987F;padding-left:2px">Requête courte → beaucoup de communes : pagination 20/page + « voir toutes les communes ».</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ÉTABLISSEMENTS -->
+      <div style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font:700 11px 'Figtree';letter-spacing:.06em;color:#D9457A;text-transform:uppercase">Établissements · {{ estTotal }}</div>
+          <span onClick="{{ onEstSort }}" style="background:#fff;border:1.5px solid #EFE1CE;border-radius:10px;padding:6px 12px;font:600 11.5px 'Figtree';color:#5C6A60;cursor:pointer" style-hover="border-color:#D9457A">Trier : {{ estSortLabel }} ⇅</span>
+        </div>
+
+        <!-- filters -->
+        <div style="position:relative;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font:700 10px 'Figtree';letter-spacing:.05em;color:#8A7B64;text-transform:uppercase;margin-right:2px">Filtrer</span>
+            <sc-for list="{{ filterChips }}" as="fc" hint-placeholder-count="4">
+              <span onMouseDown="{{ fc.onToggle }}" style="{{ fc.style }}" style-hover="border-color:#D9457A">{{ fc.text }}</span>
+            </sc-for>
+            <sc-if value="{{ anyFilter }}" hint-placeholder-val="{{ false }}">
+              <span onMouseDown="{{ onResetFilters }}" style="font:700 11.5px 'Figtree';color:#A82C58;cursor:pointer;padding:6px 4px">Réinitialiser</span>
+            </sc-if>
+          </div>
+          <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:52px;top:calc(100% + 6px);z-index:15;min-width:236px;background:#fff;border:1.5px solid #EFE1CE;border-radius:14px;box-shadow:0 14px 34px rgba(34,59,48,.16);padding:8px">
+              <div style="font:700 9.5px 'Figtree';letter-spacing:.06em;color:#B6A488;text-transform:uppercase;padding:4px 10px 6px">{{ menuTitle }}</div>
+              <sc-for list="{{ menuItems }}" as="mi" hint-placeholder-count="3">
+                <div onMouseDown="{{ mi.onSelect }}" style="{{ mi.rowStyle }}" style-hover="background:#FBF6EC">
+                  <span style="{{ mi.boxStyle }}">{{ mi.mark }}</span>
+                  <span style="flex:1">{{ mi.label }}</span>
+                  <sc-if value="{{ mi.hint }}" hint-placeholder-val="{{ false }}"><span style="font:600 10px 'Figtree';color:#C4B6A4">{{ mi.hint }}</span></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ anyFilter }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
+            <sc-for list="{{ activePills }}" as="ap" hint-placeholder-count="2">
+              <span onMouseDown="{{ ap.onRemove }}" style="display:flex;align-items:center;gap:6px;background:#FDEBE4;border:1.5px solid #E9A9C0;color:#A82C58;border-radius:16px;padding:5px 11px;font:700 11.5px 'Figtree';cursor:pointer" style-hover="background:#FCD9E4">{{ ap.label }} ✕</span>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="font:500 10.5px/1.4 'Figtree';color:#A8987F;margin-bottom:12px">Clic sur un filtre → menu de valeurs ; les valeurs menant à 0 résultat sont grisées. La sélection s'affiche en puces détachables ✕ au-dessus de la liste.</div>
+
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <sc-for list="{{ establishments }}" as="e" hint-placeholder-count="4">
+            <div style="background:#fff;border:1.5px solid #EFE1CE;border-radius:14px;padding:13px 16px;display:flex;align-items:center;gap:14px" style-hover="border-color:#E9B9CB;box-shadow:0 6px 16px rgba(34,59,48,.08)">
+              <span style="flex:none;width:46px;height:46px;border-radius:13px;background:linear-gradient(155deg,{{ e.gradFrom }},{{ e.gradTo }});display:flex;align-items:center;justify-content:center;font:800 19px 'Baloo 2';color:#fff;box-shadow:0 5px 13px rgba(34,59,48,.16)">{{ e.note }}</span>
+              <div style="flex:1;min-width:0">
+                <div style="font:700 15.5px 'Baloo 2';color:#223B30">{{ e.name }}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">
+                  <sc-for list="{{ e.visibleBadges }}" as="b" hint-placeholder-count="3">
+                    <span style="background:{{ b.bg }};color:{{ b.fg }};border-radius:7px;padding:2px 9px;font:700 10.5px 'Figtree'">{{ b.label }}</span>
+                  </sc-for>
+                  <sc-if value="{{ e.showMore }}" hint-placeholder-val="{{ false }}">
+                    <span onClick="{{ e.onExpand }}" style="background:#F1E7D6;color:#8A7B64;border-radius:7px;padding:2px 9px;font:700 10.5px 'Figtree';cursor:pointer" style-hover="background:#EAD9BF">{{ e.moreLabel }}</span>
+                  </sc-if>
+                </div>
+              </div>
+              <sc-if value="{{ e.showDist }}" hint-placeholder-val="{{ false }}">
+                <span style="flex:none;display:flex;align-items:center;gap:4px;background:#EAF2FA;color:#2C6FA6;border-radius:9px;padding:6px 10px;font:700 11.5px 'Figtree'">📍 {{ e.distLabel }}</span>
+              </sc-if>
+              <div style="flex:none;text-align:center"><div style="font:800 17px 'Baloo 2';color:{{ e.brevetColor }}">{{ e.brevet }}</div><div style="font:600 9px 'Figtree';color:#8A7B64">réussite brevet</div></div>
+              <a href="#" style="flex:none;display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #EFE1CE;color:#A82C58;border-radius:10px;padding:9px 14px;font:700 11.5px 'Figtree'" style-hover="border-color:#D9457A;background:#FDEFF4">Voir le collège →</a>
+            </div>
+          </sc-for>
+          <div style="text-align:center;padding:12px;font:600 12px 'Figtree';color:#8A7B64;border:1.5px dashed #EFE1CE;border-radius:13px">+ {{ estRest }} autres établissements · pagination</div>
+        </div>
+      </div>
+
+      <!-- CAMILLE -->
+      <div style="margin-top:20px;background:linear-gradient(155deg,#FCEDF2,#FBF6EC);border:1.5px solid #F0C9D8;border-radius:16px;padding:15px 17px">
+        <div style="display:flex;align-items:center;gap:11px">
+          <div style="flex:none;width:38px;height:38px;border-radius:50%;background:#D9457A;color:#fff;display:flex;align-items:center;justify-content:center;font:800 17px 'Baloo 2';box-shadow:0 3px 9px rgba(168,44,88,.28)">{{ assistantInitial }}</div>
+          <div><div style="font:800 14.5px 'Baloo 2';color:#223B30">Vous hésitez entre plusieurs ?</div><div style="font:600 11.5px 'Figtree';color:#8A7B64">{{ assistantName }} lit les chiffres pour vous et vous aide à trancher selon votre situation.</div></div>
+          <span style="margin-left:auto;flex:none;background:#D9457A;color:#fff;border-radius:11px;padding:9px 16px;font:700 12px 'Figtree';cursor:pointer;box-shadow:0 4px 12px rgba(217,69,122,.28)">Demander à {{ assistantName }} →</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <div style="background:#F1E7D6;border-top:1px solid #EFE1CE">
+    <div style="max-width:1180px;margin:0 auto;padding:18px 32px;display:flex;justify-content:space-between;align-items:center;font:600 12px 'Figtree';color:#8A7B64;flex-wrap:wrap;gap:8px">
+      <span>Données officielles du Ministère · mises à jour chaque année</span>
+      <span style="display:flex;gap:18px"><a href="#">Notre méthode</a><a href="#">Sources</a><a href="#">À propos</a></span>
+    </div>
+  </div>
+
+</div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#FCF4E9"></rect><circle cx="44" cy="44" r="24" fill="none" stroke="#D9457A" stroke-width="9"></circle><rect x="60" y="60" width="26" height="9" rx="4.5" transform="rotate(45 60 60)" fill="#2E8F5E"></rect></svg>
+</template>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:1560},&quot;assistantName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Camille&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;openSuggestions&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = {
+    query: 'moulin',
+    focused: this.props.openSuggestions ?? true,
+    estSort: 'note',
+    commSort: 'az',
+    openMenu: null,
+    selected: {},
+    expanded: {},
+  };
+
+  onChange = (e) => this.setState({ query: e.target.value, focused: true });
+  onFocus = () => this.setState({ focused: true });
+  onBlur = () => { clearTimeout(this._t); this._t = setTimeout(() => this.setState({ focused: false }), 130); };
+  onSubmit = () => this.setState({ focused: false });
+  pick = (name) => () => this.setState({ query: name, focused: false });
+  onChipMenu = (label) => () => this.setState((s) => ({ openMenu: s.openMenu === label ? null : label }));
+  onSelectVal = (key, off) => () => { if (off) return; this.setState((s) => ({ selected: { ...s.selected, [key]: !s.selected[key] } })); };
+  removeVal = (key) => () => this.setState((s) => { const n = { ...s.selected }; delete n[key]; return { selected: n }; });
+  onResetFilters = () => this.setState({ selected: {}, openMenu: null });
+  pickAddress = () => this.setState({ query: '12 rue des Farges, 69005 Lyon', focused: false, estSort: 'dist' });
+  _addr = (q) => /\d+\s+(rue|avenue|av\.?|bd|boulevard|impasse|chemin|place|route|all[ée]e)\b/i.test(q || '');
+  toggleExpand = (i) => () => this.setState((s) => ({ expanded: { ...s.expanded, [i]: !s.expanded[i] } }));
+  onEstSort = () => this.setState((s) => { const order = this._addr(s.query) ? ['dist', 'note', 'noteAsc', 'az'] : ['note', 'noteAsc', 'az']; const i = order.indexOf(s.estSort); return { estSort: order[(i + 1) % order.length] }; });
+  onCommSort = () => this.setState((s) => ({ commSort: s.commSort === 'az' ? 'count' : 'az' }));
+
+  renderVals() {
+    const assistantName = this.props.assistantName ?? 'Camille';
+    const q = (this.state.query || '').trim().toLowerCase();
+    const addressMode = this._addr(this.state.query);
+
+    // --- badge colour families ---
+    const G = { bg: '#E7F1E9', fg: '#227049' };   // statut public / green
+    const PR = { bg: '#EAF2FA', fg: '#2C6FA6' };  // statut privé / blue
+    const N = { bg: '#F1E7D6', fg: '#8A7B64' };   // dispositifs / sections / langues — neutre, convention couleur non tranchée (journal_de_bord.md S15.1)
+    const mk = (label, c) => ({ label, bg: c.bg, fg: c.fg });
+
+    // --- autocomplete source ---
+    const estSug = [
+      { name: 'Collège Jean Moulin', meta: 'Lyon 5ᵉ · Rhône · public', grade: 'A+', gradFrom: '#2E8F5E', gradTo: '#1F6B44', k: 'jean moulin lyon 069' },
+      { name: 'Collège Jean Macé', meta: 'Villeurbanne · Rhône · public', grade: 'B+', gradFrom: '#F0A02E', gradTo: '#CE821A', k: 'jean mace villeurbanne' },
+      { name: 'Collège Moulin des Prés', meta: 'Paris 13ᵉ · public', grade: 'B', gradFrom: '#F0A02E', gradTo: '#CE821A', k: 'moulin des pres paris' },
+    ];
+    const commSug = [
+      { name: 'Moulins', meta: 'Allier (03) · 5 collèges', icon: '⌂', k: 'moulins allier' },
+      { name: 'Moulins-lès-Metz', meta: 'Moselle (57) · 1 collège', icon: '⌂', k: 'moulins les metz moselle' },
+    ];
+    const deptSug = [
+      { name: 'Allier', meta: 'Département (03) · préfecture : Moulins · 24 collèges', icon: '⬡', k: 'allier moulins 03 auvergne rhone alpes' },
+    ];
+    const MAX_PAR_GROUPE = 4;
+    const match = (arr) => arr.filter((x) => !q || (x.name + ' ' + x.k).toLowerCase().includes(q));
+    const gE = match(estSug).slice(0, MAX_PAR_GROUPE).map((s) => ({ ...s, icon: '', onPick: this.pick(s.name) }));
+    const gC = match(commSug).slice(0, MAX_PAR_GROUPE).map((s) => ({ ...s, grade: '', onPick: this.pick(s.name) }));
+    const gD = match(deptSug).slice(0, MAX_PAR_GROUPE).map((s) => ({ ...s, grade: '', onPick: this.pick(s.name) }));
+    const suggestionGroups = [];
+    if (gE.length) suggestionGroups.push({ label: 'Établissements', items: gE });
+    if (gC.length) suggestionGroups.push({ label: 'Communes', items: gC });
+    if (gD.length) suggestionGroups.push({ label: 'Départements / Régions', items: gD });
+    const noSuggestions = suggestionGroups.length === 0;
+    const showDropdown = this.state.focused && q.length >= 1;
+
+    // --- communes results ---
+    let communes = [
+      { name: 'Moulins', meta: 'Allier (03) · 5 collèges', nb: 5 },
+      { name: 'Moulins-lès-Metz', meta: 'Moselle (57) · 1 collège', nb: 1 },
+    ];
+    communes = [...communes].sort((a, b) => this.state.commSort === 'az' ? a.name.localeCompare(b.name, 'fr') : b.nb - a.nb);
+    communes = communes.map((v) => ({ ...v, onOpen: () => {} }));
+    const commSortLabel = this.state.commSort === 'az' ? 'A→Z' : 'Nb de collèges';
+
+    // --- établissements results ---
+    const NATIONAL_AVG_BREVET = 87; // placeholder démo — en prod, taux national de la session via l'API
+    const base = [
+      { name: 'Collège Jean Moulin', note: 'A+', brevet: '91%', dist: 0.4, badges: [mk('Public', G), mk('REP+', N), mk('ULIS', N), mk('SEGPA', N)] },
+      { name: 'Collège Saint-Just', note: 'A-', brevet: '94%', dist: 0.8, badges: [mk('Privé', PR), mk('Section euro', N)] },
+      { name: 'Collège des Battières', note: 'A', brevet: '89%', dist: 1.2, badges: [mk('Public', G), mk('Chorale', N), mk('ULIS', N)] },
+      { name: 'Collège Charcot', note: 'B+', brevet: '85%', dist: 1.9, badges: [mk('Public', G), mk('Allemand', N), mk('Section euro', N), mk('Latin', N)] },
+      { name: 'Collège La Xavière', note: 'A-', brevet: '90%', dist: 2.3, badges: [mk('Privé', PR), mk('Section inter.', N)] },
+      { name: 'Collège Victor Grignard', note: 'B', brevet: '82%', dist: 3.1, badges: [mk('Public', G)] },
+    ];
+    const grad = { 'A+': ['#2E8F5E', '#1F6B44'], 'A': ['#3E9A6B', '#2E8F5E'], 'A-': ['#7FB65E', '#5E9642'], 'B+': ['#F0A02E', '#CE821A'], 'B': ['#EBAE4A', '#C98A1E'] };
+    const rank = { 'A+': 5, 'A': 4, 'A-': 3, 'B+': 2, 'B': 1 };
+    let ests = [...base];
+    if (this.state.estSort === 'dist') ests.sort((a, b) => a.dist - b.dist);
+    else if (this.state.estSort === 'note') ests.sort((a, b) => rank[b.note] - rank[a.note]);
+    else if (this.state.estSort === 'noteAsc') ests.sort((a, b) => rank[a.note] - rank[b.note]);
+    else ests.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+    const establishments = ests.map((e) => {
+      const i = base.indexOf(e);
+      const exp = !!this.state.expanded[i];
+      const showMore = e.badges.length > 3;
+      const visibleBadges = exp ? e.badges : e.badges.slice(0, 3);
+      const brevetNum = parseInt(e.brevet, 10);
+      return {
+        ...e,
+        gradFrom: grad[e.note][0], gradTo: grad[e.note][1],
+        visibleBadges,
+        showMore,
+        moreLabel: exp ? '− réduire' : '+' + (e.badges.length - 3),
+        onExpand: this.toggleExpand(i),
+        brevetColor: brevetNum >= NATIONAL_AVG_BREVET ? '#227049' : '#B0741A',
+        showDist: addressMode,
+        distLabel: e.dist.toFixed(1).replace('.', ',') + ' km',
+      };
+    });
+    const estSortLabel = this.state.estSort === 'dist' ? 'Distance ↑' : this.state.estSort === 'note' ? 'Notation ↓' : this.state.estSort === 'noteAsc' ? 'Notation ↑' : 'Nom A→Z';
+
+    // --- filters : chip → menu de valeurs → puces détachables ---
+    const chipBase = 'border-radius:9px;padding:6px 12px;font:700 11px "Figtree";cursor:pointer;border:1.5px solid ';
+    const FILTERS = [
+      { cat: 'Public / Privé', vals: [{ v: 'Public' }, { v: 'Privé' }] },
+      { cat: 'Dispositifs', vals: [{ v: 'ULIS' }, { v: 'SEGPA' }, { v: 'UPE2A', off: true }] },
+      { cat: 'Sections & langues', vals: [{ v: 'Section euro' }, { v: 'Allemand' }, { v: 'Latin' }, { v: 'Chorale' }, { v: 'Section inter.', off: true }] },
+      { cat: 'Notation min.', vals: [{ v: 'A et plus' }, { v: 'B et plus' }, { v: 'Tout' }] },
+    ];
+    const filterChips = FILTERS.map((f) => {
+      const active = f.vals.some((x) => this.state.selected[f.cat + '::' + x.v]) || this.state.openMenu === f.cat;
+      return {
+        text: f.cat + '  ▾',
+        style: chipBase + (active ? '#D9457A;background:#FDEBE4;color:#A82C58' : '#EFE1CE;background:#fff;color:#5C6A60'),
+        onToggle: this.onChipMenu(f.cat),
+      };
+    });
+    const om = FILTERS.find((f) => f.cat === this.state.openMenu);
+    const menuOpen = !!om;
+    const menuTitle = om ? om.cat : '';
+    const menuItems = om ? om.vals.map((x) => {
+      const key = om.cat + '::' + x.v;
+      const sel = !!this.state.selected[key];
+      const boxBg = x.off ? '#F1EDE6' : sel ? '#D9457A' : '#fff';
+      const boxBorder = x.off ? '#E4DCCF' : sel ? '#D9457A' : '#C9B79A';
+      return {
+        label: x.v,
+        hint: x.off ? '0 résultat' : '',
+        mark: sel ? '✓' : '',
+        rowStyle: 'display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;font:600 12.5px "Figtree";' + (x.off ? 'color:#B6A99A;cursor:not-allowed' : 'color:#3A4842;cursor:pointer'),
+        boxStyle: 'width:16px;height:16px;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;font:800 10px "Figtree";color:#fff;background:' + boxBg + ';border:1.5px solid ' + boxBorder,
+        onSelect: this.onSelectVal(key, !!x.off),
+      };
+    }) : [];
+    const activePills = Object.keys(this.state.selected).filter((k) => this.state.selected[k]).map((k) => ({ label: k.split('::')[1], onRemove: this.removeVal(k) }));
+    const anyFilter = activePills.length > 0;
+
+    return {
+      assistantName,
+      assistantInitial: assistantName.trim().charAt(0).toUpperCase() || 'C',
+      query: this.state.query,
+      onChange: this.onChange, onFocus: this.onFocus, onBlur: this.onBlur, onSubmit: this.onSubmit,
+      fieldBorder: this.state.focused ? '#D9457A' : '#EFE1CE',
+      showDropdown, suggestionGroups, noSuggestions,
+      popular: ['Lyon', 'Paris', 'Marseille', 'Rhône (69)'].map((name) => ({ name, onPick: this.pick(name) })),
+      communes, communeCount: communes.length, commSortLabel, onCommSort: this.onCommSort,
+      establishments, estTotal: 14, estRest: 14 - establishments.length,
+      estSortLabel, onEstSort: this.onEstSort,
+      filterChips, anyFilter, onResetFilters: this.onResetFilters,
+      menuOpen, menuTitle, menuItems, activePills,
+      addressMode, showCommunes: !addressMode, onPickAddress: this.pickAddress, addressLabel: this.state.query,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

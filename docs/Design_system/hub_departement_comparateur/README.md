@@ -58,7 +58,7 @@ Même top bar + fil d'Ariane complet (Accueil › Région › Dépt › Ville).
 **Layout** : carte **blanche** (`#fff`, bordure `1.5px #EFE1CE`, radius 18, ombre douce). Fil d'Ariane + titre « Comparer 3 collèges ». Grille unique `176px 1fr 1fr 1fr` (colonne libellé + une colonne par collège).
 - **En-tête** (non encadré, pensé **sticky**) : par collège, badge notation **solide 50px** (radius 15, couleur unie selon la note, `#2E8F5E`/`#7FB65E`/`#4FA772`) + nom (Baloo 2 800/17 `#223B30`) + « type · ville » (600/10.5 `#8A7B64`). Bouton `×` pour retirer une colonne. Séparateur bas `2px #E7DECB`.
 - **Rubriques** (toutes traitées **identiquement**, aucune n'est survalorisée) : label eyebrow framboise (Figtree 700/10 uppercase `letter-spacing .1em` `#D9457A`), puis lignes en grille séparées par `1px #F0E6D2`. Libellé Figtree 600/11.5 `#8A7B64` ; valeurs centrées.
-  - **Description** : Langues · Dispositifs · Sections & options (chips DS colorés).
+  - **Description** : Langues · Dispositifs · Sections & options (chips en **neutre** — convention de couleur pour ces badges factuels non tranchée, voir `journal_de_bord.md` S15.1).
   - **Résultats au brevet** : Taux de réussite (Baloo 2 800/19, vert ≥89 sinon ambre) · Note moy. à l'écrit (Baloo 2 800/19 `#3A4842`).
   - **Valeur ajoutée** : Réussite vs attendu · Note écrit vs attendu (Baloo 2 800/19 vert `#2E8F5E`).
   - **Milieu social** (« on situe, on ne juge pas ») : Public accueilli (IPS) · Mixité sociale — **bleu descriptif `#3A5A8C`**, pas de gagnant.
@@ -117,8 +117,8 @@ Voir aussi `DESIGN_SYSTEM.md` du repo (`agent-ecoles/docs/Design_system/…`). P
 - `attention` (résultat sous la moyenne, note B) : `#F0A02E`, foncé `#B0741A`.
 - `accent` (rare, notes manuscrites) : `#C15A3C`.
 
-**Chips dispositifs (couleurs fixes, cohérentes partout)**
-- REP/REP+ : fond `#E7F1E9`, texte `#227049` (ou en page ville : bleu selon usage) ; ULIS : `#EAF2FA` / `#2C6FA6` ; SEGPA : `#FFF3DE` / `#B0741A` ; Section sportive : `#FDEBE4` / `#C15A3C` ; Section euro./privé : `#EAF2FA` / `#2C6FA6`.
+**Chips dispositifs/sections** — neutre, convention de couleur non tranchée (voir `journal_de_bord.md` S15.1)
+- REP/REP+, ULIS, SEGPA, Section sportive, Section euro. : fond `#F1E7D6`, texte `#8A7B64` (mêmes tokens que le badge neutre "+N"). Seul le **statut** garde une couleur propre, distincte des dispositifs : Public `#E7F1E9`/`#227049`, Privé `#EAF2FA`/`#2C6FA6`.
 
 **Chips notation** : A+/A/A- → `#E7F1E9`/`#227049` ; B+/B → `#FBF4E4`/`#B0741A`.
 **Badges notation solides** (comparateur / cartes ville) : A+ `#2E8F5E→#1F6B44` · A `#4FA772→#2E8F5E` · A- `#7FB65E→#5E9642` · B+ `#F0A02E→#CE821A`.

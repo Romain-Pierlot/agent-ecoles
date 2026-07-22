@@ -25,9 +25,16 @@
 |---|---|---|
 | IPS | toujours → `descriptif` (positionnel) | `descriptif` |
 | Mixité sociale | toujours → `descriptif` (choix assumé : on ne hiérarchise pas les profils sociaux) | `descriptif` |
-| Réussite brevet | `>= 89` → `positif` · sinon `attention` | `positif` |
+| Réussite brevet | `>= tauxNational` (moyenne nationale de la session affichée) → `positif` · sinon `attention` | `positif` |
 | Valeur ajoutée | `> 0` → `positif` · `= 0` → `descriptif` · `< 0` → `attention` | `positif` |
 | Note écoles | `A+/A/A-` → `positif` · `B+/B` → `attention` | `positif` |
+
+> Implémentation réelle : `web/src/lib/tokens.ts`. Pour la réussite au brevet, le
+> code compare au taux national de la session affichée plutôt qu'à un seuil
+> fixe codé en dur — écart volontaire par rapport à ce document, documenté
+> dans le commentaire de `sentimentReussite()`, pour que la règle ne devienne
+> pas obsolète au fil des années. En cas de désaccord entre ce document et le
+> code, le code fait foi.
 
 ## 4. La fonction (point d'entrée unique)
 
@@ -36,7 +43,7 @@ function sentiment(indicator, value) {
   const rules = {
     ips:       v => 'descriptif',      // positionnel, jamais un jugement
     mixite:    v => 'descriptif',      // choix éditorial assumé
-    reussite:  v => v >= 89 ? 'positif' : 'attention',
+    reussite:  (taux, tauxNational) => taux >= tauxNational ? 'positif' : 'attention', // seuil relatif, pas fixe
     valeurAj:  v => v > 0 ? 'positif' : v < 0 ? 'attention' : 'descriptif',
     note:      v => /^A/.test(v) ? 'positif' : 'attention',
   };
