@@ -17,6 +17,7 @@ from config import (
     COLONNE_SECTION,
 )
 from guardrails.sql_safety import valider_sql
+from agent.tools.normalisation import normaliser_texte_base
 
 client = OpenAI()
 
@@ -832,8 +833,7 @@ def _normaliser_nom(nom: str) -> str:
     contient juste la même chaîne ("Collège Saint-Joseph de Cluny" reste
     différent après nettoyage).
     """
-    nom = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
-    nom = nom.lower().strip()
+    nom = normaliser_texte_base(nom).strip()
     for prefixe in PREFIXES_INSTITUTIONNELS:
         if nom.startswith(prefixe + " "):
             nom = nom[len(prefixe):].strip()
@@ -850,8 +850,7 @@ def _normaliser_zone_administrative(nom: str) -> str:
     institutionnel à retirer ici, mais les tirets doivent être traités
     comme des séparateurs de mots, pas conservés tels quels.
     """
-    nom = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
-    nom = nom.lower().replace("-", " ").strip()
+    nom = normaliser_texte_base(nom).replace("-", " ").strip()
     return re.sub(r"\s+", " ", nom)
 
 

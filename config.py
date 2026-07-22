@@ -47,6 +47,11 @@ SCORE_RESULTATS_POIDS_NOTE = 0.50
 NOTATION_REPARTITION = [10, 15, 50, 15, 10]     # en %, somme = 100
 NOTATION_LETTRES = ["B", "B+", "A-", "A", "A+"]  # du plus faible au plus élevé
 
+# Rang de la notation, de la plus forte (0) à la plus faible — dérivé de
+# NOTATION_LETTRES plutôt que retapé à chaque endroit qui trie une liste de
+# collèges par notation (hierarchie_tool.py, recherche_tool.py).
+RANG_NOTATION = {lettre: i for i, lettre in enumerate(reversed(NOTATION_LETTRES))}
+
 # --- Badge Valeur Ajoutée ---
 VA_SEUIL_POSITIF = 2.0          # VA taux > +2 → badge vert
 VA_SEUIL_NEGATIF = -2.0         # VA taux < -2 → badge rouge

@@ -237,3 +237,59 @@ class VilleHub(BaseModel):
     colleges: list[CollegeVille]
 
     model_config = {"populate_by_name": True}
+
+
+# ============================================================
+# Recherche libre (GET /recherche)
+# ============================================================
+
+class EtablissementRecherche(BaseModel):
+    """Résultat établissement d'une recherche libre — mêmes champs que
+    CollegeVille, plus la lignée géographique complète (contrairement à la
+    page ville où région/département/commune sont déjà connus de la page,
+    les résultats de recherche viennent potentiellement de partout en
+    France)."""
+    uai: str
+    nom: str
+    secteur: str
+    notation: Optional[str] = None
+    badge_va: Optional[str] = None
+    va_imputee: bool = False
+    appartenance_education_prioritaire: Optional[str] = None
+    ulis: bool
+    segpa: bool
+    section_arts: bool
+    section_cinema: bool
+    section_theatre: bool
+    section_sport: bool
+    section_internationale: bool
+    section_europeenne: bool
+    brevet_taux_reussite_general: Optional[float] = None
+    libelle_region: str
+    code_departement: str
+    libelle_departement: str
+    commune: str
+
+
+class CommuneRecherche(BaseModel):
+    commune: str
+    code_departement: str
+    libelle_departement: str
+    libelle_region: str
+    nb_etablissements: int
+    taux_reussite_moyen: Optional[float] = None
+
+
+class RechercheResultats(BaseModel):
+    query: str
+    session_utilisee: Optional[str] = None
+    # Même convention que VilleHub.taux_reussite_national — sert au seuil de
+    # couleur relatif des cartes établissement (cf. web/src/lib/tokens.ts).
+    taux_reussite_national: Optional[float] = None
+    etablissements: list[EtablissementRecherche]
+    communes: list[CommuneRecherche]
+    # True si la liste correspondante a atteint la borne de résultats côté
+    # recherche_tool — le nombre affiché n'est alors qu'une borne basse, pas
+    # le total réel (cf. decision_log.md, campagne de test /recherche).
+    etablissements_tronques: bool = False
+    communes_tronquees: bool = False

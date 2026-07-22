@@ -173,3 +173,48 @@ export type VilleHub = {
   taux_reussite_national: number | null;
   colleges: CollegeVille[];
 };
+
+// Miroir TypeScript de api/schemas.py (EtablissementRecherche,
+// CommuneRecherche, RechercheResultats) — GET /recherche.
+
+export type EtablissementRecherche = {
+  uai: string;
+  nom: string;
+  secteur: string;
+  notation: string | null;
+  badge_va: string | null;
+  va_imputee: boolean;
+  appartenance_education_prioritaire: string | null;
+  ulis: boolean;
+  segpa: boolean;
+  section_arts: boolean;
+  section_cinema: boolean;
+  section_theatre: boolean;
+  section_sport: boolean;
+  section_internationale: boolean;
+  section_europeenne: boolean;
+  brevet_taux_reussite_general: number | null;
+  libelle_region: string;
+  code_departement: string;
+  libelle_departement: string;
+  commune: string;
+};
+
+export type CommuneRecherche = {
+  commune: string;
+  code_departement: string;
+  libelle_departement: string;
+  libelle_region: string;
+  nb_etablissements: number;
+  taux_reussite_moyen: number | null;
+};
+
+export type RechercheResultats = {
+  query: string;
+  session_utilisee: string | null;
+  taux_reussite_national: number | null;
+  etablissements: EtablissementRecherche[];
+  communes: CommuneRecherche[];
+  etablissements_tronques: boolean;
+  communes_tronquees: boolean;
+};

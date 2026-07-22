@@ -15,7 +15,7 @@ from api.graphe import obtenir_graphe
 from api.sessions import obtenir_ou_creer_session, enregistrer_session
 from api.schemas import (
     ChatRequest, ChatResponse, Choix, FicheEtablissement,
-    NationalHub, RegionHub, DepartementHub, VilleHub,
+    NationalHub, RegionHub, DepartementHub, VilleHub, RechercheResultats,
 )
 from api.journalisation import journaliser_echange
 from agent.tools.etablissement_tool import obtenir_fiche_etablissement
@@ -26,6 +26,7 @@ from agent.tools.hierarchie_tool import (
     agreger_sous_divisions,
     obtenir_colleges_ville,
 )
+from agent.tools.recherche_tool import rechercher
 
 app = FastAPI(title="agent-ecoles API")
 
@@ -206,6 +207,23 @@ def obtenir_ville(region_slug: str, dept_slug: str, ville_slug: str):
         nb_prives=resultat["nb_prives"],
         taux_reussite_national=resultat["taux_reussite_national"],
         colleges=resultat["colleges"],
+    )
+
+
+@app.get("/recherche", response_model=RechercheResultats)
+def obtenir_recherche(q: str = ""):
+    resultat = rechercher(q)
+    if not resultat["success"]:
+        raise HTTPException(status_code=500, detail=resultat["error"])
+
+    return RechercheResultats(
+        query=q,
+        session_utilisee=resultat["session_utilisee"],
+        taux_reussite_national=resultat["taux_reussite_national"],
+        etablissements=resultat["etablissements"],
+        communes=resultat["communes"],
+        etablissements_tronques=resultat["etablissements_tronques"],
+        communes_tronquees=resultat["communes_tronquees"],
     )
 
 

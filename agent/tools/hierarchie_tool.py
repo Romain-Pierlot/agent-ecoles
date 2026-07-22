@@ -9,7 +9,7 @@ import sqlite3
 import re
 import unicodedata
 
-from config import DB_PATH, NOTATION_LETTRES
+from config import DB_PATH, NOTATION_LETTRES, RANG_NOTATION
 
 
 def _slugifier(texte: str) -> str:
@@ -97,12 +97,6 @@ def resoudre_ville_par_slug(slug: str, code_departement: str) -> dict | None:
     return None
 
 
-# Rang de la notation, de la plus forte à la plus faible (ordre d'affichage
-# par défaut de la page ville) — dérivé de NOTATION_LETTRES (config.py, du
-# plus faible au plus fort) plutôt que dupliqué en dur ici.
-_RANG_NOTATION = {lettre: i for i, lettre in enumerate(reversed(NOTATION_LETTRES))}
-
-
 def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
     """
     Liste les collèges d'une commune avec les champs nécessaires aux cartes
@@ -184,7 +178,7 @@ def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
                 "brevet_taux_reussite_general": r["brevet_taux_reussite_general"],
             })
 
-        colleges.sort(key=lambda c: (_RANG_NOTATION.get(c["notation"], len(NOTATION_LETTRES)), c["nom"]))
+        colleges.sort(key=lambda c: (RANG_NOTATION.get(c["notation"], len(NOTATION_LETTRES)), c["nom"]))
 
         global_stats = {
             "nb_etablissements": len(rows),
