@@ -194,3 +194,46 @@ class DepartementHub(BaseModel):
     communes: list[SousDivision]
 
     model_config = {"populate_by_name": True}
+
+
+# ============================================================
+# Page terminale ville (GET /region/{slug}/departement/{slug}/ville/{slug})
+# ============================================================
+
+class CollegeVille(BaseModel):
+    """Sous-ensemble de EtablissementIdentite + réussite brevet, pour une
+    carte résultat de la page ville — pas la fiche établissement complète."""
+    uai: str
+    nom: str
+    secteur: str
+    notation: Optional[str] = None
+    badge_va: Optional[str] = None
+    va_imputee: bool = False
+    appartenance_education_prioritaire: Optional[str] = None
+    ulis: bool
+    segpa: bool
+    section_arts: bool
+    section_cinema: bool
+    section_theatre: bool
+    section_sport: bool
+    section_internationale: bool
+    section_europeenne: bool
+    brevet_taux_reussite_general: Optional[float] = None
+
+
+class VilleHub(BaseModel):
+    libelle_region: str
+    code_departement: str
+    libelle_departement: str
+    commune: str
+    session_utilisee: Optional[str] = None
+    global_: AgregatEtablissements = Field(alias="global")
+    nb_publics: int
+    nb_prives: int
+    # Taux national de la session affichée, pour le seuil de couleur relatif
+    # (cf. web/src/lib/tokens.ts::sentimentReussite) — pas un jugement porté
+    # ici, juste la donnée brute transmise au front.
+    taux_reussite_national: Optional[float] = None
+    colleges: list[CollegeVille]
+
+    model_config = {"populate_by_name": True}

@@ -9,7 +9,7 @@ import sqlite3
 import re
 import unicodedata
 
-from config import DB_PATH
+from config import DB_PATH, NOTATION_LETTRES
 
 
 def _slugifier(texte: str) -> str:
@@ -70,6 +70,141 @@ def resoudre_departement_par_slug(slug: str, libelle_region: str) -> dict | None
     if row is None:
         return None
     return {"code_departement": row[0], "libelle_departement": row[1]}
+
+
+def resoudre_ville_par_slug(slug: str, code_departement: str) -> dict | None:
+    """
+    Retourne {"commune": str} ou None. Contrairement aux départements, les
+    communes n'ont pas de code stable en base : on ne peut pas extraire un
+    code en tête du slug (cf. resoudre_departement_par_slug). On itère donc
+    les communes du département et on compare leur slug, comme
+    resoudre_region_par_slug le fait pour les régions.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        communes = [
+            row[0] for row in conn.execute(
+                "SELECT DISTINCT commune FROM etablissements "
+                "WHERE code_departement = ? AND commune IS NOT NULL",
+                (code_departement,),
+            )
+        ]
+    finally:
+        conn.close()
+    for commune in communes:
+        if _slugifier(commune) == slug:
+            return {"commune": commune}
+    return None
+
+
+# Rang de la notation, de la plus forte à la plus faible (ordre d'affichage
+# par défaut de la page ville) — dérivé de NOTATION_LETTRES (config.py, du
+# plus faible au plus fort) plutôt que dupliqué en dur ici.
+_RANG_NOTATION = {lettre: i for i, lettre in enumerate(reversed(NOTATION_LETTRES))}
+
+
+def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
+    """
+    Liste les collèges d'une commune avec les champs nécessaires aux cartes
+    de la page ville (identité, secteur, dispositifs, notation, réussite
+    brevet) — contrairement à agreger_sous_divisions, qui ne renvoie que des
+    compteurs par sous-division. Même jointure (etablissements/scores/ivac
+    sur la session la plus récente) que agreger_sous_divisions, pour que le
+    nombre de collèges affiché ici corresponde exactement à celui déjà
+    affiché sur la ligne de cette commune dans le tableau département.
+
+    Retourne : {"success": bool, "session_utilisee": str | None,
+        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None} | None,
+        "nb_publics": int, "nb_prives": int,
+        "taux_reussite_national": float | None,
+        "colleges": [{"uai", "nom", "secteur", "notation", "badge_va",
+            "va_imputee", "appartenance_education_prioritaire", "ulis",
+            "segpa", "section_arts", "section_cinema", "section_theatre",
+            "section_sport", "section_internationale", "section_europeenne",
+            "brevet_taux_reussite_general"}], "error": str | None}
+    Triée par notation décroissante par défaut (A+ -> B), conforme à la
+    maquette ; le tri interactif (phase front à venir) part de cette liste
+    déjà chargée, sans nouvel appel réseau.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        session = conn.execute("SELECT MAX(session) AS s FROM scores").fetchone()["s"]
+        if session is None:
+            return {
+                "success": True, "session_utilisee": None, "global": None,
+                "nb_publics": 0, "nb_prives": 0, "taux_reussite_national": None,
+                "colleges": [], "error": None,
+            }
+
+        rows = conn.execute("""
+            SELECT e.uai, e.nom, e.secteur, e.appartenance_education_prioritaire,
+                   e.ulis, e.segpa, e.section_arts, e.section_cinema, e.section_theatre,
+                   e.section_sport, e.section_internationale, e.section_europeenne,
+                   v.brevet_taux_reussite_general, v.brevet_taux_reussite_national,
+                   s.notation, s.badge_va, s.va_imputee
+            FROM etablissements e
+            JOIN scores s ON e.uai = s.uai
+            JOIN ivac v ON e.uai = v.uai AND v.session = s.session
+            WHERE e.type_etablissement = 'Collège'
+              AND e.commune = ? AND e.code_departement = ?
+              AND s.session = ?
+        """, (commune, code_departement, session)).fetchall()
+
+        colleges = []
+        taux_liste: list[float] = []
+        taux_national = None
+        nb_publics = nb_prives = 0
+        for row in rows:
+            r = dict(row)
+            if r["brevet_taux_reussite_general"] is not None:
+                taux_liste.append(r["brevet_taux_reussite_general"])
+            if r["brevet_taux_reussite_national"] is not None:
+                taux_national = r["brevet_taux_reussite_national"]
+            if r["secteur"] == "Public":
+                nb_publics += 1
+            elif r["secteur"] == "Privé":
+                nb_prives += 1
+            colleges.append({
+                "uai": r["uai"],
+                "nom": r["nom"],
+                "secteur": r["secteur"],
+                "notation": r["notation"],
+                "badge_va": r["badge_va"],
+                "va_imputee": bool(r["va_imputee"]),
+                "appartenance_education_prioritaire": r["appartenance_education_prioritaire"],
+                "ulis": bool(r["ulis"]),
+                "segpa": bool(r["segpa"]),
+                "section_arts": bool(r["section_arts"]),
+                "section_cinema": bool(r["section_cinema"]),
+                "section_theatre": bool(r["section_theatre"]),
+                "section_sport": bool(r["section_sport"]),
+                "section_internationale": bool(r["section_internationale"]),
+                "section_europeenne": bool(r["section_europeenne"]),
+                "brevet_taux_reussite_general": r["brevet_taux_reussite_general"],
+            })
+
+        colleges.sort(key=lambda c: (_RANG_NOTATION.get(c["notation"], len(NOTATION_LETTRES)), c["nom"]))
+
+        global_stats = {
+            "nb_etablissements": len(rows),
+            "taux_reussite_moyen": (sum(taux_liste) / len(taux_liste)) if taux_liste else None,
+        }
+
+        return {
+            "success": True, "session_utilisee": session, "global": global_stats,
+            "nb_publics": nb_publics, "nb_prives": nb_prives,
+            "taux_reussite_national": taux_national,
+            "colleges": colleges, "error": None,
+        }
+    except Exception as e:
+        return {
+            "success": False, "session_utilisee": None, "global": None,
+            "nb_publics": 0, "nb_prives": 0, "taux_reussite_national": None,
+            "colleges": [], "error": str(e),
+        }
+    finally:
+        conn.close()
 
 
 def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:

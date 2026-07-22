@@ -13,13 +13,18 @@ from graph_router import AgentState, poser_question, poser_resolution_choix
 from config import API_CORS_ORIGINS, SEUIL_CANDIDATS_AVANT_PRECISION, SPLIT_SECTEUR_INCREMENT
 from api.graphe import obtenir_graphe
 from api.sessions import obtenir_ou_creer_session, enregistrer_session
-from api.schemas import ChatRequest, ChatResponse, Choix, FicheEtablissement, NationalHub, RegionHub, DepartementHub
+from api.schemas import (
+    ChatRequest, ChatResponse, Choix, FicheEtablissement,
+    NationalHub, RegionHub, DepartementHub, VilleHub,
+)
 from api.journalisation import journaliser_echange
 from agent.tools.etablissement_tool import obtenir_fiche_etablissement
 from agent.tools.hierarchie_tool import (
     resoudre_region_par_slug,
     resoudre_departement_par_slug,
+    resoudre_ville_par_slug,
     agreger_sous_divisions,
+    obtenir_colleges_ville,
 )
 
 app = FastAPI(title="agent-ecoles API")
@@ -169,6 +174,38 @@ def obtenir_departement(region_slug: str, dept_slug: str):
         session_utilisee=agregat["session_utilisee"],
         global_=agregat["global"],
         communes=agregat["sous_divisions"],
+    )
+
+
+@app.get("/region/{region_slug}/departement/{dept_slug}/ville/{ville_slug}", response_model=VilleHub)
+def obtenir_ville(region_slug: str, dept_slug: str, ville_slug: str):
+    region = resoudre_region_par_slug(region_slug)
+    if region is None:
+        raise HTTPException(status_code=404, detail=f"Région introuvable : {region_slug}")
+
+    departement = resoudre_departement_par_slug(dept_slug, region["libelle_region"])
+    if departement is None:
+        raise HTTPException(status_code=404, detail=f"Département introuvable : {dept_slug}")
+
+    ville = resoudre_ville_par_slug(ville_slug, departement["code_departement"])
+    if ville is None:
+        raise HTTPException(status_code=404, detail=f"Ville introuvable : {ville_slug}")
+
+    resultat = obtenir_colleges_ville(ville["commune"], departement["code_departement"])
+    if not resultat["success"]:
+        raise HTTPException(status_code=500, detail=resultat["error"])
+
+    return VilleHub(
+        libelle_region=region["libelle_region"],
+        code_departement=departement["code_departement"],
+        libelle_departement=departement["libelle_departement"],
+        commune=ville["commune"],
+        session_utilisee=resultat["session_utilisee"],
+        global_=resultat["global"],
+        nb_publics=resultat["nb_publics"],
+        nb_prives=resultat["nb_prives"],
+        taux_reussite_national=resultat["taux_reussite_national"],
+        colleges=resultat["colleges"],
     )
 
 
