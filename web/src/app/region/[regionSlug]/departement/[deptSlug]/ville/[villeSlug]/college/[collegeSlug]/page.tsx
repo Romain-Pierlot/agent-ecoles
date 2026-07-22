@@ -18,7 +18,7 @@ export default async function Page({
     collegeSlug: string;
   }>;
 }) {
-  const { regionSlug, deptSlug, collegeSlug } = await params;
+  const { regionSlug, deptSlug, villeSlug, collegeSlug } = await params;
 
   const uai = extraireUaiDuSlug(collegeSlug);
   if (!uai) notFound();
@@ -28,7 +28,7 @@ export default async function Page({
 
   return (
     <div className="min-h-screen bg-fond-creme font-figtree text-texte">
-      <div className="mx-auto max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
         {/* ===== FIL D'ARIANE ===== */}
         {/* Libellés pris sur les vraies données de l'établissement (avec
             accents), pas déduits des slugs d'URL (region/deptSlug/villeSlug)
@@ -37,11 +37,20 @@ export default async function Page({
         <div className="flex flex-wrap items-center gap-1.5 py-3.5 text-[12px] font-semibold text-texte-doux/70">
           <Link href="/" className="hover:text-texte-doux">Accueil</Link>
           <span className="text-filet-fonce">›</span>
-          <span>{fiche.identite.libelle_region ?? deslugifier(regionSlug)}</span>
+          <Link href={`/region/${regionSlug}`} className="hover:text-texte-doux">
+            {fiche.identite.libelle_region ?? deslugifier(regionSlug)}
+          </Link>
           <span className="text-filet-fonce">›</span>
-          <span>{fiche.identite.libelle_departement ?? deslugifier(deptSlug)}</span>
+          <Link href={`/region/${regionSlug}/departement/${deptSlug}`} className="hover:text-texte-doux">
+            {fiche.identite.libelle_departement ?? deslugifier(deptSlug)}
+          </Link>
           <span className="text-filet-fonce">›</span>
-          <span>{fiche.identite.commune}</span>
+          <Link
+            href={`/region/${regionSlug}/departement/${deptSlug}/ville/${villeSlug}`}
+            className="hover:text-texte-doux"
+          >
+            {fiche.identite.commune}
+          </Link>
           <span className="text-filet-fonce">›</span>
           <span className="text-texte">{fiche.identite.nom}</span>
         </div>
