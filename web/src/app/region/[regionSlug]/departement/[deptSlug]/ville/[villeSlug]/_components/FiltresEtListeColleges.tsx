@@ -4,45 +4,15 @@ import { useMemo, useState } from "react";
 import type { CollegeVille } from "@/lib/types";
 import { deriveDispositifsEducatifs, deriveSections } from "@/lib/dispositifs";
 import { ListeColleges } from "@/components/ListeColleges";
+import { SelectFiltre } from "@/components/SelectFiltre";
+import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirectionTri";
 
 // Du plus fort au plus faible — miroir de config.py::NOTATION_LETTRES
 // (inversé), qui reste la source de vérité côté back pour le calcul réel de
 // la notation. Ici on ne fait que comparer un ordre déjà établi.
 const NOTATIONS_ORDRE = ["A+", "A", "A-", "B+", "B"];
 
-type CritereTri = "notation" | "reussite";
-type DirectionTri = "asc" | "desc";
-
-function classesFiltre(actif: boolean): string {
-  return actif
-    ? "border-[1.5px] border-[#E9A9C0] bg-action-pale text-action-dark"
-    : "border-[1.5px] border-filet bg-white text-texte-doux";
-}
-
-function SelectFiltre({
-  value,
-  onChange,
-  actif,
-  children,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  actif: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`relative rounded-[9px] ${classesFiltre(actif)}`}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-transparent py-1.5 pl-2.5 pr-6 text-[11px] font-bold outline-none"
-      >
-        {children}
-      </select>
-      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px]">▾</span>
-    </div>
-  );
-}
+type CritereTri = "notation" | "reussite" | "alphabetique";
 
 export function FiltresEtListeColleges({
   colleges,
@@ -91,6 +61,10 @@ export function FiltresEtListeColleges({
     // manquante n'est ni "la meilleure" ni "la pire", inverser le sens ne
     // doit pas la faire remonter en tête.
     return [...liste].sort((a, b) => {
+      if (critereTri === "alphabetique") {
+        const diff = a.nom.localeCompare(b.nom);
+        return directionTri === "asc" ? diff : -diff;
+      }
       if (critereTri === "reussite") {
         const ta = a.brevet_taux_reussite_general;
         const tb = b.brevet_taux_reussite_general;
@@ -169,19 +143,12 @@ export function FiltresEtListeColleges({
           <SelectFiltre value={critereTri} onChange={(v) => setCritereTri(v as CritereTri)} actif={false}>
             <option value="notation">Notation</option>
             <option value="reussite">Réussite</option>
+            <option value="alphabetique">Alphabétique</option>
           </SelectFiltre>
-          <button
-            type="button"
-            onClick={() => setDirectionTri((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[9px] border-[1.5px] border-filet bg-white text-[12px] text-texte-doux hover:border-filet-fonce"
-            title={
-              directionTri === "desc"
-                ? "Ordre décroissant — cliquer pour inverser"
-                : "Ordre croissant — cliquer pour inverser"
-            }
-          >
-            {directionTri === "desc" ? "↓" : "↑"}
-          </button>
+          <BoutonDirectionTri
+            direction={directionTri}
+            onToggle={() => setDirectionTri((d) => (d === "desc" ? "asc" : "desc"))}
+          />
         </div>
       </div>
 
@@ -193,7 +160,7 @@ export function FiltresEtListeColleges({
         <ListeColleges
           colleges={resultatsAvecHref}
           tauxReussiteNational={tauxReussiteNational}
-          critereTriActif={critereTri}
+          critereTriActif={critereTri === "alphabetique" ? undefined : critereTri}
         />
       )}
     </>

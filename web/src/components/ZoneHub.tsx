@@ -48,7 +48,6 @@ export function ZoneHub({
         <div className="min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">{eyebrow}</span>
           <h1 className="mt-1 font-baloo text-[30px] font-extrabold leading-tight text-texte">{titre}</h1>
-          <p className="mt-1.5 text-[12.5px] text-texte-doux">{sousTitre}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
@@ -66,9 +65,15 @@ export function ZoneHub({
 
       <RechercheBloc />
 
-      {/* ===== LISTE SOUS-DIVISIONS ===== */}
+      {/* ===== LISTE SOUS-DIVISIONS =====
+          Le H2 porte le compteur ("N départements") plutôt que de le dupliquer
+          avec un sous-titre séparé sous le H1 — une seule mention, avec le
+          poids visuel d'un vrai titre de section (H1 région → H2 liste,
+          hiérarchie de titres correcte pour le SEO/l'accessibilité). L'en-tête
+          de colonne du tableau ("Département") reste : son rôle est de nommer
+          une colonne, pas d'annoncer la section. */}
       <div className="mt-7">
-        <h2 className="font-baloo text-[15px] font-extrabold text-texte">{labelColonneSousDivision}s</h2>
+        <h2 className="font-baloo text-[19px] font-extrabold text-texte">{sousTitre}</h2>
         <SousDivisionsTable labelColonne={labelColonneSousDivision} sousDivisions={sousDivisions} />
       </div>
 

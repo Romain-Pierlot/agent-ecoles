@@ -114,6 +114,11 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
       ? sentimentReussite(brevet.brevet_taux_reussite_general, brevet.taux_reussite_national)
       : "descriptif";
 
+  const sentimentNoteEcrit =
+    brevet.brevet_note_ecrit_general != null && brevet.note_ecrit_national != null
+      ? sentimentReussite(brevet.brevet_note_ecrit_general, brevet.note_ecrit_national)
+      : "descriptif";
+
   return (
     <div id="brevet" className="scroll-mt-28">
       <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-action">
@@ -148,7 +153,9 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
 
         <div className="rounded-[18px] border-2 border-filet bg-white p-[18px_20px]">
           <div className="text-[13.5px] font-bold text-texte">Note moyenne à l&apos;écrit</div>
-          <div className="mt-1.5 font-baloo text-[40px] font-extrabold leading-none text-positif">
+          <div
+            className={`mt-1.5 font-baloo text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentNoteEcrit]}`}
+          >
             {brevet.brevet_note_ecrit_general ?? "—"}
             <span className="text-[18px]">/20</span>
           </div>
