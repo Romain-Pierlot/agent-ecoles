@@ -69,7 +69,7 @@ export default function PageChat() {
   }
 
   return (
-    <main className="flex flex-col mx-auto w-full max-w-2xl h-screen p-4 bg-white text-gray-900">
+    <main className="flex flex-col mx-auto w-full max-w-2xl h-[calc(100vh-4rem)] p-4 bg-white text-gray-900">
       <h1 className="text-lg font-semibold mb-4">agent-ecoles — test local</h1>
 
       <div className="flex-1 overflow-y-auto space-y-3 mb-4">

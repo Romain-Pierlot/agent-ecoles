@@ -8,8 +8,6 @@ import { ValeurAjoutee } from "./_components/ValeurAjoutee";
 import { PositionnementSocial } from "./_components/PositionnementSocial";
 import { DispositifsExpliques } from "./_components/DispositifsExpliques";
 
-const NOM_ASSISTANT = "Camille";
-
 export default async function Page({
   params,
 }: {
@@ -30,32 +28,6 @@ export default async function Page({
 
   return (
     <div className="min-h-screen bg-fond-creme font-figtree text-texte">
-      {/* ===== TOP BAR ===== */}
-      <div className="sticky top-0 z-40 border-b border-filet bg-fond-creme/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 md:px-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-[27px] w-[27px] -rotate-6 rounded-[9px_7px_10px_6px] bg-action" />
-            <span className="font-baloo text-[21px] font-extrabold text-texte">écoles</span>
-          </Link>
-          <div className="flex items-center gap-5.5">
-            <div className="hidden items-center gap-5.5 text-[13px] font-semibold text-texte-doux md:flex">
-              <Link href="/recherche" className="hover:text-texte">Chercher</Link>
-              <Link href="/explorer" className="hover:text-texte">Explorer</Link>
-              <Link href="/comprendre/ips" className="hover:text-texte">Comprendre</Link>
-            </div>
-            <Link
-              href="/assistant"
-              className="flex items-center gap-2 rounded-[18px] bg-action px-[15px] py-2 text-[12.5px] font-bold text-white"
-            >
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white font-baloo text-[11px] font-extrabold text-action">
-                C
-              </span>
-              Demander à {NOM_ASSISTANT}
-            </Link>
-          </div>
-        </div>
-      </div>
-
       <div className="mx-auto max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
         {/* ===== FIL D'ARIANE ===== */}
         {/* Libellés pris sur les vraies données de l'établissement (avec

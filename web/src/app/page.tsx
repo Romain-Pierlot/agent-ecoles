@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-
-const NOM_ASSISTANT = "Camille";
+import { NOM_ASSISTANT } from "@/lib/constants";
 
 const VILLES_POPULAIRES = ["Paris", "Lyon", "Marseille", "Rhône (69)", "Toulouse"];
 
@@ -32,33 +31,6 @@ const CARTES_COMPRENDRE = [
 export default function Page() {
   return (
     <div className="bg-fond-creme text-texte font-figtree min-h-screen">
-      {/* ===== NAV ===== */}
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-8 md:py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="h-[30px] w-[30px] -rotate-6 rounded-[11px_9px_12px_8px] bg-action" />
-          <span className="font-baloo text-[22px] font-extrabold text-texte">écoles</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <div className="hidden items-center gap-6 text-[13.5px] font-semibold text-texte-doux md:flex">
-            <Link href="/recherche" className="hover:text-texte">
-              Chercher
-            </Link>
-            <Link href="/explorer" className="hover:text-texte">
-              Explorer
-            </Link>
-            <Link href="/comprendre/ips" className="hover:text-texte">
-              Comprendre
-            </Link>
-          </div>
-          <Link
-            href="/assistant"
-            className="rounded-[22px] bg-action px-[18px] py-2.5 text-[13.5px] font-bold text-white shadow-[0_4px_12px_rgba(217,69,122,0.28)] hover:bg-action-dark"
-          >
-            Demander à {NOM_ASSISTANT}
-          </Link>
-        </div>
-      </div>
-
       {/* ===== HERO ===== */}
       <div className="mx-auto max-w-6xl px-4 md:px-8 pb-5 pt-8">
         <div className="mx-auto mb-9 max-w-xl text-center">

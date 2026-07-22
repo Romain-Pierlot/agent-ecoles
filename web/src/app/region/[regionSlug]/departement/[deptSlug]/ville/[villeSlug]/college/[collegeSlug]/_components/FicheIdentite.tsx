@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { EtablissementIdentite, LanguesOffertes, ProchainesVacances } from "@/lib/types";
 import { slugifier } from "@/lib/slug";
-
-const NOM_ASSISTANT = "Camille";
+import { NOM_ASSISTANT } from "@/lib/constants";
 
 const NOTATION_CLASSES: Record<string, string> = {
   "A+": "bg-notation-a-plus",
@@ -186,7 +185,7 @@ export function FicheIdentite({
             {badges.map((b) => (
               <span
                 key={b}
-                className="rounded-xl border border-filet bg-fond-sable/40 px-3 py-1 text-[11.5px] font-bold text-texte-doux"
+                className="rounded-xl bg-descriptif-pale px-3 py-1 text-[11.5px] font-bold text-descriptif"
               >
                 {b}
               </span>

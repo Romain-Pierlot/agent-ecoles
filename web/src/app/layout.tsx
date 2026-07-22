@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Baloo_2, Figtree, Caveat, JetBrains_Mono } from "next/font/google";
+import { TopBar } from "@/components/TopBar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,7 +52,10 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} ${baloo2.variable} ${figtree.variable} ${caveat.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <TopBar />
+        {children}
+      </body>
     </html>
   );
 }
