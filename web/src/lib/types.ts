@@ -20,6 +20,7 @@ export type EtablissementIdentite = {
   date_ouverture: string | null;
   notation: string | null;
   badge_va: string | null;
+  va_imputee: boolean;
   appartenance_education_prioritaire: string | null;
   ulis: boolean;
   segpa: boolean;
@@ -101,4 +102,40 @@ export type FicheEtablissement = {
   sections_sportives: string[];
   zone_vacances: string | null;
   prochaines_vacances: ProchainesVacances | null;
+};
+
+// Miroir TypeScript de api/schemas.py (RegionHub, DepartementHub) —
+// GET /region/{slug}, GET /region/{slug}/departement/{slug}.
+
+export type AgregatEtablissements = {
+  nb_etablissements: number;
+  taux_reussite_moyen: number | null;
+  notation_mediane: string | null;
+};
+
+export type SousDivision = AgregatEtablissements & {
+  code: string;
+  libelle: string;
+};
+
+export type NationalHub = {
+  session_utilisee: string | null;
+  global: AgregatEtablissements;
+  regions: SousDivision[];
+};
+
+export type RegionHub = {
+  libelle_region: string;
+  session_utilisee: string | null;
+  global: AgregatEtablissements;
+  departements: SousDivision[];
+};
+
+export type DepartementHub = {
+  libelle_region: string;
+  code_departement: string;
+  libelle_departement: string;
+  session_utilisee: string | null;
+  global: AgregatEtablissements;
+  communes: SousDivision[];
 };

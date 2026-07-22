@@ -1,33 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import type { PositionnementSocial as PositionnementSocialType } from "@/lib/types";
-
-// Bouton d'aide contextuelle : le terme technique ("écart-type") n'est
-// affiché nulle part par défaut, seule son explication en une phrase est
-// révélée au clic — cf. échange sur la mixité sociale, le terme brut est
-// incompréhensible pour la plupart des parents.
-function BoutonAide({ texte }: { texte: string }) {
-  const [ouvert, setOuvert] = useState(false);
-  return (
-    <span className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setOuvert((v) => !v)}
-        aria-expanded={ouvert}
-        aria-label="Qu'est-ce que ça veut dire ?"
-        className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-filet-fonce text-[10px] font-bold leading-none text-texte-doux"
-      >
-        ?
-      </button>
-      {ouvert && (
-        <span className="absolute left-0 top-6 z-10 w-60 rounded-xl border border-filet bg-white p-2.5 text-[11px] font-normal leading-relaxed text-texte-doux shadow-lg">
-          {texte}
-        </span>
-      )}
-    </span>
-  );
-}
+import { BoutonAide } from "@/components/BoutonAide";
 
 // Jauge en barre de progression + marqueur circulaire — le curseur est
 // centré via `top-1/2 -translate-y-1/2` (transform CSS), pas via un calcul

@@ -25,6 +25,18 @@ export function construireSlugCollege(nom: string, uai: string): string {
   return `${slugifier(nom)}-${uai.toLowerCase()}`;
 }
 
+// Résolution réelle en place côté API (cf. agent/tools/hierarchie_tool.py,
+// decision_log.md S15.4) — ces deux fonctions construisent les liens vers
+// les pages hub à partir des libellés déjà résolus par l'API, jamais depuis
+// un slug reconstitué à l'aveugle.
+export function construireSlugRegion(libelleRegion: string): string {
+  return slugifier(libelleRegion);
+}
+
+export function construireSlugDepartement(codeDepartement: string, libelleDepartement: string): string {
+  return `${codeDepartement.toLowerCase()}-${slugifier(libelleDepartement)}`;
+}
+
 // Reconstruction best-effort d'un libellé lisible depuis un slug de la
 // hiérarchie géographique (région/département/ville), en l'absence d'un
 // vrai service de libellés (ces pages sont encore des placeholders) —
