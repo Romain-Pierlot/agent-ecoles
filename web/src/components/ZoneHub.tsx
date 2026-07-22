@@ -56,9 +56,9 @@ export function ZoneHub({
           </div>
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
             <div className="font-baloo text-[22px] font-extrabold text-positif">
-              {global.notation_mediane ?? "—"}
+              {global.taux_reussite_moyen !== null ? `${global.taux_reussite_moyen.toFixed(0)} %` : "—"}
             </div>
-            <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Notation médiane</div>
+            <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Réussite moyenne</div>
           </div>
         </div>
       </div>

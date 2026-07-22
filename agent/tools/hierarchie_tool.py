@@ -6,7 +6,6 @@ fautes de frappe) : ici on résout un slug d'URL déjà normalisé, selon
 l'algorithme décidé en decision_log.md S15.4."""
 
 import sqlite3
-import statistics
 import re
 import unicodedata
 
@@ -73,29 +72,6 @@ def resoudre_departement_par_slug(slug: str, libelle_region: str) -> dict | None
     return {"code_departement": row[0], "libelle_departement": row[1]}
 
 
-def _reclasser_en_lettre(conn: sqlite3.Connection, session: str, score_median: float) -> str | None:
-    """Consulte notation_seuils (peuplée à l'ingestion, cf. data/ingest.py::calculer_scores)."""
-    row = conn.execute(
-        "SELECT notation FROM notation_seuils "
-        "WHERE session = ? AND ? >= borne_min AND ? <= borne_max "
-        "ORDER BY borne_min LIMIT 1",
-        (session, score_median, score_median),
-    ).fetchone()
-    return row[0] if row else None
-
-
-def _stats_groupe(conn: sqlite3.Connection, session: str, taux: list[float], scores: list[float], nb: int) -> dict:
-    """Factorise le calcul {nb, taux moyen, notation médiane} — utilisé pour
-    chaque sous-division ET pour l'agrégat global (même formule, périmètre
-    différent)."""
-    notation_mediane = _reclasser_en_lettre(conn, session, statistics.median(scores)) if scores else None
-    return {
-        "nb_etablissements": nb,
-        "taux_reussite_moyen": (sum(taux) / len(taux)) if taux else None,
-        "notation_mediane": notation_mediane,
-    }
-
-
 def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
     """
     Agrège les collèges par sous-division administrative :
@@ -104,21 +80,22 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
     (libelle_region) ; niveau="departement" -> une ligne par commune du
     département `valeur` (code_departement).
 
-    Notation médiane = médiane du score_principal du groupe, reclassée en
-    lettre via notation_seuils (cf. decision_log.md, option B : rigoureuse
-    statistiquement sans recalculer les seuils Stanine à la requête).
+    Pas de notation en lettres ici (cf. decision_log.md) : la notation
+    combine résultats + valeur ajoutée d'un établissement précis, une notion
+    qui n'a pas de sens transposée à un regroupement géographique — de plus,
+    la médiane d'un groupe s'est révélée statistiquement quasi toujours
+    classée dans la même lettre (A-, la tranche centrale qui couvre à elle
+    seule 50% des établissements), rendant le signal inutilisable pour
+    comparer des zones entre elles. Seul le taux de réussite moyen (continu,
+    discriminant) sert d'indicateur agrégé.
 
     Retourne : {"success": bool, "session_utilisee": str | None,
-        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None,
-            "notation_mediane": str | None} | None,
+        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None} | None,
         "sous_divisions": [{"code": str, "libelle": str,
-            "nb_etablissements": int, "taux_reussite_moyen": float | None,
-            "notation_mediane": str | None}], "error": str | None}
+            "nb_etablissements": int, "taux_reussite_moyen": float | None}], "error": str | None}
     "global" porte sur l'ENSEMBLE des établissements du périmètre (toute la
     région, ou tout le département) — sert aux 2 cartes d'agrégat du hero de
-    la page hub, distinctes du tableau des sous-divisions. Ce n'est PAS une
-    moyenne/médiane des sous-divisions (une médiane de médianes ne vaudrait
-    pas la vraie médiane) : recalculée sur la liste complète non groupée.
+    la page hub, distinctes du tableau des sous-divisions.
     """
     if niveau not in ("national", "region", "departement"):
         return {"success": False, "session_utilisee": None, "global": None, "sous_divisions": [], "error": f"niveau invalide : {niveau}"}
@@ -138,7 +115,7 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
 
         rows = conn.execute(f"""
             SELECT e.libelle_region, e.code_departement, e.libelle_departement, e.commune,
-                   s.score_principal, v.brevet_taux_reussite_general
+                   v.brevet_taux_reussite_general
             FROM etablissements e
             JOIN scores s ON e.uai = s.uai
             JOIN ivac v ON e.uai = v.uai AND v.session = s.session
@@ -149,12 +126,9 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
 
         groupes: dict[str, dict] = {}
         taux_global: list[float] = []
-        scores_global: list[float] = []
         for row in rows:
             if row["brevet_taux_reussite_general"] is not None:
                 taux_global.append(row["brevet_taux_reussite_general"])
-            if row["score_principal"] is not None:
-                scores_global.append(row["score_principal"])
 
             if niveau == "national":
                 cle, libelle = row["libelle_region"], row["libelle_region"]
@@ -164,20 +138,26 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
                 cle, libelle = row["commune"], row["commune"]
             if cle is None:
                 continue
-            groupe = groupes.setdefault(cle, {"libelle": libelle, "nb": 0, "taux": [], "scores": []})
+            groupe = groupes.setdefault(cle, {"libelle": libelle, "nb": 0, "taux": []})
             groupe["nb"] += 1
             if row["brevet_taux_reussite_general"] is not None:
                 groupe["taux"].append(row["brevet_taux_reussite_general"])
-            if row["score_principal"] is not None:
-                groupe["scores"].append(row["score_principal"])
 
         sous_divisions = [
-            {"code": code, "libelle": g["libelle"], **_stats_groupe(conn, session, g["taux"], g["scores"], g["nb"])}
+            {
+                "code": code,
+                "libelle": g["libelle"],
+                "nb_etablissements": g["nb"],
+                "taux_reussite_moyen": (sum(g["taux"]) / len(g["taux"])) if g["taux"] else None,
+            }
             for code, g in groupes.items()
         ]
         sous_divisions.sort(key=lambda d: d["libelle"] or "")
 
-        global_stats = _stats_groupe(conn, session, taux_global, scores_global, len(rows))
+        global_stats = {
+            "nb_etablissements": len(rows),
+            "taux_reussite_moyen": (sum(taux_global) / len(taux_global)) if taux_global else None,
+        }
 
         return {"success": True, "session_utilisee": session, "global": global_stats, "sous_divisions": sous_divisions, "error": None}
     except Exception as e:

@@ -49,7 +49,6 @@ def creer_connexion():
 def creer_tables(conn):
     conn.executescript("""
         DROP TABLE IF EXISTS scores;
-        DROP TABLE IF EXISTS notation_seuils;
         DROP TABLE IF EXISTS ips;
         DROP TABLE IF EXISTS ivac;
         DROP TABLE IF EXISTS etablissements;
@@ -170,18 +169,6 @@ def creer_tables(conn):
             va_imputee      INTEGER,
             PRIMARY KEY (uai, session),
             FOREIGN KEY (uai) REFERENCES etablissements(uai)
-        );
-
-        -- Bornes de score_principal par lettre, par session (cf. calculer_scores
-        -- / NOTATION_REPARTITION) — persistées pour reclasser en lettre la
-        -- médiane d'un groupe d'établissements (agrégats région/département/
-        -- ville) sans recalculer les seuils Stanine à chaque requête.
-        CREATE TABLE notation_seuils (
-            session    TEXT,
-            notation   TEXT,
-            borne_min  REAL,
-            borne_max  REAL,
-            PRIMARY KEY (session, notation)
         );
 
         CREATE TABLE referentiel_temporel (
@@ -633,7 +620,6 @@ def calculer_scores(conn):
     df['score_principal'] = None
     df['notation'] = None
     df['va_imputee'] = None
-    seuils_rows = []  # (session, notation, borne_min, borne_max) — cf. table notation_seuils
 
     for session in df['session'].unique():
         mask = df['session'] == session
@@ -684,10 +670,6 @@ def calculer_scores(conn):
         df.loc[mask, 'notation'] = pd.cut(
             scores_session, bins=bornes, labels=labels, include_lowest=True
         ).astype(str)
-        seuils_rows.extend(
-            (session, label, float(bornes[i]), float(bornes[i + 1]))
-            for i, label in enumerate(labels)
-        )
 
     def badge(row):
         va = row['brevet_va_taux_reussite_general']
@@ -706,12 +688,6 @@ def calculer_scores(conn):
     n_avec_notation = scores['notation'].notna().sum()
     n_va_imputee = scores['va_imputee'].fillna(False).astype(bool).sum()
     print(f"  ✓ {len(scores)} scores calculés ({n_avec_notation} avec notation complète, dont {n_va_imputee} avec VA imputée à 0)")
-
-    conn.executemany(
-        "INSERT INTO notation_seuils (session, notation, borne_min, borne_max) VALUES (?, ?, ?, ?)",
-        seuils_rows
-    )
-    print(f"  ✓ {len(seuils_rows)} seuils de notation enregistrés ({df['session'].nunique()} session(s))")
 
 
 def inserer_referentiel(conn):

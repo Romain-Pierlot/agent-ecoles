@@ -110,7 +110,6 @@ export type FicheEtablissement = {
 export type AgregatEtablissements = {
   nb_etablissements: number;
   taux_reussite_moyen: number | null;
-  notation_mediane: string | null;
 };
 
 export type SousDivision = AgregatEtablissements & {

@@ -155,9 +155,12 @@ class FicheEtablissement(BaseModel):
 class AgregatEtablissements(BaseModel):
     nb_etablissements: int
     taux_reussite_moyen: Optional[float] = None
-    # Médiane du score_principal du périmètre, reclassée en lettre via
-    # notation_seuils — cf. agent/tools/hierarchie_tool.py.
-    notation_mediane: Optional[str] = None
+    # Pas de notation en lettres au niveau agrégat (région/département/ville)
+    # — cf. decision_log.md : la notation combine résultats + valeur ajoutée
+    # d'un établissement précis, ça n'a pas de sens transposé à une zone
+    # géographique, et la médiane d'un groupe se classait quasi toujours
+    # dans la même lettre (signal inutilisable). Notation individuelle
+    # inchangée, cf. EtablissementIdentite.notation.
 
 
 class SousDivision(AgregatEtablissements):
