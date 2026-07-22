@@ -1,6 +1,6 @@
 """api/schemas.py — Contrats de données de l'API (requêtes/réponses HTTP)."""
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
@@ -62,6 +62,9 @@ class EtablissementIdentite(BaseModel):
     date_ouverture: Optional[str] = None
     notation: Optional[str] = None
     badge_va: Optional[str] = None
+    # True si la VA de cet établissement était absente et a été substituée
+    # par 0 (neutre) pour calculer sa notation — cf. data/ingest.py::calculer_scores.
+    va_imputee: bool = False
     appartenance_education_prioritaire: Optional[str] = None
     ulis: bool
     segpa: bool
@@ -143,3 +146,48 @@ class FicheEtablissement(BaseModel):
     sections_sportives: list[str] = []
     zone_vacances: Optional[str] = None
     prochaines_vacances: Optional[ProchainesVacances] = None
+
+
+# ============================================================
+# Hub région/département (GET /region/{slug}, .../departement/{slug})
+# ============================================================
+
+class AgregatEtablissements(BaseModel):
+    nb_etablissements: int
+    taux_reussite_moyen: Optional[float] = None
+    # Médiane du score_principal du périmètre, reclassée en lettre via
+    # notation_seuils — cf. agent/tools/hierarchie_tool.py.
+    notation_mediane: Optional[str] = None
+
+
+class SousDivision(AgregatEtablissements):
+    code: str
+    libelle: str
+
+
+class NationalHub(BaseModel):
+    session_utilisee: Optional[str] = None
+    global_: AgregatEtablissements = Field(alias="global")
+    regions: list[SousDivision]
+
+    model_config = {"populate_by_name": True}
+
+
+class RegionHub(BaseModel):
+    libelle_region: str
+    session_utilisee: Optional[str] = None
+    global_: AgregatEtablissements = Field(alias="global")
+    departements: list[SousDivision]
+
+    model_config = {"populate_by_name": True}
+
+
+class DepartementHub(BaseModel):
+    libelle_region: str
+    code_departement: str
+    libelle_departement: str
+    session_utilisee: Optional[str] = None
+    global_: AgregatEtablissements = Field(alias="global")
+    communes: list[SousDivision]
+
+    model_config = {"populate_by_name": True}

@@ -61,7 +61,7 @@ def obtenir_fiche_etablissement(uai: str) -> dict:
 
             ivac_row = _obtenir_ivac_row(conn, uai, session) if session else None
             notation_row = conn.execute(
-                "SELECT notation, badge_va FROM scores WHERE uai = ? AND session = ?",
+                "SELECT notation, badge_va, va_imputee FROM scores WHERE uai = ? AND session = ?",
                 (uai, session),
             ).fetchone() if session else None
 
@@ -92,6 +92,7 @@ def _construire_identite(base: dict, notation_row) -> dict:
         identite[col] = bool(identite[col])
     identite["notation"] = notation_row["notation"] if notation_row else None
     identite["badge_va"] = notation_row["badge_va"] if notation_row else None
+    identite["va_imputee"] = bool(notation_row["va_imputee"]) if notation_row else False
     return identite
 
 

@@ -13,9 +13,14 @@ from graph_router import AgentState, poser_question, poser_resolution_choix
 from config import API_CORS_ORIGINS, SEUIL_CANDIDATS_AVANT_PRECISION, SPLIT_SECTEUR_INCREMENT
 from api.graphe import obtenir_graphe
 from api.sessions import obtenir_ou_creer_session, enregistrer_session
-from api.schemas import ChatRequest, ChatResponse, Choix, FicheEtablissement
+from api.schemas import ChatRequest, ChatResponse, Choix, FicheEtablissement, NationalHub, RegionHub, DepartementHub
 from api.journalisation import journaliser_echange
 from agent.tools.etablissement_tool import obtenir_fiche_etablissement
+from agent.tools.hierarchie_tool import (
+    resoudre_region_par_slug,
+    resoudre_departement_par_slug,
+    agreger_sous_divisions,
+)
 
 app = FastAPI(title="agent-ecoles API")
 
@@ -110,6 +115,61 @@ def obtenir_etablissement(uai: str):
     if resultat["fiche"] is None:
         raise HTTPException(status_code=404, detail=f"Établissement {uai} introuvable")
     return resultat["fiche"]
+
+
+@app.get("/region", response_model=NationalHub)
+def obtenir_national():
+    agregat = agreger_sous_divisions("national")
+    if not agregat["success"]:
+        raise HTTPException(status_code=500, detail=agregat["error"])
+
+    return NationalHub(
+        session_utilisee=agregat["session_utilisee"],
+        global_=agregat["global"],
+        regions=agregat["sous_divisions"],
+    )
+
+
+@app.get("/region/{region_slug}", response_model=RegionHub)
+def obtenir_region(region_slug: str):
+    region = resoudre_region_par_slug(region_slug)
+    if region is None:
+        raise HTTPException(status_code=404, detail=f"Région introuvable : {region_slug}")
+
+    agregat = agreger_sous_divisions("region", region["libelle_region"])
+    if not agregat["success"]:
+        raise HTTPException(status_code=500, detail=agregat["error"])
+
+    return RegionHub(
+        libelle_region=region["libelle_region"],
+        session_utilisee=agregat["session_utilisee"],
+        global_=agregat["global"],
+        departements=agregat["sous_divisions"],
+    )
+
+
+@app.get("/region/{region_slug}/departement/{dept_slug}", response_model=DepartementHub)
+def obtenir_departement(region_slug: str, dept_slug: str):
+    region = resoudre_region_par_slug(region_slug)
+    if region is None:
+        raise HTTPException(status_code=404, detail=f"Région introuvable : {region_slug}")
+
+    departement = resoudre_departement_par_slug(dept_slug, region["libelle_region"])
+    if departement is None:
+        raise HTTPException(status_code=404, detail=f"Département introuvable : {dept_slug}")
+
+    agregat = agreger_sous_divisions("departement", departement["code_departement"])
+    if not agregat["success"]:
+        raise HTTPException(status_code=500, detail=agregat["error"])
+
+    return DepartementHub(
+        libelle_region=region["libelle_region"],
+        code_departement=departement["code_departement"],
+        libelle_departement=departement["libelle_departement"],
+        session_utilisee=agregat["session_utilisee"],
+        global_=agregat["global"],
+        communes=agregat["sous_divisions"],
+    )
 
 
 @app.post("/chat", response_model=ChatResponse)

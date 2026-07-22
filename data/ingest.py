@@ -49,6 +49,7 @@ def creer_connexion():
 def creer_tables(conn):
     conn.executescript("""
         DROP TABLE IF EXISTS scores;
+        DROP TABLE IF EXISTS notation_seuils;
         DROP TABLE IF EXISTS ips;
         DROP TABLE IF EXISTS ivac;
         DROP TABLE IF EXISTS etablissements;
@@ -163,8 +164,24 @@ def creer_tables(conn):
             score_resultats REAL,
             notation        TEXT,
             badge_va        TEXT,
+            -- VA absente -> substituée par 0 (neutre) dans score_principal,
+            -- cf. calculer_scores. va_imputee=1 signale que la notation de
+            -- cet établissement ne s'appuie pas sur une VA réelle.
+            va_imputee      INTEGER,
             PRIMARY KEY (uai, session),
             FOREIGN KEY (uai) REFERENCES etablissements(uai)
+        );
+
+        -- Bornes de score_principal par lettre, par session (cf. calculer_scores
+        -- / NOTATION_REPARTITION) — persistées pour reclasser en lettre la
+        -- médiane d'un groupe d'établissements (agrégats région/département/
+        -- ville) sans recalculer les seuils Stanine à chaque requête.
+        CREATE TABLE notation_seuils (
+            session    TEXT,
+            notation   TEXT,
+            borne_min  REAL,
+            borne_max  REAL,
+            PRIMARY KEY (session, notation)
         );
 
         CREATE TABLE referentiel_temporel (
@@ -244,6 +261,23 @@ def _deriver_arrondissement(commune: str, code_postal) -> str:
         return commune
     suffixe = "1er" if numero == 1 else f"{numero}e"
     return f"{commune} {suffixe} Arrondissement"
+
+
+def _normaliser_code_departement(code):
+    """
+    Corrige le code département brut de la source (cf. appel dans
+    ingerer_annuaire) : zero-pad les codes 1-9 ("1" -> "01"), retire le zéro
+    parasite de la Corse ("02A"/"02B" -> "2A"/"2B", le code officiel INSEE).
+    Les codes DOM-TOM (971-978) et les autres départements métropolitains
+    (10-95) sont déjà corrects, laissés inchangés.
+    """
+    if pd.isna(code):
+        return code
+    if code in ('02A', '02B'):
+        return code[1:]
+    if code.isdigit() and len(code) == 1:
+        return code.zfill(2)
+    return code
 
 
 def ingerer_annuaire(conn):
@@ -330,6 +364,15 @@ def ingerer_annuaire(conn):
     # Marseille seulement, sans effet sur les autres communes.
     if 'commune' in df.columns and 'code_postal' in df.columns:
         df['commune'] = df.apply(lambda r: _deriver_arrondissement(r['commune'], r['code_postal']), axis=1)
+    # Anomalie de la source (Code_departement du fichier annuaire) : les
+    # départements 1 à 9 sont fournis sans zéro ("1" pour l'Ain), la Corse
+    # avec un zéro parasite ("02A"/"02B" au lieu du code officiel "2A"/"2B").
+    # Corrigé une fois ici plutôt que dans chaque consommateur (même logique
+    # que le nettoyage de commune ci-dessus) — nécessaire pour que le slug
+    # département affiche le repère à 2 chiffres attendu (decision_log.md
+    # S15.4).
+    if 'code_departement' in df.columns:
+        df['code_departement'] = df['code_departement'].apply(_normaliser_code_departement)
 
     df.to_sql('etablissements', conn, if_exists='append', index=False)
 
@@ -556,10 +599,23 @@ def calculer_scores(conn):
       sert au tri "meilleur collège" et à dériver la notation en lettres.
     Chaque indicateur est normalisé min-max par session (comparable entre
     établissements de la même année uniquement, jamais d'une année à
-    l'autre). score_principal et la notation ne sont calculés que pour le
-    sous-ensemble d'une session qui a les 2 VA renseignées (~75% des
-    établissements, cf. roadmap_produit.md) ; score_resultats reste
-    calculable pour tous les établissements ayant taux + note.
+    l'autre).
+
+    VA absente (~25% des établissements, VA non publiée par le Ministère
+    pour ces établissements cette session-là, cf. decision_log.md) ->
+    substituée par 0 dans score_principal. La VA est une mesure d'écart à
+    un résultat attendu, centrée sur 0 par construction (vérifié
+    empiriquement : moyenne entre -0.94 et -0.73 selon la session pour le
+    taux, quasi 0 pour la note) — 0 revient donc à supposer "résultat
+    conforme à l'attendu" en l'absence de preuve du contraire, sans
+    avantager ni pénaliser l'établissement. Les bornes de normalisation
+    (vt_min/vt_max/vn_min/vn_max) restent calculées sur les VRAIES valeurs
+    de VA uniquement, jamais faussées par les zéros substitués. Résultat :
+    score_principal et notation sont désormais calculables pour le même
+    périmètre que score_resultats (tout établissement ayant taux + note).
+    va_imputee (colonne scores) garde la trace de cette substitution,
+    établissement par établissement, pour que l'interface puisse continuer
+    à signaler une notation sans VA réelle derrière.
     """
     print("→ Calcul des scores...")
     df = pd.read_sql("""
@@ -576,6 +632,8 @@ def calculer_scores(conn):
     df['score_resultats'] = None
     df['score_principal'] = None
     df['notation'] = None
+    df['va_imputee'] = None
+    seuils_rows = []  # (session, notation, borne_min, borne_max) — cf. table notation_seuils
 
     for session in df['session'].unique():
         mask = df['session'] == session
@@ -592,6 +650,8 @@ def calculer_scores(conn):
             (df.loc[mask, 'brevet_note_ecrit_general'] - n_min) / (n_max - n_min) * SCORE_RESULTATS_POIDS_NOTE
         ) * 100
 
+        # Bornes de normalisation VA : calculées sur les vraies valeurs
+        # uniquement (mask_va), jamais sur les zéros substitués ci-dessous.
         mask_va = mask & df['brevet_va_taux_reussite_general'].notna() & df['brevet_va_note_ecrit_general'].notna()
         if not mask_va.any():
             continue
@@ -603,21 +663,31 @@ def calculer_scores(conn):
         if vt_max <= vt_min or vn_max <= vn_min:
             continue
 
-        df.loc[mask_va, 'score_principal'] = (
-            (df.loc[mask_va, 'brevet_taux_reussite_general'] - t_min) / (t_max - t_min) * SCORE_PRINCIPAL_POIDS_TAUX +
-            (df.loc[mask_va, 'brevet_note_ecrit_general'] - n_min) / (n_max - n_min) * SCORE_PRINCIPAL_POIDS_NOTE +
-            (df.loc[mask_va, 'brevet_va_taux_reussite_general'] - vt_min) / (vt_max - vt_min) * SCORE_PRINCIPAL_POIDS_VA_TAUX +
-            (df.loc[mask_va, 'brevet_va_note_ecrit_general'] - vn_min) / (vn_max - vn_min) * SCORE_PRINCIPAL_POIDS_VA_NOTE
-        ) * 100
+        # score_principal calculé sur tout `mask` (même périmètre que
+        # score_resultats), pas seulement mask_va : VA manquante -> 0.
+        va_taux_utilise = df.loc[mask, 'brevet_va_taux_reussite_general'].fillna(0)
+        va_note_utilise = df.loc[mask, 'brevet_va_note_ecrit_general'].fillna(0)
 
-        scores_session = df.loc[mask_va, 'score_principal']
+        df.loc[mask, 'score_principal'] = (
+            (df.loc[mask, 'brevet_taux_reussite_general'] - t_min) / (t_max - t_min) * SCORE_PRINCIPAL_POIDS_TAUX +
+            (df.loc[mask, 'brevet_note_ecrit_general'] - n_min) / (n_max - n_min) * SCORE_PRINCIPAL_POIDS_NOTE +
+            (va_taux_utilise - vt_min) / (vt_max - vt_min) * SCORE_PRINCIPAL_POIDS_VA_TAUX +
+            (va_note_utilise - vn_min) / (vn_max - vn_min) * SCORE_PRINCIPAL_POIDS_VA_NOTE
+        ) * 100
+        df.loc[mask, 'va_imputee'] = df.loc[mask, 'brevet_va_taux_reussite_general'].isna()
+
+        scores_session = df.loc[mask, 'score_principal']
         bornes = _bornes_repartition(scores_session, NOTATION_REPARTITION)
         if len(bornes) < 2:
             continue
         labels = NOTATION_LETTRES[:len(bornes) - 1]
-        df.loc[mask_va, 'notation'] = pd.cut(
+        df.loc[mask, 'notation'] = pd.cut(
             scores_session, bins=bornes, labels=labels, include_lowest=True
         ).astype(str)
+        seuils_rows.extend(
+            (session, label, float(bornes[i]), float(bornes[i + 1]))
+            for i, label in enumerate(labels)
+        )
 
     def badge(row):
         va = row['brevet_va_taux_reussite_general']
@@ -631,10 +701,17 @@ def calculer_scores(conn):
 
     df['badge_va'] = df.apply(badge, axis=1)
 
-    scores = df[['uai', 'session', 'score_principal', 'score_resultats', 'notation', 'badge_va']]
+    scores = df[['uai', 'session', 'score_principal', 'score_resultats', 'notation', 'badge_va', 'va_imputee']]
     scores.to_sql('scores', conn, if_exists='append', index=False)
     n_avec_notation = scores['notation'].notna().sum()
-    print(f"  ✓ {len(scores)} scores calculés ({n_avec_notation} avec notation complète)")
+    n_va_imputee = scores['va_imputee'].fillna(False).astype(bool).sum()
+    print(f"  ✓ {len(scores)} scores calculés ({n_avec_notation} avec notation complète, dont {n_va_imputee} avec VA imputée à 0)")
+
+    conn.executemany(
+        "INSERT INTO notation_seuils (session, notation, borne_min, borne_max) VALUES (?, ?, ?, ?)",
+        seuils_rows
+    )
+    print(f"  ✓ {len(seuils_rows)} seuils de notation enregistrés ({df['session'].nunique()} session(s))")
 
 
 def inserer_referentiel(conn):
