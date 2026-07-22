@@ -28,10 +28,15 @@ export function CarteCollege({
   college,
   hrefBase,
   tauxReussiteNational,
+  critereTriActif,
 }: {
   college: CollegeVille;
   hrefBase: string;
   tauxReussiteNational: number | null;
+  // Optionnel : seule la page ville trie (et donc met en évidence le
+  // critère actif) pour l'instant — /recherche peut réutiliser cette carte
+  // sans tri, auquel cas rien n'est mis en évidence.
+  critereTriActif?: "notation" | "reussite";
 }) {
   const badgesDispositifs = deriveBadgesDispositifs(college);
   const gradient = college.notation ? NOTATION_GRADIENTS[college.notation] : null;
@@ -67,16 +72,24 @@ export function CarteCollege({
 
       {/* Indicateurs groupés à droite, comme sur les tableaux hub (libellé à
           gauche, indicateurs à droite) — badge notation et taux de réussite
-          côte à côte, près du contrôle de tri qu'ils alimentent. */}
+          côte à côte, près du contrôle de tri qu'ils alimentent. Celui qui
+          correspond au critère de tri actif est mis en évidence, pour relier
+          visuellement le contrôle de tri à la bonne donnée. */}
       <span
-        className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] font-baloo text-[19px] font-extrabold text-white"
+        className={`flex h-11 w-11 flex-none items-center justify-center rounded-[13px] font-baloo text-[19px] font-extrabold text-white ${
+          critereTriActif === "notation" ? "ring-2 ring-action ring-offset-2" : ""
+        }`}
         style={gradient ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre } : { backgroundColor: "var(--color-descriptif)" }}
       >
         {college.notation ?? "—"}
       </span>
 
       {college.brevet_taux_reussite_general !== null && (
-        <div className="flex-none text-center">
+        <div
+          className={`flex-none rounded-lg px-2 py-1 text-center ${
+            critereTriActif === "reussite" ? "bg-action-pale" : ""
+          }`}
+        >
           <div
             className={`font-baloo text-[17px] font-extrabold ${
               sentimentTaux ? CLASSE_TEXTE_SENTIMENT[sentimentTaux] : "text-texte"

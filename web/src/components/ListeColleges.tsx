@@ -8,12 +8,16 @@ const NB_AFFICHES_INITIALEMENT = 15;
 
 export function ListeColleges({
   colleges,
-  hrefBase,
   tauxReussiteNational,
+  critereTriActif,
 }: {
-  colleges: CollegeVille[];
-  hrefBase: string;
+  // hrefBase porté par chaque collège (pas un seul partagé) : la page ville
+  // a tous ses collèges sous le même hrefBase, mais la page recherche
+  // affiche des collèges venant potentiellement de villes différentes,
+  // chacun avec son propre chemin.
+  colleges: (CollegeVille & { hrefBase: string })[];
   tauxReussiteNational: number | null;
+  critereTriActif?: "notation" | "reussite";
 }) {
   const [toutAfficher, setToutAfficher] = useState(false);
   const affiches = toutAfficher ? colleges : colleges.slice(0, NB_AFFICHES_INITIALEMENT);
@@ -25,8 +29,9 @@ export function ListeColleges({
         <CarteCollege
           key={c.uai}
           college={c}
-          hrefBase={hrefBase}
+          hrefBase={c.hrefBase}
           tauxReussiteNational={tauxReussiteNational}
+          critereTriActif={critereTriActif}
         />
       ))}
       {nbRestants > 0 && (

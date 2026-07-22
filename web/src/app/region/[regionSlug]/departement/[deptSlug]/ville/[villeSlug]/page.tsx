@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { recupererVille } from "@/lib/geographie";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
-import { ListeColleges } from "./_components/ListeColleges";
+import { FiltresEtListeColleges } from "./_components/FiltresEtListeColleges";
 
 function formaterTaux(taux: number | null): string {
   return taux === null ? "—" : `${taux.toFixed(0)} %`;
@@ -65,32 +65,7 @@ export default async function Page({
 
       <RechercheBloc placeholder="Rechercher une autre ville, ou saisir une adresse pour trouver son secteur…" />
 
-      {/* ===== BARRE DE FILTRES (visuelle — activation en phase C) ===== */}
-      <div className="mt-3.5 flex flex-wrap items-center gap-2">
-        <span className="mr-0.5 text-[10px] font-bold uppercase tracking-wide text-texte-doux">Filtrer</span>
-        <span className="rounded-[9px] border-[1.5px] border-[#E9A9C0] bg-action-pale px-2.5 py-1.5 text-[11px] font-bold text-action-dark">
-          Public / Privé ▾
-        </span>
-        <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-          Dispositifs ▾
-        </span>
-        <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-          Sections ▾
-        </span>
-        <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-          Notation min. ▾
-        </span>
-      </div>
-
-      {/* ===== TRI + RÉSULTATS (visuel — activation en phase C) ===== */}
-      <div className="mt-3.5 flex items-center justify-between">
-        <div className="text-[12px] font-bold text-texte-doux">{ville.colleges.length} résultats</div>
-        <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-          Trier : Notation ↓ ⇅
-        </span>
-      </div>
-
-      <ListeColleges
+      <FiltresEtListeColleges
         colleges={ville.colleges}
         hrefBase={hrefBase}
         tauxReussiteNational={ville.taux_reussite_national}

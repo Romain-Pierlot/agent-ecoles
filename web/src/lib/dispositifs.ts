@@ -25,13 +25,20 @@ const SECTIONS: { cle: keyof EntiteAvecDispositifs; label: string }[] = [
   { cle: "section_europeenne", label: "Section européenne" },
 ];
 
+// Dispositifs éducatifs (REP/REP+, ULIS, SEGPA) — distincts des sections pour
+// le filtre "Dispositifs" de la page ville, séparé du filtre "Sections".
+export function deriveDispositifsEducatifs(entite: EntiteAvecDispositifs): string[] {
+  const dispositifs: string[] = [];
+  if (entite.appartenance_education_prioritaire) dispositifs.push(entite.appartenance_education_prioritaire);
+  if (entite.ulis) dispositifs.push("ULIS");
+  if (entite.segpa) dispositifs.push("SEGPA");
+  return dispositifs;
+}
+
+export function deriveSections(entite: EntiteAvecDispositifs): string[] {
+  return SECTIONS.filter((s) => entite[s.cle]).map((s) => s.label);
+}
+
 export function deriveBadgesDispositifs(entite: EntiteAvecDispositifs): string[] {
-  const badges: string[] = [];
-  if (entite.appartenance_education_prioritaire) badges.push(entite.appartenance_education_prioritaire);
-  if (entite.ulis) badges.push("ULIS");
-  if (entite.segpa) badges.push("SEGPA");
-  for (const s of SECTIONS) {
-    if (entite[s.cle]) badges.push(s.label);
-  }
-  return badges;
+  return [...deriveDispositifsEducatifs(entite), ...deriveSections(entite)];
 }
