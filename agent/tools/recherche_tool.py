@@ -71,12 +71,17 @@ def _normaliser_recherche(texte: str) -> str:
     return re.sub(r"\s+", " ", texte).strip()
 
 
-def rechercher(query: str) -> dict:
+def rechercher(query: str, limite: int = LIMITE_RESULTATS) -> dict:
     """
     Recherche les collèges et communes dont le nom contient `query` (sous-
     chaîne, accent/casse-insensible). Exclut les SEGPA/sections rattachées
     (même exclusion que rechercher_etablissements_par_nom : ce sont des
     sous-structures internes, pas des établissements comparables).
+
+    `limite` : borne par catégorie, paramétrable pour réutiliser la même
+    fonction pour la page de résultats (LIMITE_RESULTATS, défaut) et pour
+    l'autocomplétion (petite valeur, ex. 4 — même matching, pas de logique
+    dupliquée entre les deux usages).
 
     Retourne : {"success": bool, "session_utilisee": str | None,
         "taux_reussite_national": float | None,
@@ -153,7 +158,7 @@ def rechercher(query: str) -> dict:
               AND s.session = ?
             ORDER BY e.nom
             LIMIT ?
-        """, (motif, session, LIMITE_RESULTATS)).fetchall()
+        """, (motif, session, limite)).fetchall()
 
         etablissements = [
             {
@@ -173,11 +178,11 @@ def rechercher(query: str) -> dict:
             for r in rows_etab
         ]
         etablissements.sort(key=lambda e: (RANG_NOTATION.get(e["notation"], len(NOTATION_LETTRES)), e["nom"]))
-        # Un résultat exactement égal à LIMITE_RESULTATS ne prouve pas qu'il
-        # n'y en a pas plus (LIMIT coupe avant de savoir) — signalé au front
-        # pour ne pas afficher un total comme s'il était exact (cf. test
-        # "e" : 50/50 affichés comme si c'était le compte réel).
-        etablissements_tronques = len(etablissements) == LIMITE_RESULTATS
+        # Un résultat exactement égal à la limite ne prouve pas qu'il n'y en
+        # a pas plus (LIMIT coupe avant de savoir) — signalé au front pour
+        # ne pas afficher un total comme s'il était exact (cf. test "e" :
+        # 50/50 affichés comme si c'était le compte réel).
+        etablissements_tronques = len(etablissements) == limite
 
         rows_commune = conn.execute("""
             SELECT e.commune, e.code_departement, e.libelle_departement, e.libelle_region,
@@ -192,7 +197,7 @@ def rechercher(query: str) -> dict:
             GROUP BY e.commune, e.code_departement
             ORDER BY e.commune
             LIMIT ?
-        """, (motif, session, LIMITE_RESULTATS)).fetchall()
+        """, (motif, session, limite)).fetchall()
 
         communes = [
             {
@@ -203,7 +208,7 @@ def rechercher(query: str) -> dict:
             }
             for r in rows_commune
         ]
-        communes_tronquees = len(communes) == LIMITE_RESULTATS
+        communes_tronquees = len(communes) == limite
 
         return {
             "success": True, "session_utilisee": session, "taux_reussite_national": taux_reussite_national,

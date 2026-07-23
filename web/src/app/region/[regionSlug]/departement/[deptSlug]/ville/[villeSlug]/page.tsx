@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { recupererVille } from "@/lib/geographie";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
-import { FiltresEtListeColleges } from "./_components/FiltresEtListeColleges";
+import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
 
 function formaterTaux(taux: number | null): string {
   return taux === null ? "—" : `${taux.toFixed(0)} %`;
@@ -66,8 +66,7 @@ export default async function Page({
       <RechercheBloc placeholder="Rechercher une autre ville, ou saisir une adresse pour trouver son secteur…" />
 
       <FiltresEtListeColleges
-        colleges={ville.colleges}
-        hrefBase={hrefBase}
+        colleges={ville.colleges.map((c) => ({ ...c, hrefBase }))}
         tauxReussiteNational={ville.taux_reussite_national}
       />
 

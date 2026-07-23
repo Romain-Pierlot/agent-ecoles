@@ -1,39 +1,10 @@
 import { redirect } from "next/navigation";
 import { recupererRecherche } from "@/lib/recherche";
-import {
-  construireSlugRegion,
-  construireSlugDepartement,
-  construireSlugCollege,
-  slugifier,
-} from "@/lib/slug";
-import type { EtablissementRecherche, CommuneRecherche } from "@/lib/types";
+import { hrefBaseVille, hrefEtablissement, hrefCommune } from "@/lib/hrefsGeo";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
-import { ListeColleges } from "@/components/ListeColleges";
+import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
 import { CarteCommune } from "./_components/CarteCommune";
-
-// Base de route ville (région/département/ville) à partir de la lignée
-// géographique d'un résultat — chaque résultat peut venir d'une ville
-// différente (contrairement à la page ville, où hrefBase est unique).
-function hrefBaseVille(entite: {
-  libelle_region: string;
-  code_departement: string;
-  libelle_departement: string;
-  commune: string;
-}): string {
-  const regionSlug = construireSlugRegion(entite.libelle_region);
-  const deptSlug = construireSlugDepartement(entite.code_departement, entite.libelle_departement);
-  const villeSlug = slugifier(entite.commune);
-  return `/region/${regionSlug}/departement/${deptSlug}/ville/${villeSlug}`;
-}
-
-function hrefEtablissement(e: EtablissementRecherche): string {
-  return `${hrefBaseVille(e)}/college/${construireSlugCollege(e.nom, e.uai)}`;
-}
-
-function hrefCommune(c: CommuneRecherche): string {
-  return hrefBaseVille(c);
-}
 
 // "50+" plutôt que "50" quand la liste a été coupée par la borne de
 // résultats côté backend (recherche_tool.LIMITE_RESULTATS) — sans ça, une
@@ -127,28 +98,7 @@ export default async function Page({
                 Établissements · {formaterCompte(resultats.etablissements.length, resultats.etablissements_tronques)}
               </h2>
 
-              {/* Barre de filtres — visuelle seule pour cette tranche, même
-                  convention que la page ville avant l'activation des filtres
-                  (cf. commit "Rend les filtres et le tri de la page ville
-                  interactifs") : interactivité différée à une passe
-                  ultérieure sur /recherche. */}
-              <div className="mt-3.5 flex flex-wrap items-center gap-2">
-                <span className="mr-0.5 text-[10px] font-bold uppercase tracking-wide text-texte-doux">Filtrer</span>
-                <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-                  Public / Privé ▾
-                </span>
-                <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-                  Dispositifs ▾
-                </span>
-                <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-                  Sections ▾
-                </span>
-                <span className="rounded-[9px] border-[1.5px] border-filet bg-white px-2.5 py-1.5 text-[11px] font-semibold text-texte-doux">
-                  Notation min. ▾
-                </span>
-              </div>
-
-              <ListeColleges
+              <FiltresEtListeColleges
                 colleges={collegesAvecHrefBase}
                 tauxReussiteNational={resultats.taux_reussite_national}
               />

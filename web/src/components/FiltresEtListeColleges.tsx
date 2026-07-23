@@ -16,11 +16,13 @@ type CritereTri = "notation" | "reussite" | "alphabetique";
 
 export function FiltresEtListeColleges({
   colleges,
-  hrefBase,
   tauxReussiteNational,
 }: {
-  colleges: CollegeVille[];
-  hrefBase: string;
+  // hrefBase porté par chaque collège (pas un prop séparé) : partagé avec
+  // /recherche, où chaque résultat peut venir d'une ville différente — la
+  // page ville attache le même hrefBase à tous ses collèges avant l'appel,
+  // la page recherche attache le hrefBase propre à chacun.
+  colleges: (CollegeVille & { hrefBase: string })[];
   tauxReussiteNational: number | null;
 }) {
   const [filtreSecteur, setFiltreSecteur] = useState("tous");
@@ -87,14 +89,6 @@ export function FiltresEtListeColleges({
     });
   }, [colleges, filtreSecteur, filtreDispositif, filtreSection, notationMin, critereTri, directionTri]);
 
-  // hrefBase attaché à chaque collège : ListeColleges est partagée avec
-  // /recherche, où chaque résultat peut venir d'une ville différente — ici
-  // c'est toujours le même hrefBase, répété pour respecter ce contrat.
-  const resultatsAvecHref = useMemo(
-    () => resultats.map((c) => ({ ...c, hrefBase })),
-    [resultats, hrefBase]
-  );
-
   return (
     <>
       {/* ===== BARRE DE FILTRES ===== */}
@@ -152,13 +146,13 @@ export function FiltresEtListeColleges({
         </div>
       </div>
 
-      {resultatsAvecHref.length === 0 ? (
+      {resultats.length === 0 ? (
         <div className="mt-2.5 rounded-[13px] border-[1.5px] border-dashed border-filet-fonce py-6 text-center text-[12.5px] font-semibold text-texte-doux">
           Aucun collège ne correspond à ces filtres.
         </div>
       ) : (
         <ListeColleges
-          colleges={resultatsAvecHref}
+          colleges={resultats}
           tauxReussiteNational={tauxReussiteNational}
           critereTriActif={critereTri === "alphabetique" ? undefined : critereTri}
         />

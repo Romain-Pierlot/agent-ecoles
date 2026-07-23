@@ -6,7 +6,7 @@ testables séparément. Aucune règle métier ici.
 """
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from graph_router import AgentState, poser_question, poser_resolution_choix
@@ -26,7 +26,7 @@ from agent.tools.hierarchie_tool import (
     agreger_sous_divisions,
     obtenir_colleges_ville,
 )
-from agent.tools.recherche_tool import rechercher
+from agent.tools.recherche_tool import rechercher, LIMITE_RESULTATS
 
 app = FastAPI(title="agent-ecoles API")
 
@@ -211,8 +211,8 @@ def obtenir_ville(region_slug: str, dept_slug: str, ville_slug: str):
 
 
 @app.get("/recherche", response_model=RechercheResultats)
-def obtenir_recherche(q: str = ""):
-    resultat = rechercher(q)
+def obtenir_recherche(q: str = "", limite: int = Query(LIMITE_RESULTATS, ge=1, le=LIMITE_RESULTATS)):
+    resultat = rechercher(q, limite=limite)
     if not resultat["success"]:
         raise HTTPException(status_code=500, detail=resultat["error"])
 
