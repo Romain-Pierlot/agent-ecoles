@@ -216,7 +216,7 @@ export default function Page() {
             />
             <button
               type="submit"
-              className="rounded-xl bg-action px-5 py-2.5 text-[13px] font-bold text-white hover:bg-action-dark"
+              className="cursor-pointer rounded-xl bg-action px-5 py-2.5 text-[13px] font-bold text-white hover:bg-action-dark"
             >
               Chercher
             </button>

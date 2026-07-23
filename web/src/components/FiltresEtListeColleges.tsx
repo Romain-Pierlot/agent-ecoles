@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CollegeVille } from "@/lib/types";
-import { deriveDispositifsEducatifs, deriveSections } from "@/lib/dispositifs";
+import { deriveDispositifsEducatifs, deriveSections, SECTION_VERS_CLE_API, CLE_API_VERS_SECTION } from "@/lib/dispositifs";
 import { ListeColleges } from "@/components/ListeColleges";
 import { SelectFiltre } from "@/components/SelectFiltre";
 import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirectionTri";
+import type { FiltresEtablissements } from "@/lib/rechercheParams";
 
 // Du plus fort au plus faible — miroir de config.py::NOTATION_LETTRES
 // (inversé), qui reste la source de vérité côté back pour le calcul réel de
@@ -17,6 +18,7 @@ type CritereTri = "notation" | "reussite" | "alphabetique";
 export function FiltresEtListeColleges({
   colleges,
   tauxReussiteNational,
+  modeServeur,
 }: {
   // hrefBase porté par chaque collège (pas un prop séparé) : partagé avec
   // /recherche, où chaque résultat peut venir d'une ville différente — la
@@ -24,13 +26,27 @@ export function FiltresEtListeColleges({
   // la page recherche attache le hrefBase propre à chacun.
   colleges: (CollegeVille & { hrefBase: string })[];
   tauxReussiteNational: number | null;
+  // Mode serveur (page /recherche uniquement) : `colleges` est déjà filtré
+  // et trié côté API (LIMIT appliqué après filtrage — cf. Phase 6, fix de
+  // troncature). Ce composant ne refiltre alors plus localement : il
+  // notifie juste le parent à chaque changement de filtre/tri pour qu'il
+  // relance l'appel /recherche. Absent (page ville) : filtrage/tri 100%
+  // local, comportement inchangé.
+  modeServeur?: {
+    filtresInitiaux: FiltresEtablissements;
+    onFiltresChange: (filtres: FiltresEtablissements) => void;
+    nbTotal: number;
+    tronque: boolean;
+  };
 }) {
-  const [filtreSecteur, setFiltreSecteur] = useState("tous");
-  const [filtreDispositif, setFiltreDispositif] = useState("tous");
-  const [filtreSection, setFiltreSection] = useState("toutes");
-  const [notationMin, setNotationMin] = useState("toutes");
-  const [critereTri, setCritereTri] = useState<CritereTri>("notation");
-  const [directionTri, setDirectionTri] = useState<DirectionTri>("desc");
+  const [filtreSecteur, setFiltreSecteur] = useState(modeServeur?.filtresInitiaux.secteur ?? "tous");
+  const [filtreDispositif, setFiltreDispositif] = useState(modeServeur?.filtresInitiaux.dispositif ?? "tous");
+  const [filtreSection, setFiltreSection] = useState(
+    modeServeur?.filtresInitiaux.section ? (CLE_API_VERS_SECTION[modeServeur.filtresInitiaux.section] ?? "toutes") : "toutes"
+  );
+  const [notationMin, setNotationMin] = useState(modeServeur?.filtresInitiaux.notationMin ?? "toutes");
+  const [critereTri, setCritereTri] = useState<CritereTri>(modeServeur?.filtresInitiaux.tri ?? "notation");
+  const [directionTri, setDirectionTri] = useState<DirectionTri>(modeServeur?.filtresInitiaux.direction ?? "desc");
 
   const optionsDispositifs = useMemo(() => {
     const set = new Set<string>();
@@ -44,7 +60,30 @@ export function FiltresEtListeColleges({
     return Array.from(set).sort();
   }, [colleges]);
 
+  // Notifie le parent en mode serveur à chaque changement de filtre/tri —
+  // sauf au premier rendu (les valeurs initiales viennent déjà du fetch
+  // initial fait par le parent, un second appel identique serait inutile).
+  const premierRendu = useRef(true);
+  useEffect(() => {
+    if (!modeServeur) return;
+    if (premierRendu.current) {
+      premierRendu.current = false;
+      return;
+    }
+    modeServeur.onFiltresChange({
+      secteur: filtreSecteur === "tous" ? null : (filtreSecteur as FiltresEtablissements["secteur"]),
+      dispositif: filtreDispositif === "tous" ? null : (filtreDispositif as FiltresEtablissements["dispositif"]),
+      section: filtreSection === "toutes" ? null : ((SECTION_VERS_CLE_API[filtreSection] as FiltresEtablissements["section"]) ?? null),
+      notationMin: notationMin === "toutes" ? null : (notationMin as FiltresEtablissements["notationMin"]),
+      tri: critereTri,
+      direction: directionTri,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtreSecteur, filtreDispositif, filtreSection, notationMin, critereTri, directionTri]);
+
   const resultats = useMemo(() => {
+    if (modeServeur) return colleges; // déjà filtré/trié côté API, rien à refaire ici
+
     let liste = colleges;
     if (filtreSecteur !== "tous") liste = liste.filter((c) => c.secteur === filtreSecteur);
     if (filtreDispositif !== "tous") {
@@ -87,7 +126,10 @@ export function FiltresEtListeColleges({
       }
       return a.nom.localeCompare(b.nom);
     });
-  }, [colleges, filtreSecteur, filtreDispositif, filtreSection, notationMin, critereTri, directionTri]);
+  }, [colleges, modeServeur, filtreSecteur, filtreDispositif, filtreSection, notationMin, critereTri, directionTri]);
+
+  const nbResultats = modeServeur ? modeServeur.nbTotal : resultats.length;
+  const resultatsTronques = modeServeur?.tronque ?? false;
 
   return (
     <>
@@ -130,7 +172,10 @@ export function FiltresEtListeColleges({
       {/* ===== TRI + RÉSULTATS ===== */}
       <div className="mt-3.5 flex items-center justify-between">
         <div className="text-[12px] font-bold text-texte-doux">
-          {resultats.length} résultat{resultats.length > 1 ? "s" : ""}
+          {nbResultats} résultat{nbResultats > 1 ? "s" : ""}
+          {resultatsTronques && (
+            <span className="ml-1.5 font-semibold text-texte-doux/70">({colleges.length} affichés)</span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-texte-doux">
           <span>Trier :</span>

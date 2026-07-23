@@ -15,7 +15,7 @@ export function BoutonDirectionTri({
     <button
       type="button"
       onClick={onToggle}
-      className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[9px] border-[1.5px] border-filet bg-white text-[12px] text-texte-doux hover:border-filet-fonce"
+      className="flex h-[26px] w-[26px] flex-none cursor-pointer items-center justify-center rounded-[9px] border-[1.5px] border-filet bg-white text-[12px] text-texte-doux hover:border-filet-fonce"
       title={
         direction === "desc"
           ? "Ordre décroissant — cliquer pour inverser"

@@ -101,7 +101,7 @@ export default function PageChat() {
                             onClick={() =>
                               cliquerChoix(message.choix!.type, option.label, option.valeur)
                             }
-                            className="border border-blue-300 text-blue-700 rounded-full px-3 py-1 text-sm hover:bg-blue-50 disabled:opacity-50"
+                            className="cursor-pointer border border-blue-300 text-blue-700 rounded-full px-3 py-1 text-sm hover:bg-blue-50 disabled:opacity-50"
                           >
                             {option.label}
                           </button>
@@ -139,7 +139,7 @@ export default function PageChat() {
         <button
           type="submit"
           disabled={enAttente}
-          className="bg-blue-600 text-white rounded-lg px-4 py-2 disabled:opacity-50"
+          className="cursor-pointer bg-blue-600 text-white rounded-lg px-4 py-2 disabled:opacity-50"
         >
           Envoyer
         </button>

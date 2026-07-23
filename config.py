@@ -129,6 +129,14 @@ COLONNE_SECTION = {
     SectionSouhaitee.EUROPEENNE: "section_europeenne",
 }
 
+# Liste blanche des colonnes de section utilisables comme critère de filtre
+# dans une requête SQL — dérivée de COLONNE_SECTION (source unique), jamais
+# retapée. Partagée par sql_tool.py et recherche_tool.py : centralisée ici
+# plutôt qu'importée d'un module à l'autre pour éviter qu'un module sans
+# rapport avec le LLM (recherche_tool.py, déterministe) dépende d'un module
+# qui instancie un client OpenAI à l'import (sql_tool.py).
+COLONNES_SECTION_VALIDES = set(COLONNE_SECTION.values())
+
 # Libellé affiché à l'utilisateur pour chaque section (cf. graph_router.py,
 # affichage Oui/Non pour un établissement nommé).
 LIBELLE_SECTION = {

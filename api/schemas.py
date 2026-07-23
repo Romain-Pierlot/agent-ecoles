@@ -290,8 +290,12 @@ class RechercheResultats(BaseModel):
     taux_reussite_national: Optional[float] = None
     etablissements: list[EtablissementRecherche]
     communes: list[CommuneRecherche]
-    # True si la liste correspondante a atteint la borne de résultats côté
-    # recherche_tool — le nombre affiché n'est alors qu'une borne basse, pas
-    # le total réel (cf. decision_log.md, campagne de test /recherche).
+    # Vrai total filtré (COUNT(*) sur le même WHERE, sans LIMIT) — pas une
+    # borne basse : le nombre réel de résultats, indépendamment de la
+    # longueur de la liste ci-dessus (bornée à LIMITE_RESULTATS).
+    etablissements_total: int = 0
+    communes_total: int = 0
+    # True si la liste retournée est plus courte que le total réel
+    # ci-dessus (cf. decision_log.md, campagne de test /recherche).
     etablissements_tronques: bool = False
     communes_tronquees: bool = False

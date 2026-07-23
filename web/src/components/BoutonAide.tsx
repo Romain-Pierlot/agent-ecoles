@@ -14,7 +14,7 @@ export function BoutonAide({ texte }: { texte: string }) {
         onClick={() => setOuvert((v) => !v)}
         aria-expanded={ouvert}
         aria-label="Qu'est-ce que ça veut dire ?"
-        className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-filet-fonce text-[10px] font-bold leading-none text-texte-doux"
+        className="ml-1.5 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border border-filet-fonce text-[10px] font-bold leading-none text-texte-doux"
       >
         ?
       </button>

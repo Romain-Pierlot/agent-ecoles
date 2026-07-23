@@ -160,7 +160,7 @@ export function RechercheBloc({
 
             <button
               type="submit"
-              className="w-full border-t border-filet px-4 py-2.5 text-left text-[12.5px] font-bold text-action hover:bg-fond-carte/40"
+              className="w-full cursor-pointer border-t border-filet px-4 py-2.5 text-left text-[12.5px] font-bold text-action hover:bg-fond-carte/40"
             >
               Voir tous les résultats pour « {querySoumise} » →
             </button>

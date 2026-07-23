@@ -14,20 +14,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from config import (
     DB_PATH, LLM_MODEL, LLM_MAX_RETRIES, SQL_TIMEOUT_SECONDS,
     Secteur, SecteurSouhaite, SEUIL_CANDIDATS_AVANT_PRECISION, PREFIXES_INSTITUTIONNELS,
-    COLONNE_SECTION,
+    COLONNE_SECTION, COLONNES_SECTION_VALIDES,
 )
 from guardrails.sql_safety import valider_sql
 from agent.tools.normalisation import normaliser_texte_base
 
 client = OpenAI()
-
-# Liste blanche des colonnes de section utilisables comme critère de filtre
-# dans les requêtes déterministes ci-dessous — dérivée de COLONNE_SECTION
-# (config.py, source unique) plutôt que retapée ici : ajouter une section
-# ne demande de toucher qu'un seul endroit, jamais deux listes à resynchroniser
-# à la main. Jamais un nom de colonne construit dynamiquement à partir d'un
-# texte utilisateur non vérifié.
-COLONNES_SECTION_VALIDES = set(COLONNE_SECTION.values())
 
 
 def _filtre_section_sql(colonne_section_filtre: str = None) -> tuple[str, str]:

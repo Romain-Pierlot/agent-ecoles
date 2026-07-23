@@ -217,6 +217,10 @@ export type RechercheResultats = {
   taux_reussite_national: number | null;
   etablissements: EtablissementRecherche[];
   communes: CommuneRecherche[];
+  // Vrai total filtré (COUNT(*) sans LIMIT), pas une borne basse — cf.
+  // agent/tools/recherche_tool.py::rechercher.
+  etablissements_total: number;
+  communes_total: number;
   etablissements_tronques: boolean;
   communes_tronquees: boolean;
 };

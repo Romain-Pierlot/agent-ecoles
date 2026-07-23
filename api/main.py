@@ -5,6 +5,7 @@ ailleurs (graphe.py, sessions.py, graph_router.poser_question) et sont
 testables séparément. Aucune règle métier ici.
 """
 import time
+from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -211,8 +212,29 @@ def obtenir_ville(region_slug: str, dept_slug: str, ville_slug: str):
 
 
 @app.get("/recherche", response_model=RechercheResultats)
-def obtenir_recherche(q: str = "", limite: int = Query(LIMITE_RESULTATS, ge=1, le=LIMITE_RESULTATS)):
-    resultat = rechercher(q, limite=limite)
+def obtenir_recherche(
+    q: str = "",
+    limite: int = Query(LIMITE_RESULTATS, ge=1, le=LIMITE_RESULTATS),
+    # Filtres et tri : établissements uniquement (les communes sont des
+    # agrégats sans secteur/dispositif/section/notation individuels, cf.
+    # agent/tools/recherche_tool.py::rechercher). Literal ici pour un 422
+    # automatique sur une valeur hors liste — recherche_tool.py revalide
+    # quand même contre les mêmes listes blanches (config.py), cette
+    # fonction restant appelable en dehors de l'API.
+    secteur: Optional[Literal["Public", "Privé"]] = None,
+    dispositif: Optional[Literal["REP", "REP+", "ULIS", "SEGPA"]] = None,
+    section: Optional[Literal["sport", "arts", "cinema", "theatre", "internationale", "europeenne"]] = None,
+    notation_min: Optional[Literal["A+", "A", "A-", "B+", "B"]] = None,
+    tri: Literal["notation", "reussite", "alphabetique"] = "notation",
+    direction: Literal["asc", "desc"] = "desc",
+    tri_communes: Literal["alphabetique", "reussite", "nb_etablissements"] = "alphabetique",
+    direction_communes: Literal["asc", "desc"] = "asc",
+):
+    resultat = rechercher(
+        q, limite=limite, secteur=secteur, dispositif=dispositif,
+        section=section, notation_min=notation_min, tri=tri, direction=direction,
+        tri_communes=tri_communes, direction_communes=direction_communes,
+    )
     if not resultat["success"]:
         raise HTTPException(status_code=500, detail=resultat["error"])
 
@@ -222,6 +244,8 @@ def obtenir_recherche(q: str = "", limite: int = Query(LIMITE_RESULTATS, ge=1, l
         taux_reussite_national=resultat["taux_reussite_national"],
         etablissements=resultat["etablissements"],
         communes=resultat["communes"],
+        etablissements_total=resultat["etablissements_total"],
+        communes_total=resultat["communes_total"],
         etablissements_tronques=resultat["etablissements_tronques"],
         communes_tronquees=resultat["communes_tronquees"],
     )

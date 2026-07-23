@@ -1420,3 +1420,13 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : Ne rien faire et exclure ces établissements de tout tri par notation — écarté car pénalise injustement des établissements aux bons résultats bruts, uniquement absents des classements faute de VA publiée. Calculer une notation de repli séparée à partir de `score_resultats` seul (sans VA) — écarté : aurait créé deux méthodologies de notation visuellement identiques (mêmes lettres A+/A/A-/B+/B) mais mesurant des choses différentes, risque de confusion.
 
 **Conséquence** : `data/ingest.py::calculer_scores` modifié, réingestion effectuée. `va_imputee` exposé via l'API (`EtablissementIdentite.va_imputee`) et signalé dans l'interface (bouton d'aide contextuelle) quand la notation d'un établissement n'a pas de VA réelle derrière. Sujet resté ouvert : `/methodologie` (encore un stub) devra expliquer cette convention en clair.
+
+## S16.1 — Suppression de la redirection automatique sur résultat unique dans `/recherche`
+
+**Décision** : La page `/recherche` n'effectue plus de redirection automatique vers la fiche établissement ou la page ville quand la recherche ne remonte qu'un seul résultat dans une seule catégorie (ancienne "Règle V1", `docs/Design_system/recherche`). La page de résultats s'affiche désormais systématiquement, y compris pour un résultat unique.
+
+**Pourquoi** : Vérifié en usage réel — la bascule instantanée, sans transition ni confirmation visuelle, donnait l'impression d'un dysfonctionnement plutôt que d'un raccourci volontaire, l'utilisateur n'ayant pas le temps de percevoir qu'un seul résultat avait été trouvé avant d'être redirigé ailleurs.
+
+**Rejeté** : Garder la redirection avec une transition visible avant la bascule (ex: message "Un seul résultat, redirection…") — écarté, la complexité ajoutée (délai artificiel, état intermédiaire à gérer) ne compensait pas le gain d'un clic économisé.
+
+**Conséquence** : `web/src/app/recherche/page.tsx` — suppression du bloc de redirection conditionnelle et des imports devenus inutiles (`redirect`, `hrefEtablissement`, `hrefCommune`).

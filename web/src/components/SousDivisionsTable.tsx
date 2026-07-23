@@ -97,7 +97,7 @@ export function SousDivisionsTable({
           <button
             type="button"
             onClick={() => setToutAfficher(true)}
-            className="w-full border-t border-[#F0E6D2] py-2.5 text-center text-[12.5px] font-bold text-action hover:bg-fond-carte/60"
+            className="w-full cursor-pointer border-t border-[#F0E6D2] py-2.5 text-center text-[12.5px] font-bold text-action hover:bg-fond-carte/60"
           >
             Voir les {nbRestantes} {labelColonne.toLowerCase()}s restant{nbRestantes > 1 ? "e" : ""}s
           </button>

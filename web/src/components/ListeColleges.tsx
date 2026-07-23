@@ -38,7 +38,7 @@ export function ListeColleges({
         <button
           type="button"
           onClick={() => setToutAfficher(true)}
-          className="rounded-[13px] border-[1.5px] border-filet bg-white py-2.5 text-center text-[12.5px] font-bold text-action hover:bg-fond-carte/60"
+          className="cursor-pointer rounded-[13px] border-[1.5px] border-filet bg-white py-2.5 text-center text-[12.5px] font-bold text-action hover:bg-fond-carte/60"
         >
           Voir les {nbRestants} collèges restants
         </button>

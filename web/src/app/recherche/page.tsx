@@ -1,30 +1,22 @@
-import { redirect } from "next/navigation";
 import { recupererRecherche } from "@/lib/recherche";
-import { hrefBaseVille, hrefEtablissement, hrefCommune } from "@/lib/hrefsGeo";
+import { lireFiltres, filtresActifs } from "@/lib/rechercheParams";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
-import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
-import { CarteCommune } from "./_components/CarteCommune";
+import { ResultatsRecherche } from "./_components/ResultatsRecherche";
 
-// "50+" plutôt que "50" quand la liste a été coupée par la borne de
-// résultats côté backend (recherche_tool.LIMITE_RESULTATS) — sans ça, une
-// requête large ("e") affiche un total qui a l'air exact alors que ce n'est
-// qu'une borne basse (cf. campagne de test /recherche).
-function formaterCompte(n: number, tronque: boolean): string {
-  return tronque ? `${n}+` : `${n}`;
+// Next.js fournit un tableau si un paramètre est répété dans l'URL
+// (?q=a&q=b) — un cas réel (testé), pas seulement théorique.
+function premiereValeur(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v;
 }
 
 export default async function Page({
   searchParams,
 }: {
-  // Next.js fournit un tableau si le paramètre est répété dans l'URL
-  // (?q=a&q=b) — un cas réel (testé), pas seulement théorique : ignorer ça
-  // et supposer `string` fait planter la page (`.trim is not a function`).
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q } = await searchParams;
-  const qBrut = Array.isArray(q) ? q[0] : q;
-  const query = (qBrut ?? "").trim();
+  const tousParams = await searchParams;
+  const query = (premiereValeur(tousParams.q) ?? "").trim();
 
   if (!query) {
     return (
@@ -41,19 +33,20 @@ export default async function Page({
     );
   }
 
-  const resultats = await recupererRecherche(query);
+  const filtresInitiaux = lireFiltres((cle) => premiereValeur(tousParams[cle]));
+  const filtresPresents = filtresActifs(filtresInitiaux);
 
-  // Règle V1 (docs/Design_system/recherche) : un résultat unique et non
-  // ambigu route directement vers sa page, sans passer par la liste.
-  if (resultats.etablissements.length === 1 && resultats.communes.length === 0) {
-    redirect(hrefEtablissement(resultats.etablissements[0]));
-  }
-  if (resultats.communes.length === 1 && resultats.etablissements.length === 0) {
-    redirect(hrefCommune(resultats.communes[0]));
-  }
+  // Toujours un appel non filtré : le compte du hero doit porter sur la
+  // recherche brute, jamais sur un lot déjà filtré (sinon le header
+  // afficherait des comptes incohérents selon les filtres actifs).
+  const resultatsBruts = await recupererRecherche(query);
+  const resultats = filtresPresents ? await recupererRecherche(query, filtresInitiaux) : resultatsBruts;
 
-  const collegesAvecHrefBase = resultats.etablissements.map((e) => ({ ...e, hrefBase: hrefBaseVille(e) }));
-  const aucunResultat = resultats.etablissements.length === 0 && resultats.communes.length === 0;
+  // Pas de redirection automatique sur un résultat unique (ancienne "Règle
+  // V1", cf. decision_log.md) : la bascule instantanée, sans transition,
+  // donnait l'impression d'un bug plutôt qu'un raccourci — la page de
+  // résultats s'affiche désormais systématiquement, même à 1 résultat.
+  const aucunResultat = resultatsBruts.etablissements.length === 0 && resultatsBruts.communes.length === 0;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
@@ -64,10 +57,8 @@ export default async function Page({
           Résultats pour « {query} »
         </h1>
         <p className="mt-1.5 text-[12.5px] text-texte-doux">
-          {formaterCompte(resultats.communes.length, resultats.communes_tronquees)} commune
-          {resultats.communes.length > 1 ? "s" : ""} ·{" "}
-          {formaterCompte(resultats.etablissements.length, resultats.etablissements_tronques)} établissement
-          {resultats.etablissements.length > 1 ? "s" : ""}
+          {resultatsBruts.communes_total} commune{resultatsBruts.communes_total > 1 ? "s" : ""} ·{" "}
+          {resultatsBruts.etablissements_total} établissement{resultatsBruts.etablissements_total > 1 ? "s" : ""}
         </p>
       </div>
 
@@ -78,33 +69,7 @@ export default async function Page({
           Aucun résultat pour « {query} ». Vérifie l&apos;orthographe ou essaie un autre terme.
         </div>
       ) : (
-        <>
-          {resultats.communes.length > 0 && (
-            <div className="mt-7">
-              <h2 className="font-baloo text-[15px] font-extrabold text-texte">
-                Communes · {formaterCompte(resultats.communes.length, resultats.communes_tronquees)}
-              </h2>
-              <div className="mt-2.5 flex flex-col gap-2.5">
-                {resultats.communes.map((c) => (
-                  <CarteCommune key={`${c.commune}-${c.code_departement}`} commune={c} href={hrefCommune(c)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {resultats.etablissements.length > 0 && (
-            <div className="mt-7">
-              <h2 className="font-baloo text-[15px] font-extrabold text-texte">
-                Établissements · {formaterCompte(resultats.etablissements.length, resultats.etablissements_tronques)}
-              </h2>
-
-              <FiltresEtListeColleges
-                colleges={collegesAvecHrefBase}
-                tauxReussiteNational={resultats.taux_reussite_national}
-              />
-            </div>
-          )}
-        </>
+        <ResultatsRecherche query={query} resultatsInitiaux={resultats} filtresInitiaux={filtresInitiaux} />
       )}
 
       <AgentBlock exemple={`Aide-moi à comparer les résultats de "${query}"`} />
