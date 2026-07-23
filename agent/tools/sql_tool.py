@@ -106,6 +106,8 @@ TABLE ivac
   brevet_note_ecrit_national REAL
   brevet_taux_reussite_departemental REAL  -- moyenne du département de l'établissement, même session
   brevet_note_ecrit_departemental REAL
+  taux_acces_6eme_3eme_national REAL       -- même principe, sur taux_acces_6eme_3eme
+  taux_acces_6eme_3eme_departemental REAL
 
 TABLE scores
   uai TEXT FK

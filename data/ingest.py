@@ -152,6 +152,8 @@ def creer_tables(conn):
             brevet_note_ecrit_national          REAL,
             brevet_taux_reussite_departemental  REAL,
             brevet_note_ecrit_departemental     REAL,
+            taux_acces_6eme_3eme_national       REAL,
+            taux_acces_6eme_3eme_departemental  REAL,
             PRIMARY KEY (uai, session),
             FOREIGN KEY (uai) REFERENCES etablissements(uai)
         );
@@ -444,7 +446,7 @@ def _ajouter_comparatifs_ips(df, conn):
 
 def _ajouter_comparatifs_ivac(df, conn):
     """
-    Ajoute les 4 colonnes de comparaison national/départemental — calculées
+    Ajoute les 6 colonnes de comparaison national/départemental — calculées
     ICI par simple moyenne, contrairement à ips.* qui les reçoit déjà toutes
     faites de sa source. Département de chaque UAI lu depuis
     `etablissements` (déjà ingérée à ce stade, cf. ordre d'appel dans
@@ -462,6 +464,8 @@ def _ajouter_comparatifs_ivac(df, conn):
     df['brevet_note_ecrit_national'] = df.groupby('session')['brevet_note_ecrit_general'].transform('mean')
     df['brevet_taux_reussite_departemental'] = df.groupby(['session', 'code_departement'])['brevet_taux_reussite_general'].transform('mean')
     df['brevet_note_ecrit_departemental'] = df.groupby(['session', 'code_departement'])['brevet_note_ecrit_general'].transform('mean')
+    df['taux_acces_6eme_3eme_national'] = df.groupby('session')['taux_acces_6eme_3eme'].transform('mean')
+    df['taux_acces_6eme_3eme_departemental'] = df.groupby(['session', 'code_departement'])['taux_acces_6eme_3eme'].transform('mean')
 
     return df.drop(columns=['code_departement'])
 

@@ -92,6 +92,8 @@ class BrevetResultats(BaseModel):
     taux_reussite_departemental: Optional[float] = None
     note_ecrit_national: Optional[float] = None
     note_ecrit_departemental: Optional[float] = None
+    taux_acces_6eme_3eme_national: Optional[float] = None
+    taux_acces_6eme_3eme_departemental: Optional[float] = None
     mentions: list[MentionDetail]
 
 

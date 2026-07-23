@@ -103,7 +103,8 @@ def _obtenir_ivac_row(conn, uai: str, session: str) -> dict | None:
                brevet_va_note_ecrit_general, taux_acces_6eme_3eme,
                nb_mentions_ab, nb_mentions_b, nb_mentions_tb, nb_mentions_total,
                brevet_taux_reussite_national, brevet_note_ecrit_national,
-               brevet_taux_reussite_departemental, brevet_note_ecrit_departemental
+               brevet_taux_reussite_departemental, brevet_note_ecrit_departemental,
+               taux_acces_6eme_3eme_national, taux_acces_6eme_3eme_departemental
         FROM ivac WHERE uai = ? AND session = ?
     """, (uai, session)).fetchone()
     return dict(row) if row else None
@@ -135,6 +136,8 @@ def _construire_brevet(r: dict) -> dict:
         "taux_reussite_departemental": r["brevet_taux_reussite_departemental"],
         "note_ecrit_national": r["brevet_note_ecrit_national"],
         "note_ecrit_departemental": r["brevet_note_ecrit_departemental"],
+        "taux_acces_6eme_3eme_national": r["taux_acces_6eme_3eme_national"],
+        "taux_acces_6eme_3eme_departemental": r["taux_acces_6eme_3eme_departemental"],
         "mentions": mentions,
     }
 

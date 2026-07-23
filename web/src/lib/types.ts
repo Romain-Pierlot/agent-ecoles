@@ -48,6 +48,8 @@ export type BrevetResultats = {
   taux_reussite_departemental: number | null;
   note_ecrit_national: number | null;
   note_ecrit_departemental: number | null;
+  taux_acces_6eme_3eme_national: number | null;
+  taux_acces_6eme_3eme_departemental: number | null;
   mentions: MentionDetail[];
 };
 

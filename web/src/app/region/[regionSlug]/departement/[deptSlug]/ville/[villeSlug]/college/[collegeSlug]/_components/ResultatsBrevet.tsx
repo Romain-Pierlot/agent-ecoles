@@ -1,5 +1,6 @@
 import type { BrevetResultats, EvolutionPoint } from "@/lib/types";
 import { sentimentReussite } from "@/lib/tokens";
+import { BoutonAide } from "@/components/BoutonAide";
 
 // Classes Tailwind statiques — jamais interpolées dans un template string
 // (Tailwind ne peut détecter que des noms de classe littéraux à la compilation).
@@ -119,6 +120,11 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
       ? sentimentReussite(brevet.brevet_note_ecrit_general, brevet.note_ecrit_national)
       : "descriptif";
 
+  const sentimentAcces =
+    brevet.taux_acces_6eme_3eme != null && brevet.taux_acces_6eme_3eme_national != null
+      ? sentimentReussite(brevet.taux_acces_6eme_3eme, brevet.taux_acces_6eme_3eme_national)
+      : "descriptif";
+
   return (
     <div id="brevet" className="scroll-mt-28">
       <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-action">
@@ -176,14 +182,30 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
         </div>
 
         <div className="rounded-[18px] border-2 border-filet bg-white p-[18px_20px]">
-          <div className="text-[13.5px] font-bold text-texte">Accès de la 6ᵉ à la 3ᵉ</div>
-          <div className="mt-1.5 font-baloo text-[40px] font-extrabold leading-none text-positif">
+          <div className="flex items-center text-[13.5px] font-bold text-texte">
+            Accès de la 6ᵉ à la 3ᵉ
+            <BoutonAide texte="Part d'élèves qui poursuivent sans redoubler ni partir." />
+          </div>
+          <div
+            className={`mt-1.5 font-baloo text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentAcces]}`}
+          >
             {brevet.taux_acces_6eme_3eme ?? "—"}
             <span className="text-[20px]">%</span>
           </div>
-          <p className="mt-2.5 text-[12px] leading-relaxed text-texte-doux">
-            Part d&apos;élèves qui poursuivent sans redoubler ni partir.
-          </p>
+          {(brevet.taux_acces_6eme_3eme_national != null || brevet.taux_acces_6eme_3eme_departemental != null) && (
+            <div className="mt-3 flex gap-3.5 border-t border-filet-fonce pt-2.5 text-[12px] text-texte-doux">
+              {brevet.taux_acces_6eme_3eme_national != null && (
+                <span>
+                  National <b className="text-texte">{brevet.taux_acces_6eme_3eme_national.toFixed(0)}%</b>
+                </span>
+              )}
+              {brevet.taux_acces_6eme_3eme_departemental != null && (
+                <span>
+                  Département <b className="text-texte">{brevet.taux_acces_6eme_3eme_departemental.toFixed(0)}%</b>
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
