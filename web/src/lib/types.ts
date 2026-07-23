@@ -224,3 +224,47 @@ export type RechercheResultats = {
   etablissements_tronques: boolean;
   communes_tronquees: boolean;
 };
+
+// Miroir TypeScript de api/schemas.py (CollegeSecteurItem, CollegeAlentourItem,
+// SecteurResultats) — GET /secteur.
+
+export type CollegeSecteurItem = {
+  uai: string;
+  nom: string;
+  commune: string;
+  secteur: string;
+  libelle_region: string;
+  code_departement: string;
+  libelle_departement: string;
+  distance_km: number;
+  notation: string | null;
+  badge_va: string | null;
+  appartenance_education_prioritaire: string | null;
+  ulis: boolean;
+  segpa: boolean;
+  section_arts: boolean;
+  section_cinema: boolean;
+  section_theatre: boolean;
+  section_sport: boolean;
+  section_internationale: boolean;
+  section_europeenne: boolean;
+};
+
+export type EtatSecteur = "trouve" | "multi_secteur" | "non_determinable" | "adresse_ambigue" | "adresse_non_reconnue";
+
+export type SecteurResultats = {
+  adresse_recherchee: string;
+  etat: EtatSecteur;
+  adresse_normalisee: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  academie: string | null;
+  colleges_secteur: CollegeSecteurItem[];
+  colleges_alentours: CollegeSecteurItem[];
+  suggestions_ambigues: SuggestionAdresse[];
+};
+
+export type SuggestionAdresse = {
+  label: string;
+  type: string | null;
+};

@@ -1,5 +1,5 @@
 """api/schemas.py — Contrats de données de l'API (requêtes/réponses HTTP)."""
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -299,3 +299,66 @@ class RechercheResultats(BaseModel):
     # ci-dessus (cf. decision_log.md, campagne de test /recherche).
     etablissements_tronques: bool = False
     communes_tronquees: bool = False
+
+
+# ============================================================
+# Collège de secteur (GET /secteur) — rattachement officiel (carte
+# scolaire du Ministère, collèges publics uniquement) à partir d'une
+# adresse, cf. agent/tools/carte_scolaire_tool.py.
+# ============================================================
+
+class CollegeSecteurItem(BaseModel):
+    """Mêmes champs que CollegeVille/EtablissementRecherche (notation,
+    dispositifs) + la lignée géo complète (nécessaire pour construire le
+    lien vers la fiche établissement, cf. web/src/lib/hrefsGeo.ts) + une
+    distance (calculée par rapport à l'adresse recherchée) — pas de
+    brevet_taux_reussite_general, la maquette de cette page affiche la
+    distance à la place. Même forme pour colleges_secteur et
+    colleges_alentours (cf. carte_scolaire_tool.py::_ligne_vers_college)."""
+    uai: str
+    nom: str
+    commune: str
+    secteur: str
+    libelle_region: str
+    code_departement: str
+    libelle_departement: str
+    distance_km: float
+    notation: Optional[str] = None
+    badge_va: Optional[str] = None
+    appartenance_education_prioritaire: Optional[str] = None
+    ulis: bool
+    segpa: bool
+    section_arts: bool
+    section_cinema: bool
+    section_theatre: bool
+    section_sport: bool
+    section_internationale: bool
+    section_europeenne: bool
+
+
+class SuggestionAdresse(BaseModel):
+    label: str
+    type: Optional[str] = None
+
+
+class SecteurResultats(BaseModel):
+    adresse_recherchee: str
+    # "adresse_non_reconnue"/"adresse_ambigue" sont des résultats normaux et
+    # attendus (échec du géocodage BAN / plusieurs communes candidates),
+    # pas des pannes techniques — cf. carte_scolaire_tool.py.
+    etat: Literal["trouve", "multi_secteur", "non_determinable", "adresse_ambigue", "adresse_non_reconnue"]
+    adresse_normalisee: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    # Académie du département géocodé — utilisée par l'état "non_determinable"
+    # pour orienter vers le bon rectorat (cf. carte_scolaire_tool.py).
+    academie: Optional[str] = None
+    colleges_secteur: list[CollegeSecteurItem] = []
+    colleges_alentours: list[CollegeSecteurItem] = []
+    # Rempli seulement pour l'état "adresse_ambigue" : candidats parmi
+    # lesquels l'utilisateur doit choisir avant qu'on résolve le secteur.
+    suggestions_ambigues: list[SuggestionAdresse] = []
+
+
+class SuggestionsAdresseResultats(BaseModel):
+    suggestions: list[SuggestionAdresse] = []

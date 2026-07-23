@@ -17,6 +17,7 @@ from api.sessions import obtenir_ou_creer_session, enregistrer_session
 from api.schemas import (
     ChatRequest, ChatResponse, Choix, FicheEtablissement,
     NationalHub, RegionHub, DepartementHub, VilleHub, RechercheResultats,
+    SecteurResultats, SuggestionsAdresseResultats,
 )
 from api.journalisation import journaliser_echange
 from agent.tools.etablissement_tool import obtenir_fiche_etablissement
@@ -28,6 +29,8 @@ from agent.tools.hierarchie_tool import (
     obtenir_colleges_ville,
 )
 from agent.tools.recherche_tool import rechercher, LIMITE_RESULTATS
+from agent.tools.carte_scolaire_tool import resoudre_secteur
+from agent.tools.geo_tool import geocoder_suggestions
 
 app = FastAPI(title="agent-ecoles API")
 
@@ -248,6 +251,37 @@ def obtenir_recherche(
         communes_total=resultat["communes_total"],
         etablissements_tronques=resultat["etablissements_tronques"],
         communes_tronquees=resultat["communes_tronquees"],
+    )
+
+
+@app.get("/secteur/adresses", response_model=SuggestionsAdresseResultats)
+def obtenir_suggestions_adresse(q: str = ""):
+    resultat = geocoder_suggestions(q)
+    if not resultat["success"]:
+        raise HTTPException(status_code=500, detail=resultat["error"])
+    return SuggestionsAdresseResultats(suggestions=resultat["suggestions"])
+
+
+@app.get("/secteur", response_model=SecteurResultats)
+def obtenir_secteur(adresse: str = Query(..., min_length=1)):
+    resultat = resoudre_secteur(adresse)
+    # "adresse_non_reconnue" est un résultat normal et attendu (échec du
+    # géocodage BAN, ~pas rare), pas une panne — 200 OK avec cet état,
+    # jamais une HTTPException. success=False est réservé aux vraies pannes
+    # techniques (ex: base SQLite inaccessible), cf. carte_scolaire_tool.py.
+    if not resultat["success"]:
+        raise HTTPException(status_code=500, detail=resultat["error"])
+
+    return SecteurResultats(
+        adresse_recherchee=adresse,
+        etat=resultat["etat"],
+        adresse_normalisee=resultat["adresse_normalisee"],
+        latitude=resultat["latitude"],
+        longitude=resultat["longitude"],
+        academie=resultat.get("academie"),
+        colleges_secteur=resultat["colleges_secteur"],
+        colleges_alentours=resultat["colleges_alentours"],
+        suggestions_ambigues=resultat.get("suggestions_ambigues", []),
     )
 
 

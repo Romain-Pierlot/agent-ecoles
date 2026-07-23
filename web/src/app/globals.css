@@ -59,6 +59,13 @@
   --color-statut-public-pale: #E7F1E9;
   --color-statut-prive: #2C6FA6;
   --color-statut-prive-pale: #EAF2FA;
+
+  /* Badge distance (page collège de secteur) — même famille bleue que
+     statut-prive (coïncidence de la maquette), mais rôle sémantique
+     distinct ("une couleur = un rôle", cf. lib/tokens.ts) : ceci décrit une
+     distance, pas un statut d'établissement. */
+  --color-distance: #2C6FA6;
+  --color-distance-pale: #EAF2FA;
 }
 
 body {

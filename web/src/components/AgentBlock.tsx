@@ -7,7 +7,21 @@ import { NOM_ASSISTANT } from "@/lib/constants";
 // framboise (avatar, bouton, bordures), jamais de fond framboise plein sur
 // toute la carte, champ de saisie toujours blanc (cf. règle "à ne pas
 // faire" du README).
-export function AgentBlock({ exemple }: { exemple: string }) {
+export function AgentBlock({
+  exemple,
+  titre = `Demander à ${NOM_ASSISTANT}`,
+  sousTitre = "Posez votre situation en une phrase",
+}: {
+  exemple: string;
+  // Optionnels : la page collège de secteur fait varier le titre/sous-titre
+  // selon l'état (trouvé/multi-secteur/non déterminable) — cf.
+  // docs/Design_system/recherche/README.md, à mettre à jour (la règle "seul
+  // le prop example change" n'est plus exacte). Défauts = valeurs
+  // historiques, aucun des 3 usages existants (recherche, page ville,
+  // ZoneHub) n'a besoin de changer.
+  titre?: string;
+  sousTitre?: string;
+}) {
   return (
     <div className="mt-4 rounded-2xl border border-[#F0C9D8] bg-gradient-to-br from-[#FCEDF2] to-fond-carte p-4">
       <div className="flex items-center gap-2.5">
@@ -15,8 +29,8 @@ export function AgentBlock({ exemple }: { exemple: string }) {
           {NOM_ASSISTANT.charAt(0)}
         </div>
         <div>
-          <div className="font-baloo text-sm font-bold text-texte">Demander à {NOM_ASSISTANT}</div>
-          <div className="text-[11px] font-semibold text-texte-doux">Posez votre situation en une phrase</div>
+          <div className="font-baloo text-sm font-bold text-texte">{titre}</div>
+          <div className="text-[11px] font-semibold text-texte-doux">{sousTitre}</div>
         </div>
       </div>
 

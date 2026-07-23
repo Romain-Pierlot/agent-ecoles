@@ -9,9 +9,17 @@ import sys
 import unicodedata
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config import DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, GEO_RAYON_ENVIRONS_KM, DEPARTEMENTS_OUTRE_MER
+from config import (
+    DB_PATH, BAN_API_TIMEOUT_SECONDS, GEO_RAYON_DEFAUT_KM, GEO_RAYON_ENVIRONS_KM,
+    DEPARTEMENTS_OUTRE_MER, SECTEUR_NB_SUGGESTIONS_ADRESSE,
+)
 
-BAN_API_URL = "https://api-adresse.data.gouv.fr/search/"
+# Migré le 2026-07-23 depuis https://api-adresse.data.gouv.fr/search/ :
+# cette dernière renvoie des en-têtes HTTP "deprecation"/"sunset" (échéance
+# 2026-01-31, déjà passée) et redirige en coulisses vers cette même URL
+# (x-infra: gpf) — vérifié : réponses identiques au format près, migration
+# à coût nul. Cf. doc officielle : https://data.geopf.fr/geocodage/openapi.yaml
+BAN_API_URL = "https://data.geopf.fr/geocodage/search/"
 
 # Nombre d'arrondissements par ville — borne la plage valide pour éviter de
 # réécrire un numéro qui n'a rien à voir avec un arrondissement.
@@ -54,6 +62,18 @@ def haversine(lat1, lon1, lat2, lon2):
 
 def geocoder(adresse_ou_ville: str) -> dict:
     adresse_ou_ville = _normaliser_arrondissement_sans_suffixe(adresse_ou_ville)
+    champs_vides = {
+        "latitude": None, "longitude": None, "label": None, "type": None,
+        "city": None, "depcode": None,
+        # housenumber/street/citycode : ajoutés pour le rapprochement
+        # adresse -> collège de secteur (agent/tools/carte_scolaire_tool.py),
+        # qui a besoin du numéro de rue exact et du code INSEE précis (y
+        # compris par arrondissement Paris/Lyon/Marseille, citycode les
+        # distingue déjà) plutôt que de re-parser `label` par regex. Purement
+        # additif : aucun appelant existant (ex. recherche_geo) ne dépendait
+        # de l'absence de ces clés.
+        "housenumber": None, "street": None, "citycode": None,
+    }
     try:
         response = requests.get(
             BAN_API_URL, params={"q": adresse_ou_ville, "limit": 1},
@@ -62,8 +82,7 @@ def geocoder(adresse_ou_ville: str) -> dict:
         response.raise_for_status()
         data = response.json()
         if not data.get("features"):
-            return {"success": False, "latitude": None, "longitude": None,
-                    "label": None, "type": None, "city": None, "depcode": None,
+            return {**champs_vides, "success": False,
                     "error": f"Adresse non trouvée : {adresse_ou_ville}"}
         feature = data["features"][0]
         coords = feature["geometry"]["coordinates"]
@@ -73,15 +92,69 @@ def geocoder(adresse_ou_ville: str) -> dict:
             "label": proprietes.get("label", adresse_ou_ville),
             "type": proprietes.get("type", "inconnu"),
             "city": proprietes.get("city"), "depcode": proprietes.get("depcode"),
+            "housenumber": proprietes.get("housenumber"),
+            "street": proprietes.get("street"),
+            "citycode": proprietes.get("citycode"),
             "error": None
         }
     except requests.Timeout:
-        return {"success": False, "latitude": None, "longitude": None,
-                "label": None, "type": None, "city": None, "depcode": None,
+        return {**champs_vides, "success": False,
                 "error": f"Timeout API BAN après {BAN_API_TIMEOUT_SECONDS}s"}
     except Exception as e:
-        return {"success": False, "latitude": None, "longitude": None,
-                "label": None, "type": None, "city": None, "depcode": None, "error": str(e)}
+        return {**champs_vides, "success": False, "error": str(e)}
+
+
+def geocoder_suggestions(q: str, limite: int = SECTEUR_NB_SUGGESTIONS_ADRESSE) -> dict:
+    """
+    Autocomplétion adresse — contrairement à geocoder() (limit=1, prend le
+    premier résultat BAN sans confirmation), retourne plusieurs candidats
+    pour que l'utilisateur choisisse explicitement le sien avant validation.
+    Nécessaire car une adresse tapée en partie (ex: "30 rue Jean") peut
+    matcher plusieurs rues "Jean ..." dans des villes différentes — prendre
+    le seul premier résultat BAN silencieusement donnerait un rattachement
+    de secteur basé sur une adresse jamais réellement choisie par
+    l'utilisateur (cf. retour utilisateur du 2026-07-23).
+
+    Chaque suggestion porte les mêmes clés que geocoder() (label, type,
+    latitude, longitude, city, depcode, housenumber, street, citycode) — pas
+    seulement label/type — pour que carte_scolaire_tool.py puisse détecter
+    une ambiguïté ENTRE COMMUNES (citycodes distincts parmi les candidats,
+    cf. étude du 2026-07-23 : le score BAN ne distingue pas une adresse
+    précise d'une adresse ambiguë, les deux ont des scores quasi identiques)
+    et, si non ambigu, résoudre directement sur le premier candidat sans
+    second appel réseau à geocoder(). La route API (/secteur/adresses)
+    n'expose que label/type au front (SuggestionAdresse), les clés en plus
+    sont ignorées silencieusement par Pydantic.
+    """
+    if not q or not q.strip():
+        return {"success": True, "suggestions": [], "error": None}
+    q = _normaliser_arrondissement_sans_suffixe(q)
+    try:
+        response = requests.get(
+            BAN_API_URL, params={"q": q, "limit": limite},
+            timeout=BAN_API_TIMEOUT_SECONDS
+        )
+        response.raise_for_status()
+        data = response.json()
+        suggestions = []
+        for f in data.get("features", []):
+            proprietes = f["properties"]
+            if not proprietes.get("label"):
+                continue
+            coords = f["geometry"]["coordinates"]
+            suggestions.append({
+                "label": proprietes.get("label"), "type": proprietes.get("type"),
+                "latitude": coords[1], "longitude": coords[0],
+                "city": proprietes.get("city"), "depcode": proprietes.get("depcode"),
+                "housenumber": proprietes.get("housenumber"),
+                "street": proprietes.get("street"),
+                "citycode": proprietes.get("citycode"),
+            })
+        return {"success": True, "suggestions": suggestions, "error": None}
+    except requests.Timeout:
+        return {"success": False, "suggestions": [], "error": f"Timeout API BAN après {BAN_API_TIMEOUT_SECONDS}s"}
+    except Exception as e:
+        return {"success": False, "suggestions": [], "error": str(e)}
 
 
 def trouver_etablissements_dans_rayon(latitude, longitude, rayon_km=None, type_etablissement="Collège"):
@@ -94,25 +167,39 @@ def trouver_etablissements_dans_rayon(latitude, longitude, rayon_km=None, type_e
     conn.row_factory = sqlite3.Row
     conn.create_function("haversine", 4, haversine)
     try:
+        session = conn.execute("SELECT MAX(session) AS s FROM scores").fetchone()["s"]
         rows = conn.execute("""
             SELECT e.uai, e.nom, e.commune, e.secteur, e.type_etablissement,
                    e.latitude, e.longitude,
+                   e.libelle_region, e.code_departement, e.libelle_departement,
+                   e.appartenance_education_prioritaire, e.ulis, e.segpa,
+                   e.section_arts, e.section_cinema, e.section_theatre,
+                   e.section_sport, e.section_internationale, e.section_europeenne,
+                   s.notation, s.badge_va,
                    ROUND(haversine(?, ?, e.latitude, e.longitude), 2) as distance_km
             FROM etablissements e
+            LEFT JOIN scores s ON e.uai = s.uai AND s.session = ?
             WHERE e.latitude IS NOT NULL AND e.longitude IS NOT NULL
               AND e.type_etablissement = ?
               AND haversine(?, ?, e.latitude, e.longitude) <= ?
             ORDER BY distance_km ASC
-        """, (latitude, longitude, type_etablissement, latitude, longitude, rayon_km)).fetchall()
+        """, (latitude, longitude, session, type_etablissement, latitude, longitude, rayon_km)).fetchall()
         return [dict(row) for row in rows]
     finally:
         conn.close()
 
 
 def _normaliser_nom_commune(nom: str) -> str:
-    """Minuscules, sans accents, tirets traités comme des séparateurs de mots."""
+    """
+    Minuscules, sans accents, tirets ET apostrophes traités comme des
+    séparateurs de mots. L'apostrophe est repliée pour la même raison que le
+    tiret : BAN retourne parfois "Rue de l'Arquebuse" quand une source
+    administrative (carte scolaire) l'écrit "RUE DE L ARQUEBUSE" (déjà sans
+    apostrophe) — sans ce repli les deux ne matchent jamais alors qu'elles
+    désignent la même voie (cf. docs/exploration/etude_matching_carte_scolaire.md).
+    """
     nom = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
-    nom = nom.lower().replace("-", " ").strip()
+    nom = nom.lower().replace("-", " ").replace("'", " ").strip()
     return re.sub(r"\s+", " ", nom)
 
 

@@ -218,6 +218,34 @@ PREFIXES_INSTITUTIONNELS = [
     "clg",
 ]
 
+# --- Carte scolaire / rattachement de secteur ---
+# Rayon de repli quand le rattachement officiel n'est pas déterminable
+# (~35% des cas mesurés, cf. docs/exploration/etude_matching_carte_scolaire.md) :
+# volontairement plus resserré que GEO_RAYON_DEFAUT_KM (10km, pensé pour une
+# recherche libre par ville) car ce repli part toujours d'une adresse déjà
+# géocodée avec précision, contrairement à une recherche par ville seule —
+# 5km privilégie la pertinence locale. Pas de test empirique dédié comme
+# GEO_RAYON_ENVIRONS_KM : à ajuster si l'usage réel montre que c'est trop
+# étroit ou trop large.
+SECTEUR_RAYON_REPLI_KM = 5
+
+# Nombre max de collèges affichés dans la liste "alentours" (états non
+# déterminable / multi-secteur de la page dédiée).
+SECTEUR_MAX_COLLEGES_ALENTOURS = 4
+
+# Nombre de suggestions d'autocomplétion adresse proposées pendant la
+# saisie (cf. agent/tools/geo_tool.py::geocoder_suggestions) — évite de
+# résoudre une adresse tapée en partie sur le seul premier résultat BAN
+# (limit=1, cf. geocoder()), qui peut être un faux positif plausible mais
+# non voulu par l'utilisateur. Choisi après étude comparative (2026-07-23) :
+# Google Places Autocomplete plafonne à 5 (retenu ici après essai à 7,
+# jugé trop encombrant à l'écran), le site officiel adresse.data.gouv.fr en
+# affiche ~7 sans "voir plus", l'API elle-même recommande 10 par défaut
+# (max 50) — à ajuster si l'usage réel le justifie. Réutilisé aussi comme
+# nombre de candidats vérifiés pour détecter une adresse ambiguë entre
+# plusieurs communes à la soumission (cf. carte_scolaire_tool.py).
+SECTEUR_NB_SUGGESTIONS_ADRESSE = 5
+
 # --- Zone nationale (geo_tool.py) ---
 # Codes département des DOM-TOM tels que stockés en base — fait administratif
 # stable, pas recalculé. Sert à distinguer "France" (tout le pays, DOM-TOM

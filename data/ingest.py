@@ -28,6 +28,13 @@ from config import (
     NOTATION_REPARTITION, NOTATION_LETTRES,
     VA_SEUIL_POSITIF, VA_SEUIL_NEGATIF
 )
+# Réutilise la même normalisation de nom de voie que le futur rapprochement
+# adresse -> secteur (agent/tools/carte_scolaire_tool.py) : les deux côtés
+# doivent produire exactement la même clé, sinon aucune jointure ne matche
+# jamais. Première dépendance de data/ingest.py vers le package agent/
+# (jusqu'ici limité à config.py) — accepté ici plutôt que dupliquer la
+# logique d'accent-fold/tirets à deux endroits.
+from agent.tools.geo_tool import _normaliser_nom_commune
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_ANNUAIRE = os.path.join(DIR, "frenannuaireeducation_col_lycees.csv")
@@ -36,6 +43,7 @@ CSV_IVAC     = os.path.join(DIR, "frenindicateursvaleurajouteecolleges.csv")
 CSV_LANGUES  = os.path.join(DIR, "fr-en-offre-langues-2d.csv")
 CSV_SECTIONS_SPORTIVES = os.path.join(DIR, "fr-en-sections-sportives-scolaires.csv")
 CSV_ZONES_ACADEMIQUES = os.path.join(DIR, "zones_academiques.csv")
+CSV_CARTE_SCOLAIRE = os.path.join(DIR, "fr-en-carte-scolaire-colleges-publics.csv")
 
 
 def creer_connexion():
@@ -57,6 +65,7 @@ def creer_tables(conn):
         DROP TABLE IF EXISTS vacances_scolaires;
         DROP TABLE IF EXISTS zones_academiques;
         DROP TABLE IF EXISTS sections_sportives;
+        DROP TABLE IF EXISTS carte_scolaire_troncons;
 
         CREATE TABLE etablissements (
             uai                                 TEXT PRIMARY KEY,
@@ -208,6 +217,32 @@ def creer_tables(conn):
             date_debut      TEXT,  -- ISO 'YYYY-MM-DD'
             date_fin        TEXT,  -- ISO, NULL pour un jalon ponctuel
             PRIMARY KEY (annee_scolaire, zone, periode)
+        );
+
+        -- Sectorisation des collèges PUBLICS uniquement (carte scolaire du
+        -- Ministère ne couvre pas le privé). Une ligne = un tronçon de rue
+        -- (commune + voie + plage de numéros + parité) -> un collège de
+        -- secteur (code_rne = uai). Plusieurs tronçons PEUVENT se superposer
+        -- sur la même plage avec des code_rne différents : plusieurs
+        -- collèges légitimes pour la même adresse (cas réel confirmé à
+        -- Maxéville/RUE BLAISE PASCAL, cf. docs/exploration/
+        -- etude_matching_carte_scolaire.md). Ce multi-secteur se détecte en
+        -- comptant les code_rne distincts retournés par le rapprochement
+        -- (étape suivante), PAS via secteur_unique ci-dessous : cette
+        -- colonne vaut 'N' pour l'écrasante majorité des lignes (486618/
+        -- 520678, vérifié) et ne semble donc pas signaler une ambiguïté par
+        -- tronçon — sémantique exacte non éclaircie, stockée telle quelle
+        -- (traçabilité/débogage) mais non utilisée dans la logique métier.
+        CREATE TABLE carte_scolaire_troncons (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            code_insee       TEXT,
+            libelle_commune  TEXT,
+            voie_normalisee  TEXT,
+            numero_debut     INTEGER,
+            numero_fin       INTEGER,
+            parite           TEXT,  -- 'I' | 'P' | 'PI'
+            code_rne         TEXT,  -- = uai du collège de secteur
+            secteur_unique   TEXT   -- 'O' | 'N', tel que fourni par le Ministère
         );
     """)
     print("✓ Tables créées")
@@ -372,6 +407,72 @@ def ingerer_annuaire(conn):
     if 'etat' in df.columns:
         for e, n in df['etat'].value_counts().items():
             print(f"         état {e} : {n}")
+
+
+def ingerer_carte_scolaire(conn):
+    """
+    Ingère data/fr-en-carte-scolaire-colleges-publics.csv (sectorisation des
+    collèges PUBLICS uniquement — cf. docs/exploration/
+    etude_matching_carte_scolaire.md). Chaque ligne = un tronçon de rue
+    (commune + voie + plage de numéros + parité) -> un collège de secteur
+    (code_rne = uai).
+
+    ~6,5% des lignes (34191/520678, vérifié) ont un décalage de colonnes :
+    la colonne "parite" contient un UAI ou une valeur vide au lieu de
+    I/P/PI. Rejetées ici (pas de tentative de réparation du décalage, sa
+    régularité n'étant pas établie — cf. décision n°2 du plan) plutôt que
+    de risquer un rattachement erroné.
+    """
+    print("→ Chargement carte scolaire (sectorisation collèges publics)...")
+    df = pd.read_csv(CSV_CARTE_SCOLAIRE, sep=';', dtype=str)
+
+    n_total = len(df)
+    df = df[df['parite'].isin(['I', 'P', 'PI'])].copy()
+    n_rejetees_parite = n_total - len(df)
+
+    # Même normalisation que côté rapprochement (agent/tools/geo_tool.py) :
+    # accents supprimés, minuscules, tirets/apostrophes -> espaces —
+    # indispensable pour que "RUE BLAISE PASCAL" (CSV) et "Rue Blaise
+    # Pascal" (label BAN) produisent la même clé.
+    #
+    # Deux nettoyages supplémentaires propres au CSV carte scolaire (absents
+    # côté BAN, donc à retirer avant de normaliser sous peine de ne jamais
+    # matcher) — patterns mesurés sur le fichier entier, cf. investigation
+    # du 2026-07-23 :
+    # - préfixe "LIEU DIT " (1,44% des lignes) : BAN renvoie le nom du lieu-dit
+    #   seul, sans ce préfixe administratif.
+    # - suffixe parenthèse "(NOM DE COMMUNE)" (0,46% des lignes) : sert à
+    #   désambiguïser une rue au sein d'une commune nouvelle issue d'une
+    #   fusion (ex: "RUE LOUIS SIMON (BRIEY)" à Val-de-Briey) — BAN ne le
+    #   reprend jamais dans son nom de rue.
+    voie_nettoyee = (
+        df['type_et_libelle']
+        .str.replace(r'^LIEU.?DIT\s+', '', regex=True, case=False)
+        .str.replace(r'\s*\([^)]+\)\s*$', '', regex=True)
+    )
+    df['voie_normalisee'] = voie_nettoyee.apply(_normaliser_nom_commune)
+    df['numero_debut'] = pd.to_numeric(df['No_de_voie_debut'], errors='coerce')
+    df['numero_fin'] = pd.to_numeric(df['No_de_voie_fin'], errors='coerce')
+
+    # Filet de sécurité supplémentaire : une plage non numérique (NaN) ne
+    # peut de toute façon jamais matcher une recherche par numéro.
+    avant_filtre_numero = len(df)
+    df = df[df['numero_debut'].notna() & df['numero_fin'].notna()].copy()
+    n_rejetees_numero = avant_filtre_numero - len(df)
+    df['numero_debut'] = df['numero_debut'].astype(int)
+    df['numero_fin'] = df['numero_fin'].astype(int)
+
+    a_inserer = df[[
+        'code_insee', 'libelle_commune', 'voie_normalisee',
+        'numero_debut', 'numero_fin', 'parite', 'code_rne', 'secteur_unique',
+    ]]
+    a_inserer.to_sql('carte_scolaire_troncons', conn, if_exists='append', index=False)
+    print(
+        f"  ✓ {len(a_inserer)} tronçons ingérés "
+        f"({n_rejetees_parite} lignes rejetées — colonne parité incohérente"
+        + (f", {n_rejetees_numero} rejetées en plus — plage numérique invalide" if n_rejetees_numero else "")
+        + ")"
+    )
 
 
 def ingerer_ips(conn):
@@ -740,14 +841,17 @@ def creer_index(conn):
             ON vacances_scolaires(zone, date_debut);
         CREATE INDEX IF NOT EXISTS idx_sections_sportives_uai
             ON sections_sportives(uai);
+        CREATE INDEX IF NOT EXISTS idx_carte_scolaire_lookup
+            ON carte_scolaire_troncons(code_insee, voie_normalisee);
     """)
-    print("  ✓ 14 index créés")
+    print("  ✓ 15 index créés")
 
 
 def verifier(conn):
     print("\n=== VÉRIFICATION ===")
     for table in ['etablissements', 'ips', 'ivac', 'scores', 'referentiel_temporel',
-                  'langues_offertes', 'vacances_scolaires', 'zones_academiques', 'sections_sportives']:
+                  'langues_offertes', 'vacances_scolaires', 'zones_academiques', 'sections_sportives',
+                  'carte_scolaire_troncons']:
         n = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         print(f"  {table:<30} : {n:>6} lignes")
 
@@ -788,6 +892,7 @@ def main():
     conn = creer_connexion()
     creer_tables(conn)
     ingerer_annuaire(conn)
+    ingerer_carte_scolaire(conn)
     ingerer_ips(conn)
     ingerer_ivac(conn)
     ingerer_langues(conn)
