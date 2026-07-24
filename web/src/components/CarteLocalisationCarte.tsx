@@ -52,7 +52,7 @@ export default function CarteLocalisationCarte({
           boxZoom={false}
           keyboard={false}
           zoomControl={false}
-          style={{ height: "100%", width: "100%" }}
+          style={{ height: "100%", width: "100%", cursor: "default" }}
         >
           {/* Test CARTO Positron plutôt que le rendu OSM Standard : moins
               chargé visuellement, et tuiles retina ({r} -> @2x sur écran
@@ -63,7 +63,7 @@ export default function CarteLocalisationCarte({
             detectRetina
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
-          <Marker position={[latitude, longitude]} icon={ICONE_PIN} />
+          <Marker position={[latitude, longitude]} icon={ICONE_PIN} interactive={false} />
         </MapContainer>
       </div>
       <a
@@ -72,7 +72,7 @@ export default function CarteLocalisationCarte({
         rel="noopener noreferrer"
         className="mt-1.5 block text-center text-[11px] font-semibold text-action-dark underline underline-offset-2"
       >
-        Voir en grand sur OpenStreetMap
+        Visualiser sur OpenStreetMap
       </a>
     </div>
   );
