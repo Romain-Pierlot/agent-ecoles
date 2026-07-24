@@ -4,6 +4,7 @@ import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugDepartement, construireSlugCollege, slugifier } from "@/lib/slug";
 import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
 import { classeStatutSecteur } from "@/lib/tokens";
+import { BoutonAide } from "@/components/BoutonAide";
 
 // Blocs "Meilleure notation" / "Meilleure valeur ajoutée" des pages
 // région/département (cf. docs/Design_system/Sitemap.dc.html, maquette
@@ -46,12 +47,16 @@ function BadgeVa({ valeur }: { valeur: number }) {
 
 export function BlocTopEtablissements({
   titre,
+  aide,
   pastilleClasse,
   etablissements,
   critere,
   regionSlug,
 }: {
   titre: string;
+  // Texte de la bulle d'aide contextuelle affichée à côté du titre (cf.
+  // BoutonAide, même pattern que sur la fiche établissement).
+  aide?: string;
   // Couleur de la pastille à côté du titre — Tailwind ne peut pas résoudre
   // une classe construite dynamiquement, donc la classe complète est passée
   // telle quelle par l'appelant plutôt que composée ici (cf. ZoneHub.tsx).
@@ -67,6 +72,7 @@ export function BlocTopEtablissements({
       <h3 className="mb-2 flex items-center gap-1.5 text-[12.5px] font-bold text-texte">
         <span className={`h-[7px] w-[7px] rounded-full ${pastilleClasse}`} />
         {titre}
+        {aide && <BoutonAide texte={aide} />}
       </h3>
       {etablissements.map((e) => {
         const tag = deriveBadgesDispositifs(e)[0];

@@ -81,6 +81,7 @@ export function ZoneHub({
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <BlocTopEtablissements
             titre="Meilleure notation"
+            aide="La notation (de A+ à B) combine les résultats au brevet (taux de réussite et note à l'écrit) et leur valeur ajoutée par rapport au niveau attendu compte tenu du profil des élèves."
             pastilleClasse="bg-notation-a-plus"
             etablissements={topNotation}
             critere="notation"
@@ -88,6 +89,7 @@ export function ZoneHub({
           />
           <BlocTopEtablissements
             titre="Meilleure valeur ajoutée"
+            aide="On compare les résultats obtenus à ceux attendus compte tenu du profil des élèves. Un écart positif = le collège fait progresser ses élèves au-delà des prévisions."
             pastilleClasse="bg-positif"
             etablissements={topVa}
             critere="va"
