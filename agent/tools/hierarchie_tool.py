@@ -293,3 +293,55 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
         return {"success": False, "session_utilisee": None, "global": None, "sous_divisions": [], "error": str(e)}
     finally:
         conn.close()
+
+
+def obtenir_top_etablissements_zone(niveau: str, valeur: str, n: int = 5) -> dict:
+    """
+    Top n établissements d'une région ou d'un département, sur 2 critères
+    (page hub région/département, cf. docs/Design_system/Sitemap.dc.html) :
+    "top_notation" (meilleur score_principal) et "top_va" (meilleure VA du
+    taux de réussite seule). Pas de niveau "ville" : mesuré sur les vraies
+    données que 95% des communes ont moins de 5 collèges (un "top 5" y
+    serait la liste complète) et que même les 5% restantes ont un
+    chevauchement moyen de 4,14/5 entre les deux classements — peu
+    d'intérêt à en faire un second classement. Niveau "national" non plus
+    retenu, seuls région et département ont été mesurés pour ce bloc.
+
+    Combine et retrie public+privé (rechercher_top_par_secteur les renvoie
+    séparés) : demander n à chaque secteur puis fusionner suffit toujours à
+    reconstituer le vrai top n global, même dans le cas extrême où un seul
+    secteur domine entièrement.
+
+    Retourne : {"success": bool, "top_notation": [...], "top_va": [...], "error": str | None}
+    """
+    if niveau not in ("region", "departement"):
+        return {"success": False, "top_notation": [], "top_va": [], "error": f"niveau invalide : {niveau}"}
+
+    colonne_filtre = "libelle_region" if niveau == "region" else "code_departement"
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        uai_filtre = [
+            row[0] for row in conn.execute(
+                f"SELECT uai FROM etablissements WHERE type_etablissement = 'Collège' AND {colonne_filtre} = ?",
+                (valeur,),
+            )
+        ]
+    finally:
+        conn.close()
+
+    if not uai_filtre:
+        return {"success": True, "top_notation": [], "top_va": [], "error": None}
+
+    from agent.tools.sql_tool import rechercher_top_par_secteur
+
+    resultat = {}
+    for cle, critere in (("top_notation", "global"), ("top_va", "valeur_ajoutee")):
+        res = rechercher_top_par_secteur(uai_filtre=uai_filtre, n=n, critere_tri=critere)
+        if not res["success"]:
+            return {"success": False, "top_notation": [], "top_va": [], "error": res["error"]}
+        colonne_tri = "score_principal" if critere == "global" else "brevet_va_taux_reussite_general"
+        fusion = res["public"] + res["prive"]
+        fusion.sort(key=lambda r: (r.get(colonne_tri) if r.get(colonne_tri) is not None else -1), reverse=True)
+        resultat[cle] = fusion[:n]
+
+    return {"success": True, "top_notation": resultat["top_notation"], "top_va": resultat["top_va"], "error": None}

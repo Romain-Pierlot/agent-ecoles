@@ -25,6 +25,10 @@ export default async function Page({
       sousTitre={`${region.departements.length} départements`}
       global={region.global}
       labelColonneSousDivision="Département"
+      afficherCodeSousDivisions
+      topNotation={region.top_notation}
+      topVa={region.top_va}
+      regionSlug={regionSlug}
       sousDivisions={region.departements.map((d) => ({
         ...d,
         href: `/region/${regionSlug}/departement/${construireSlugDepartement(d.code, d.libelle)}`,

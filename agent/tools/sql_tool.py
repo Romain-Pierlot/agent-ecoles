@@ -391,9 +391,16 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     collèges", classement général (résultats bruts + valeur ajoutée).
     critere_tri="resultats" : tri sur score_resultats — uniquement quand la
     question mentionne explicitement "les résultats" (résultats bruts seuls,
-    sans VA). Valeur dérivée de state["critere_tri_souhaite"] (extrait par le
-    router, cf. config.CritereTriSouhaite), jamais construite depuis un texte
-    utilisateur non vérifié — validée ci-dessous contre les 2 seules valeurs
+    sans VA). critere_tri="valeur_ajoutee" : tri sur la VA du taux de
+    réussite seule (brevet_va_taux_reussite_general, colonne ivac déjà
+    sélectionnée) — pas sur un score combiné, pour que le chiffre affiché
+    (l'écart VA) soit exactement ce qui explique le classement, cf. page
+    région/département (docs/Design_system/Sitemap.dc.html). Établissements
+    sans VA publiée exclus du tri (pas d'imputation à 0 ici, contrairement à
+    score_principal — une VA non publiée n'est pas une VA nulle). Valeur
+    dérivée de state["critere_tri_souhaite"] (extrait par le router, cf.
+    config.CritereTriSouhaite), jamais construite depuis un texte
+    utilisateur non vérifié — validée ci-dessous contre les 3 seules valeurs
     possibles avant toute interpolation dans le SQL.
 
     Requête SQL déterministe, AUCUN appel LLM : une fois qu'on sait que
@@ -425,7 +432,12 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
     Retourne : {
         "success": bool,
         "session_utilisee": str | None,
-        "public": [ {uai, nom, commune, secteur, notation, badge_va,
+        "public": [ {uai, nom, commune, code_departement, libelle_departement,
+                     secteur, notation, badge_va,
+                     score_principal, score_resultats,
+                     appartenance_education_prioritaire, ulis, segpa,
+                     section_arts, section_cinema, section_theatre, section_sport,
+                     section_internationale, section_europeenne,
                      brevet_taux_reussite_general, brevet_note_ecrit_general,
                      brevet_va_taux_reussite_general, brevet_va_note_ecrit_general,
                      [+ brevet_nb_candidats_general, nb_mentions_b, nb_mentions_tb si inclure_mentions]}, ... ],
@@ -437,9 +449,14 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
         return {"success": True, "session_utilisee": None, "public": [], "prive": [], "error": None}
     if ordre not in ("DESC", "ASC"):
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": f"ordre invalide : {ordre}"}
-    if critere_tri not in ("global", "resultats"):
+    if critere_tri not in ("global", "resultats", "valeur_ajoutee"):
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": f"critere_tri invalide : {critere_tri}"}
-    colonne_tri = "score_principal" if critere_tri == "global" else "score_resultats"
+    colonne_tri_sql = {
+        "global": "s.score_principal",
+        "resultats": "s.score_resultats",
+        "valeur_ajoutee": "v.brevet_va_taux_reussite_general",
+    }[critere_tri]
+    filtre_va_sql = "AND v.brevet_va_taux_reussite_general IS NOT NULL" if critere_tri == "valeur_ajoutee" else ""
     filtre_section_sql, erreur_section = _filtre_section_sql(colonne_section_filtre)
     if erreur_section:
         return {"success": False, "session_utilisee": None, "public": [], "prive": [], "error": erreur_section}
@@ -460,7 +477,12 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
             resultats_par_secteur = {}
             for secteur_db, cle in ((Secteur.PUBLIC, SecteurSouhaite.PUBLIC), (Secteur.PRIVE, SecteurSouhaite.PRIVE)):
                 rows = conn.execute(f"""
-                    SELECT e.uai, e.nom, e.commune, e.secteur, s.notation, s.badge_va,
+                    SELECT e.uai, e.nom, e.commune, e.code_departement, e.libelle_departement,
+                           e.secteur, s.notation, s.badge_va,
+                           s.score_principal, s.score_resultats,
+                           e.appartenance_education_prioritaire, e.ulis, e.segpa,
+                           e.section_arts, e.section_cinema, e.section_theatre, e.section_sport,
+                           e.section_internationale, e.section_europeenne,
                            v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
                            v.brevet_va_taux_reussite_general, v.brevet_va_note_ecrit_general
                            {colonnes_mentions}
@@ -472,7 +494,8 @@ def rechercher_top_par_secteur(uai_filtre: list[str], n: int = 10, type_etabliss
                       AND e.type_etablissement = ?
                       AND s.session = ?
                       {filtre_section_sql}
-                    ORDER BY s.{colonne_tri} {ordre}
+                      {filtre_va_sql}
+                    ORDER BY {colonne_tri_sql} {ordre}
                     LIMIT ?
                 """, (*uai_filtre, secteur_db.value, type_etablissement, session, n)).fetchall()
                 resultats_par_secteur[cle.value] = [dict(row) for row in rows]

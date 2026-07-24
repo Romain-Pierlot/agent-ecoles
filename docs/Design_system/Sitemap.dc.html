@@ -25,6 +25,7 @@
     <div style="font:600 10px ui-monospace;letter-spacing:.1em;color:#8a877f;text-transform:uppercase;margin-bottom:8px">Plan de site · pour handoff Claude Code</div>
     <div style="font:700 30px/1.15 'Inter';color:#1a1a1a">écoles.fr — sitemap complet</div>
     <div style="font:400 13.5px/1.6 'Inter';color:#5a574f;max-width:760px;margin-top:8px">Base : <a href="#">proposition 3a</a> (Wireframes). Ajouts : porte <b>Explorer</b> en tête de la hiérarchie géographique, niveau <b>Académie</b> traité comme rattachement transverse — pas un niveau de navigation.</div>
+    <div style="margin-top:10px;font:600 11.5px 'Inter';color:#2a5fa0;background:#eef2f8;border:1px solid #cfe0f5;border-radius:8px;padding:6px 11px;display:inline-block">📌 Document de référence pour connaître l'état de toutes les pages du site — mis à jour à chaque page livrée (cf. decision_log.md S16.2)</div>
   </div>
 
   <!-- ===== DÉCISIONS ACTÉES ===== -->
@@ -185,7 +186,42 @@
     </div>
   </div>
 
-  <div style="max-width:1180px;font:400 15px/1.4 'Caveat';color:#c2410c;font-weight:600;margin-top:14px;padding-left:4px">Décision encore ouverte : « adresse → collège de secteur » : page dédiée ou liste centrée ?</div>
+  <!-- ===== ÉTAT D'IMPLÉMENTATION RÉEL ===== -->
+  <div style="margin-top:36px">
+    <div style="font:700 18px 'Inter';color:#1a1a1a;margin-bottom:4px">État d'implémentation réel — audité le 23/07/2026</div>
+    <div style="font:400 13px/1.5 'Inter';color:#6b685f;margin-bottom:16px;max-width:780px">10 routes sur 17 ont un contenu réel (données, composants métier). 7 sont encore un <span style="font:400 11.5px ui-monospace;color:#8a877f">PagePlaceholder</span> — squelette de dev, pas un message pensé pour un visiteur. Seule <span style="font:400 11.5px ui-monospace;color:#8a877f">/mon-secteur</span> a un metadata (title/description) propre à ce jour.</div>
+
+    <table style="width:100%;border-collapse:collapse;font:400 12.5px 'Inter';color:#3a3a3a">
+      <thead>
+        <tr style="border-bottom:2px solid #dcd8ce;text-align:left">
+          <th style="padding:7px 10px;font:600 11px 'Inter';color:#8a877f;text-transform:uppercase;letter-spacing:.04em">Route</th>
+          <th style="padding:7px 10px;font:600 11px 'Inter';color:#8a877f;text-transform:uppercase;letter-spacing:.04em">Statut</th>
+          <th style="padding:7px 10px;font:600 11px 'Inter';color:#8a877f;text-transform:uppercase;letter-spacing:.04em">Metadata dédié</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/assistant</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/recherche</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1;background:#f7faff"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/mon-secteur</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">✓ Oui</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/explorer <span style="font-family:'Inter';font-style:italic;color:#a8a49a">(= /region)</span></td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/comprendre/{slug}</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/region</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/region/{r}</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/region/{r}/departement/{d}</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">.../ville/{v}</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">.../college/{c}</td><td style="padding:7px 10px;color:#1f8a5b;font-weight:600">Réel</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/academie/{slug}</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub (⚠️ lien actif sur la fiche établissement)</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/calendrier</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/methodologie</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/sources</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr style="border-bottom:1px solid #ece9e1"><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/a-propos</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+        <tr><td style="padding:7px 10px;font-family:ui-monospace;color:#5a574f">/mentions-legales</td><td style="padding:7px 10px;color:#c2410c;font-weight:600">Stub</td><td style="padding:7px 10px;color:#a8a49a">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="max-width:1180px;font:400 15px/1.4 'Caveat';color:#1f8a5b;font-weight:600;margin-top:14px;padding-left:4px">✓ Résolu : « adresse → collège de secteur » → page dédiée, /mon-secteur (cf. decision_log.md S16.2).</div>
 
 </div>
 </x-dc>

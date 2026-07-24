@@ -170,6 +170,34 @@ class SousDivision(AgregatEtablissements):
     libelle: str
 
 
+class TopEtablissement(BaseModel):
+    """Ligne des blocs "Meilleure notation" / "Meilleure valeur ajoutée"
+    des pages région/département (cf. docs/Design_system/Sitemap.dc.html) —
+    mêmes champs que CollegeVille, plus la lignée département (commune +
+    code/libellé département) : sur la page région, un établissement du
+    top 5 peut appartenir à n'importe lequel des départements de la région,
+    il faut son propre département pour reconstruire l'URL complète vers
+    sa fiche. Pas besoin de la région (déjà connue de la page). Plus la VA
+    du taux de réussite seule (chiffre affiché sur le bloc VA)."""
+    uai: str
+    nom: str
+    commune: str
+    code_departement: str
+    libelle_departement: str
+    secteur: str
+    notation: Optional[str] = None
+    appartenance_education_prioritaire: Optional[str] = None
+    ulis: bool
+    segpa: bool
+    section_arts: bool
+    section_cinema: bool
+    section_theatre: bool
+    section_sport: bool
+    section_internationale: bool
+    section_europeenne: bool
+    brevet_va_taux_reussite_general: Optional[float] = None
+
+
 class NationalHub(BaseModel):
     session_utilisee: Optional[str] = None
     global_: AgregatEtablissements = Field(alias="global")
@@ -183,6 +211,8 @@ class RegionHub(BaseModel):
     session_utilisee: Optional[str] = None
     global_: AgregatEtablissements = Field(alias="global")
     departements: list[SousDivision]
+    top_notation: list[TopEtablissement]
+    top_va: list[TopEtablissement]
 
     model_config = {"populate_by_name": True}
 
@@ -194,6 +224,8 @@ class DepartementHub(BaseModel):
     session_utilisee: Optional[str] = None
     global_: AgregatEtablissements = Field(alias="global")
     communes: list[SousDivision]
+    top_notation: list[TopEtablissement]
+    top_va: list[TopEtablissement]
 
     model_config = {"populate_by_name": True}
 

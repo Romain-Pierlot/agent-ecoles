@@ -27,6 +27,7 @@ from agent.tools.hierarchie_tool import (
     resoudre_ville_par_slug,
     agreger_sous_divisions,
     obtenir_colleges_ville,
+    obtenir_top_etablissements_zone,
 )
 from agent.tools.recherche_tool import rechercher, LIMITE_RESULTATS
 from agent.tools.carte_scolaire_tool import resoudre_secteur
@@ -150,11 +151,17 @@ def obtenir_region(region_slug: str):
     if not agregat["success"]:
         raise HTTPException(status_code=500, detail=agregat["error"])
 
+    top = obtenir_top_etablissements_zone("region", region["libelle_region"])
+    if not top["success"]:
+        raise HTTPException(status_code=500, detail=top["error"])
+
     return RegionHub(
         libelle_region=region["libelle_region"],
         session_utilisee=agregat["session_utilisee"],
         global_=agregat["global"],
         departements=agregat["sous_divisions"],
+        top_notation=top["top_notation"],
+        top_va=top["top_va"],
     )
 
 
@@ -172,6 +179,10 @@ def obtenir_departement(region_slug: str, dept_slug: str):
     if not agregat["success"]:
         raise HTTPException(status_code=500, detail=agregat["error"])
 
+    top = obtenir_top_etablissements_zone("departement", departement["code_departement"])
+    if not top["success"]:
+        raise HTTPException(status_code=500, detail=top["error"])
+
     return DepartementHub(
         libelle_region=region["libelle_region"],
         code_departement=departement["code_departement"],
@@ -179,6 +190,8 @@ def obtenir_departement(region_slug: str, dept_slug: str):
         session_utilisee=agregat["session_utilisee"],
         global_=agregat["global"],
         communes=agregat["sous_divisions"],
+        top_notation=top["top_notation"],
+        top_va=top["top_va"],
     )
 
 

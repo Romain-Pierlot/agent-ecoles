@@ -43,6 +43,7 @@ export default async function Page({
           <span className="text-filet-fonce">›</span>
           <Link href={`/region/${regionSlug}/departement/${deptSlug}`} className="hover:text-texte-doux">
             {fiche.identite.libelle_departement ?? deslugifier(deptSlug)}
+            {fiche.identite.code_departement ? ` (${fiche.identite.code_departement})` : ""}
           </Link>
           <span className="text-filet-fonce">›</span>
           <Link

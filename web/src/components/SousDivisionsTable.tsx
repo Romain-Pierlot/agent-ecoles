@@ -20,9 +20,14 @@ function formaterTaux(taux: number | null): string {
 export function SousDivisionsTable({
   labelColonne,
   sousDivisions,
+  afficherCode = false,
 }: {
   labelColonne: string;
   sousDivisions: LigneSousDivision[];
+  // Désactivé par défaut : seul le listing des départements d'une région
+  // affiche le code entre parenthèses (convention alignée sur RechercheBloc,
+  // "Rhône (69)") — région et commune n'ont pas cette convention.
+  afficherCode?: boolean;
 }) {
   const [toutAfficher, setToutAfficher] = useState(false);
   const [critereTri, setCritereTri] = useState<CritereTri>("alphabetique");
@@ -83,7 +88,10 @@ export function SousDivisionsTable({
             href={sd.href}
             className="grid grid-cols-[1fr_70px_84px_18px] items-center gap-2 border-t border-[#F0E6D2] px-4 py-2.5 hover:bg-fond-carte/60"
           >
-            <span className="min-w-0 truncate text-[13px] font-bold text-texte">{sd.libelle}</span>
+            <span className="min-w-0 truncate text-[13px] font-bold text-texte">
+              {sd.libelle}
+              {afficherCode ? ` (${sd.code})` : ""}
+            </span>
             <span className="text-right font-baloo text-[13px] font-bold text-texte">
               {sd.nb_etablissements}
             </span>

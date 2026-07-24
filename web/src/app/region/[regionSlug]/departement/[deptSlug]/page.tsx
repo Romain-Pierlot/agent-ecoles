@@ -13,18 +13,25 @@ export default async function Page({
   const departement = await recupererDepartement(regionSlug, deptSlug);
   if (!departement) notFound();
 
+  // Convention alignée sur RechercheBloc : nom d'abord, code entre
+  // parenthèses (cf. decision_log.md, recherche de convention du 2026-07-23).
+  const libelleDepartementAvecCode = `${departement.libelle_departement} (${departement.code_departement})`;
+
   return (
     <ZoneHub
       filAriane={[
         { label: "Accueil", href: "/" },
         { label: departement.libelle_region, href: `/region/${regionSlug}` },
-        { label: departement.libelle_departement },
+        { label: libelleDepartementAvecCode },
       ]}
       eyebrow="Département"
-      titre={departement.libelle_departement}
+      titre={libelleDepartementAvecCode}
       sousTitre={`${departement.communes.length} communes`}
       global={departement.global}
       labelColonneSousDivision="Commune"
+      topNotation={departement.top_notation}
+      topVa={departement.top_va}
+      regionSlug={regionSlug}
       sousDivisions={departement.communes.map((c) => ({
         ...c,
         // La page ville (Phase 4) n'existe pas encore : lien posé sur la

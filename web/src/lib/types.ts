@@ -119,6 +119,30 @@ export type SousDivision = AgregatEtablissements & {
   libelle: string;
 };
 
+// Ligne des blocs "Meilleure notation" / "Meilleure valeur ajoutée" des
+// pages région/département — mêmes champs que CollegeVille, plus commune
+// (région/département couvrent plusieurs communes) et la VA du taux de
+// réussite seule (chiffre affiché sur le bloc VA).
+export type TopEtablissement = {
+  uai: string;
+  nom: string;
+  commune: string;
+  code_departement: string;
+  libelle_departement: string;
+  secteur: string;
+  notation: string | null;
+  appartenance_education_prioritaire: string | null;
+  ulis: boolean;
+  segpa: boolean;
+  section_arts: boolean;
+  section_cinema: boolean;
+  section_theatre: boolean;
+  section_sport: boolean;
+  section_internationale: boolean;
+  section_europeenne: boolean;
+  brevet_va_taux_reussite_general: number | null;
+};
+
 export type NationalHub = {
   session_utilisee: string | null;
   global: AgregatEtablissements;
@@ -130,6 +154,8 @@ export type RegionHub = {
   session_utilisee: string | null;
   global: AgregatEtablissements;
   departements: SousDivision[];
+  top_notation: TopEtablissement[];
+  top_va: TopEtablissement[];
 };
 
 export type DepartementHub = {
@@ -139,6 +165,8 @@ export type DepartementHub = {
   session_utilisee: string | null;
   global: AgregatEtablissements;
   communes: SousDivision[];
+  top_notation: TopEtablissement[];
+  top_va: TopEtablissement[];
 };
 
 // Miroir TypeScript de api/schemas.py (CollegeVille, VilleHub) —

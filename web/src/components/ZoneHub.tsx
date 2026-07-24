@@ -1,8 +1,9 @@
 import Link from "next/link";
-import type { AgregatEtablissements, SousDivision } from "@/lib/types";
+import type { AgregatEtablissements, SousDivision, TopEtablissement } from "@/lib/types";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
 import { SousDivisionsTable } from "@/components/SousDivisionsTable";
+import { BlocTopEtablissements } from "@/components/BlocTopEtablissements";
 
 export type LigneSousDivision = SousDivision & { href: string };
 
@@ -14,6 +15,10 @@ export function ZoneHub({
   global,
   labelColonneSousDivision,
   sousDivisions,
+  afficherCodeSousDivisions,
+  topNotation,
+  topVa,
+  regionSlug,
   exempleAgent,
 }: {
   filAriane: { label: string; href?: string }[];
@@ -23,6 +28,15 @@ export function ZoneHub({
   global: AgregatEtablissements;
   labelColonneSousDivision: string;
   sousDivisions: LigneSousDivision[];
+  // Relayé tel quel à SousDivisionsTable — cf. commentaire là-bas.
+  afficherCodeSousDivisions?: boolean;
+  // Absents sur /region (liste des régions) — ce niveau n'a pas ce bloc
+  // (mesuré non pertinent, cf. hierarchie_tool.py::obtenir_top_etablissements_zone).
+  topNotation?: TopEtablissement[];
+  topVa?: TopEtablissement[];
+  // Nécessaire pour reconstruire l'URL de chaque établissement du top
+  // (peut appartenir à n'importe quel département de la région affichée).
+  regionSlug?: string;
   exempleAgent: string;
 }) {
   return (
@@ -63,6 +77,25 @@ export function ZoneHub({
         </div>
       </div>
 
+      {regionSlug && topNotation && topVa && (topNotation.length > 0 || topVa.length > 0) && (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <BlocTopEtablissements
+            titre="Meilleure notation"
+            pastilleClasse="bg-notation-a-plus"
+            etablissements={topNotation}
+            critere="notation"
+            regionSlug={regionSlug}
+          />
+          <BlocTopEtablissements
+            titre="Meilleure valeur ajoutée"
+            pastilleClasse="bg-positif"
+            etablissements={topVa}
+            critere="va"
+            regionSlug={regionSlug}
+          />
+        </div>
+      )}
+
       <RechercheBloc />
 
       {/* ===== LISTE SOUS-DIVISIONS =====
@@ -74,7 +107,11 @@ export function ZoneHub({
           une colonne, pas d'annoncer la section. */}
       <div className="mt-7">
         <h2 className="font-baloo text-[19px] font-extrabold text-texte">{sousTitre}</h2>
-        <SousDivisionsTable labelColonne={labelColonneSousDivision} sousDivisions={sousDivisions} />
+        <SousDivisionsTable
+          labelColonne={labelColonneSousDivision}
+          sousDivisions={sousDivisions}
+          afficherCode={afficherCodeSousDivisions}
+        />
       </div>
 
       <AgentBlock exemple={exempleAgent} />
