@@ -19,9 +19,9 @@ const ICONE_PIN = L.divIcon({
   iconAnchor: [12, 34],
 });
 
-// Échelle "quartier" : suffisant pour situer l'établissement sans viser une
-// précision parcelle par parcelle, cf. conception validée.
-const ZOOM_QUARTIER = 10;
+// Zoom par défaut à l'ouverture, ajustable ensuite via les boutons +/- :
+// compromis entre vue région et vue quartier, cf. conception validée.
+const ZOOM_QUARTIER = 12;
 
 export default function CarteLocalisationCarte({
   latitude,
@@ -39,9 +39,10 @@ export default function CarteLocalisationCarte({
         aria-label={`Carte de localisation : ${nom}`}
         className="h-[180px] overflow-hidden rounded-[22px_18px_22px_20px] border-2 border-filet"
       >
-        {/* Tous les gestes désactivés : cette carte sert à situer
-            l'établissement d'un coup d'œil, pas à naviguer dedans (cf.
-            conception validée, conflit de geste scroll/pan sur mobile). */}
+        {/* Drag/scroll désactivés (conflit de geste avec le scroll de page
+            sur mobile, cf. conception validée), mais les boutons +/- restent
+            actifs : un clic ne crée pas ce conflit, et ça laisse choisir
+            entre vue région et vue quartier selon le besoin. */}
         <MapContainer
           center={[latitude, longitude]}
           zoom={ZOOM_QUARTIER}
@@ -51,14 +52,15 @@ export default function CarteLocalisationCarte({
           doubleClickZoom={false}
           boxZoom={false}
           keyboard={false}
-          zoomControl={false}
+          zoomControl={true}
           style={{ height: "100%", width: "100%", cursor: "default" }}
         >
-          {/* Test CARTO Positron plutôt que le rendu OSM Standard : moins
-              chargé visuellement, et tuiles retina ({r} -> @2x sur écran
-              haute densité) via detectRetina, sans clé API. */}
+          {/* Test CARTO Voyager plutôt que Positron : plus de contraste
+              (parcs, eau, bâtiments colorés) pour rester lisible à un zoom
+              serré, et tuiles retina ({r} -> @2x sur écran haute densité)
+              via detectRetina, sans clé API. */}
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             subdomains="abcd"
             detectRetina
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
