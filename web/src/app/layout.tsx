@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono, Baloo_2, Figtree, Caveat, JetBrains_Mono } from "next/font/google";
 import { TopBar } from "@/components/TopBar";
 import "./globals.css";
@@ -55,6 +56,13 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <TopBar />
         {children}
+        {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <Script
+            src={process.env.NEXT_PUBLIC_UMAMI_SRC}
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );
