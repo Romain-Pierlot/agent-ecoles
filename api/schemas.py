@@ -60,6 +60,8 @@ class EtablissementIdentite(BaseModel):
     mail: Optional[str] = None
     web: Optional[str] = None
     date_ouverture: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     notation: Optional[str] = None
     badge_va: Optional[str] = None
     # True si la VA de cet établissement était absente et a été substituée

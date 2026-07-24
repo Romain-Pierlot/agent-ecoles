@@ -19,7 +19,7 @@ COLONNES_IDENTITE = """
     libelle_region, telephone, mail, web, date_ouverture,
     appartenance_education_prioritaire, ulis, segpa,
     section_arts, section_cinema, section_theatre, section_sport,
-    section_internationale, section_europeenne
+    section_internationale, section_europeenne, latitude, longitude
 """
 
 COLONNES_SECTION_BOOL = [

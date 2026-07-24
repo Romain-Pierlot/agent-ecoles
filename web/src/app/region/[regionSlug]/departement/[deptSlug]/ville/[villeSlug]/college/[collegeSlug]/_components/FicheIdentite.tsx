@@ -4,6 +4,7 @@ import { slugifier } from "@/lib/slug";
 import { NOM_ASSISTANT } from "@/lib/constants";
 import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { BoutonAide } from "@/components/BoutonAide";
+import { CarteLocalisation } from "@/components/CarteLocalisation";
 
 const NOTATION_CLASSES: Record<string, string> = {
   "A+": "bg-notation-a-plus",
@@ -12,6 +13,18 @@ const NOTATION_CLASSES: Record<string, string> = {
   "B+": "bg-notation-b-plus",
   "B": "bg-notation-b",
 };
+
+// L'URL complète (avec chemin) peut dépasser 40 caractères sur 62% des
+// établissements qui renseignent un site web — affichée telle quelle, elle
+// déborde de la colonne de grille étroite des coordonnées. Le domaine seul
+// suffit à l'affichage, le lien garde l'URL complète.
+function hoteDuSiteWeb(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.replace(/^https?:\/\//, "");
+  }
+}
 
 function formaterDate(iso: string): string {
   const [annee, mois, jour] = iso.split("-").map(Number);
@@ -109,7 +122,7 @@ export function FicheIdentite({
   if (identite.web) {
     coordonnees.push({
       label: "Site internet",
-      valeur: identite.web.replace(/^https?:\/\//, ""),
+      valeur: hoteDuSiteWeb(identite.web),
       classe: "text-action-dark underline underline-offset-2",
       lien: identite.web,
     });
@@ -188,11 +201,16 @@ export function FicheIdentite({
             <div key={c.label}>
               <div className="text-[10px] font-bold uppercase tracking-wide text-texte-doux/70">{c.label}</div>
               {c.lien ? (
-                <a href={c.lien} className={`mt-0.5 block text-[13.5px] font-semibold ${c.classe ?? "text-texte"}`}>
+                <a
+                  href={c.lien}
+                  className={`mt-0.5 block break-words text-[13.5px] font-semibold ${c.classe ?? "text-texte"}`}
+                >
                   {c.valeur}
                 </a>
               ) : (
-                <div className={`mt-0.5 text-[13.5px] font-semibold ${c.classe ?? "text-texte"}`}>{c.valeur}</div>
+                <div className={`mt-0.5 break-words text-[13.5px] font-semibold ${c.classe ?? "text-texte"}`}>
+                  {c.valeur}
+                </div>
               )}
             </div>
           ))}
@@ -206,16 +224,24 @@ export function FicheIdentite({
 
       {/* Rail droit */}
       <div className="flex flex-col gap-2.5">
-        {/* Carte scolaire : à venir dans un chantier séparé (cf. decision_log.md
-            S1.4) — cadre conservé pour garder la proportion du rail droit
-            cohérente avec la carte identité, plutôt que de laisser la carte
-            assistant seule et disproportionnée. */}
-        <div className="flex h-[150px] flex-col items-center justify-center gap-1.5 rounded-[22px_18px_22px_20px] border-2 border-dashed border-filet-fonce bg-fond-sable/30 text-center">
-          <span className="text-2xl">🗺️</span>
-          <span className="px-4 text-[12px] font-semibold text-texte-doux">
-            Carte de secteur — à venir
-          </span>
-        </div>
+        {/* Localisation de l'établissement (un point, pas une zone de
+            secteur) — à ne pas confondre avec la carte scolaire de S1.4,
+            hors périmètre car elle demanderait des données de rattachement
+            non centralisées, cf. decision_log.md S1.4 et S17.2. */}
+        {identite.latitude != null && identite.longitude != null ? (
+          <CarteLocalisation
+            latitude={identite.latitude}
+            longitude={identite.longitude}
+            nom={identite.nom}
+          />
+        ) : (
+          <div className="flex h-[180px] flex-col items-center justify-center gap-1.5 rounded-[22px_18px_22px_20px] border-2 border-dashed border-filet-fonce bg-fond-sable/30 text-center">
+            <span className="text-2xl">📍</span>
+            <span className="px-4 text-[12px] font-semibold text-texte-doux">
+              Localisation non disponible
+            </span>
+          </div>
+        )}
 
         {/* Carte assistant (compacte) */}
         <div className="rounded-[22px_18px_22px_20px] bg-gradient-to-br from-action to-action-dark p-4 text-white shadow-lg">

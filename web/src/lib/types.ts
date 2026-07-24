@@ -18,6 +18,8 @@ export type EtablissementIdentite = {
   mail: string | null;
   web: string | null;
   date_ouverture: string | null;
+  latitude: number | null;
+  longitude: number | null;
   notation: string | null;
   badge_va: string | null;
   va_imputee: boolean;
