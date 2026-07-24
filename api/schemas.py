@@ -394,3 +394,15 @@ class SecteurResultats(BaseModel):
 
 class SuggestionsAdresseResultats(BaseModel):
     suggestions: list[SuggestionAdresse] = []
+
+
+class RechercheLogRequest(BaseModel):
+    """Corps de POST /recherche/log — journalisation d'une recherche par nom.
+
+    Envoyé une seule fois par recherche réelle (composant serveur
+    recherche/page.tsx, jamais à chaque changement de filtre côté client,
+    cf. decision_log.md).
+    """
+    terme: str
+    nb_etablissements: int
+    nb_communes: int

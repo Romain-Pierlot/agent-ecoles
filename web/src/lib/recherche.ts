@@ -21,3 +21,16 @@ export async function recupererRecherche(
   }
   return (await reponse.json()) as RechercheResultats;
 }
+
+// Best-effort, ne doit jamais faire échouer le rendu de la page — appelée
+// une seule fois par recherche réelle (recherche/page.tsx, via after()),
+// jamais à chaque changement de filtre/tri côté client.
+export function journaliserRecherche(terme: string, nbEtablissements: number, nbCommunes: number): void {
+  fetch(`${API_URL}/recherche/log`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ terme, nb_etablissements: nbEtablissements, nb_communes: nbCommunes }),
+  }).catch(() => {
+    // Panne de journalisation (API indisponible, etc.) — jamais remontée.
+  });
+}

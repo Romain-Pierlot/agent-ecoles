@@ -17,9 +17,9 @@ from api.sessions import obtenir_ou_creer_session, enregistrer_session
 from api.schemas import (
     ChatRequest, ChatResponse, Choix, FicheEtablissement,
     NationalHub, RegionHub, DepartementHub, VilleHub, RechercheResultats,
-    SecteurResultats, SuggestionsAdresseResultats,
+    SecteurResultats, SuggestionsAdresseResultats, RechercheLogRequest,
 )
-from api.journalisation import journaliser_echange
+from api.journalisation import journaliser_echange, journaliser_recherche
 from agent.tools.etablissement_tool import obtenir_fiche_etablissement
 from agent.tools.hierarchie_tool import (
     resoudre_region_par_slug,
@@ -267,6 +267,16 @@ def obtenir_recherche(
     )
 
 
+@app.post("/recherche/log", status_code=204)
+def journaliser_recherche_route(requete: RechercheLogRequest) -> None:
+    journaliser_recherche(
+        page_origine="recherche",
+        terme=requete.terme,
+        nb_etablissements=requete.nb_etablissements,
+        nb_communes=requete.nb_communes,
+    )
+
+
 @app.get("/secteur/adresses", response_model=SuggestionsAdresseResultats)
 def obtenir_suggestions_adresse(q: str = ""):
     resultat = geocoder_suggestions(q)
@@ -284,6 +294,16 @@ def obtenir_secteur(adresse: str = Query(..., min_length=1)):
     # techniques (ex: base SQLite inaccessible), cf. carte_scolaire_tool.py.
     if not resultat["success"]:
         raise HTTPException(status_code=500, detail=resultat["error"])
+
+    # Une seule résolution par navigation réelle sur /carte-scolaire (page
+    # serveur Next.js, pas de re-fetch client comme sur /recherche) — bon
+    # point pour journaliser sans compter plusieurs fois la même recherche.
+    journaliser_recherche(
+        page_origine="carte_scolaire",
+        commune=resultat.get("commune"),
+        code_departement=resultat.get("code_departement"),
+        etat_carte_scolaire=resultat["etat"],
+    )
 
     return SecteurResultats(
         adresse_recherchee=adresse,

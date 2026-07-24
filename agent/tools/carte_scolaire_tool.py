@@ -174,6 +174,7 @@ def rapprocher_adresse_secteur(adresse: str) -> dict:
             "success": False, "etat": "adresse_non_reconnue",
             "adresse_normalisee": None, "latitude": None, "longitude": None,
             "academie": None, "colleges_secteur": [], "suggestions_ambigues": [],
+            "commune": None, "code_departement": None,
             "error": resultat_suggestions["error"],
         }
 
@@ -182,7 +183,8 @@ def rapprocher_adresse_secteur(adresse: str) -> dict:
         return {
             "success": True, "etat": "adresse_non_reconnue",
             "adresse_normalisee": None, "latitude": None, "longitude": None,
-            "academie": None, "colleges_secteur": [], "suggestions_ambigues": [], "error": None,
+            "academie": None, "colleges_secteur": [], "suggestions_ambigues": [],
+            "commune": None, "code_departement": None, "error": None,
         }
 
     citycodes_distincts = {s["citycode"] for s in suggestions if s["citycode"]}
@@ -192,7 +194,9 @@ def rapprocher_adresse_secteur(adresse: str) -> dict:
             "adresse_normalisee": None, "latitude": None, "longitude": None,
             "academie": None, "colleges_secteur": [],
             "suggestions_ambigues": [{"label": s["label"], "type": s["type"]} for s in suggestions],
-            "error": None,
+            # Plusieurs communes candidates distinctes à ce stade, aucune ne
+            # peut être journalisée seule sans arbitraire.
+            "commune": None, "code_departement": None, "error": None,
         }
 
     geo = suggestions[0]
@@ -201,6 +205,10 @@ def rapprocher_adresse_secteur(adresse: str) -> dict:
         "latitude": geo["latitude"], "longitude": geo["longitude"],
         "academie": _academie_pour_departement(geo["depcode"]),
         "suggestions_ambigues": [],
+        # Commune résolue par géocodage, pour l'analytics de recherche
+        # (recherches_log) — jamais l'adresse brute tapée (donnée
+        # personnelle), cf. journal_de_bord.md.
+        "commune": geo["city"], "code_departement": geo["depcode"],
     }
 
     # Ville seule (pas d'adresse précise) : aucun numéro de rue à chercher,

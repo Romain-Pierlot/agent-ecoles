@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { recupererRecherche } from "@/lib/recherche";
+import { after } from "next/server";
+import { recupererRecherche, journaliserRecherche } from "@/lib/recherche";
 import { lireFiltres, filtresActifs } from "@/lib/rechercheParams";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
@@ -66,6 +67,13 @@ export default async function Page({
   // afficherait des comptes incohérents selon les filtres actifs).
   const resultatsBruts = await recupererRecherche(query);
   const resultats = filtresPresents ? await recupererRecherche(query, filtresInitiaux) : resultatsBruts;
+
+  // Une seule fois par recherche réelle (ce composant serveur ne se
+  // ré-exécute jamais sur un changement de filtre côté client, cf.
+  // ResultatsRecherche.tsx) — après l'envoi de la réponse, jamais avant.
+  after(() => {
+    journaliserRecherche(query, resultatsBruts.etablissements_total, resultatsBruts.communes_total);
+  });
 
   // Pas de redirection automatique sur un résultat unique (ancienne "Règle
   // V1", cf. decision_log.md) : la bascule instantanée, sans transition,
