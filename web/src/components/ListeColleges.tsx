@@ -15,7 +15,16 @@ export function ListeColleges({
   // a tous ses collèges sous le même hrefBase, mais la page recherche
   // affiche des collèges venant potentiellement de villes différentes,
   // chacun avec son propre chemin.
-  colleges: (CollegeVille & { hrefBase: string })[];
+  // commune/libelle_departement/code_departement optionnels sur CollegeVille,
+  // toujours présents sur EtablissementRecherche (/recherche) — la page ville
+  // les fournit désormais explicitement (cf. ville/page.tsx) ; CarteCollege
+  // affiche la ligne de localisation sur les deux pages dès qu'ils sont fournis.
+  colleges: (CollegeVille & {
+    hrefBase: string;
+    commune?: string;
+    libelle_departement?: string;
+    code_departement?: string;
+  })[];
   tauxReussiteNational: number | null;
   critereTriActif?: "notation" | "reussite";
 }) {

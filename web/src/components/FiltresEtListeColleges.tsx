@@ -24,7 +24,16 @@ export function FiltresEtListeColleges({
   // /recherche, où chaque résultat peut venir d'une ville différente — la
   // page ville attache le même hrefBase à tous ses collèges avant l'appel,
   // la page recherche attache le hrefBase propre à chacun.
-  colleges: (CollegeVille & { hrefBase: string })[];
+  // commune/libelle_departement/code_departement optionnels sur CollegeVille,
+  // toujours présents sur EtablissementRecherche (/recherche) — la page ville
+  // les fournit désormais explicitement (cf. ville/page.tsx) ; CarteCollege
+  // affiche la ligne de localisation sur les deux pages dès qu'ils sont fournis.
+  colleges: (CollegeVille & {
+    hrefBase: string;
+    commune?: string;
+    libelle_departement?: string;
+    code_departement?: string;
+  })[];
   tauxReussiteNational: number | null;
   // Mode serveur (page /recherche uniquement) : `colleges` est déjà filtré
   // et trié côté API (LIMIT appliqué après filtrage — cf. Phase 6, fix de

@@ -1430,3 +1430,31 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : Garder la redirection avec une transition visible avant la bascule (ex: message "Un seul résultat, redirection…") — écarté, la complexité ajoutée (délai artificiel, état intermédiaire à gérer) ne compensait pas le gain d'un clic économisé.
 
 **Conséquence** : `web/src/app/recherche/page.tsx` — suppression du bloc de redirection conditionnelle et des imports devenus inutiles (`redirect`, `hrefEtablissement`, `hrefCommune`).
+
+## S16.2 — `Sitemap.dc.html` comme document de référence unique pour l'état des pages du site
+
+**Décision** : `docs/Design_system/Sitemap.dc.html` sert de document de référence unique pour connaître l'ensemble des pages du site et leur état d'implémentation (contenu réel vs. `PagePlaceholder`), mis à jour à chaque page terminée plutôt que de créer un document de suivi séparé.
+
+**Pourquoi** : Le fichier documentait déjà l'intention de conception (plan de site, portes de navigation, hiérarchie géographique). Centraliser aussi l'état réel dans le même document évite deux sources d'information sur le même sujet susceptibles de diverger avec le temps.
+
+**Conséquence** : Audit du 23/07/2026 intégré au fichier — 10 routes sur 17 ont un contenu réel, 7 restent en `PagePlaceholder` (`Sitemap.dc.html` fait foi pour le décompte à jour). `/explorer`, précédemment un stub affiché au même niveau que `/recherche` dans la navigation principale, réexporte désormais la page `/region` et n'est donc plus un placeholder.
+
+## S16.3 — Classements "meilleure notation" / "meilleure valeur ajoutée" sur les pages région et département
+
+**Décision** : Les pages région et département affichent deux blocs de 5 établissements — le meilleur score global (`score_principal`) et la meilleure valeur ajoutée du taux de réussite seule (`brevet_va_taux_reussite_general`, triée indépendamment, pas un score combiné). Calcul à la demande à chaque requête, via `rechercher_top_par_secteur` (étendue avec `critere_tri="valeur_ajoutee"`), pas de table précalculée. Non retenu au niveau ville.
+
+**Pourquoi** : Vérifié sur les vraies données (session 2025, 6 809 collèges) — région et département montrent un chevauchement moyen limité entre les deux classements (2,24/5 et 2,92/5), preuve qu'ils apportent une information réellement différente. Au niveau ville, 95% des communes ont moins de 5 collèges (un "top 5" y serait la liste complète) et les 5% restantes ont un chevauchement de 4,14/5 — peu d'intérêt à un second classement à cette échelle. Le calcul à la demande plutôt que le stockage évite une deuxième source de vérité qui se périmerait silencieusement à chaque évolution de la formule de score (déjà arrivé une fois, S13.4) — à l'échelle actuelle, la requête reste triviale en temps de calcul. Réutiliser `rechercher_top_par_secteur` (déjà utilisée par l'agent conversationnel) pour la page évite aussi de dupliquer la logique de classement dans deux implémentations distinctes.
+
+**Rejeté** : Matérialiser les classements en base — écarté (risque de deuxième source de vérité, cf. ci-dessus). Séparer les listes par secteur public/privé — écarté, aurait doublé le nombre de blocs affichés pour un gain de lisibilité jugé insuffisant. Trier la valeur ajoutée sur un score combiné (taux + note) — écarté au profit du taux seul, pour que le chiffre affiché corresponde exactement à ce qui justifie le classement.
+
+**Conséquence** : `agent/tools/sql_tool.py` (`rechercher_top_par_secteur` étendue), `agent/tools/hierarchie_tool.py` (nouvelle fonction `obtenir_top_etablissements_zone`), `api/schemas.py` + `api/main.py` (`TopEtablissement`, `RegionHub`/`DepartementHub` étendus), `web/src/lib/types.ts` (miroir), nouveau composant `web/src/components/BlocTopEtablissements.tsx`, branché dans `ZoneHub.tsx`. Testé via `TestClient` (API) et Playwright (rendu réel, dont un lien vers un établissement d'un département différent de celui affiché).
+
+## S16.4 — Format d'affichage du département : nom devant, code entre parenthèses
+
+**Décision** : Partout où un département est affiché (H1 et fil d'Ariane de la page département, maillon département du fil d'Ariane des pages ville et fiche établissement, tableau des départements de la page région), le format est `Rhône (69)` — nom d'abord, code entre parenthèses.
+
+**Pourquoi** : Recherche menée sur les conventions réelles d'affichage en France. Deux usages distincts selon le contexte, pas une convention unique : les tables de codification technique (liste de numérotation Wikipédia, tableau de codification du ministère de l'Éducation nationale) placent le code devant ("01 Ain"), tandis que les pages destinées au grand public (page département Insee, site gouv.fr grand public) placent le nom devant avec le code en complément ("Ain (01)"). Le site s'adresse à des parents qui cherchent une entité déjà nommée, pas à un usage de codification — le format nom-devant a été retenu, alignant du même coup la nouvelle convention sur celle déjà en place dans `RechercheBloc`, plutôt que d'introduire une deuxième convention pour la même information.
+
+**Rejeté** : Format code-devant ("69 · Rhône") — envisagé initialement, écarté après vérification que ce n'est pas le format dominant dans les sources destinées au grand public, contrairement à l'hypothèse de départ.
+
+**Conséquence** : `web/src/components/SousDivisionsTable.tsx` (nouvelle prop `afficherCode`, désactivée par défaut), `ZoneHub.tsx` (relais de la prop), `region/[regionSlug]/page.tsx` (activation), `departement/[deptSlug]/page.tsx` (H1 + fil d'Ariane), `.../ville/[villeSlug]/page.tsx` et `.../college/[collegeSlug]/page.tsx` (maillon département du fil d'Ariane). Testé avec `tsc --noEmit` et vérifié visuellement (captures d'écran Rhône et Auvergne-Rhône-Alpes).

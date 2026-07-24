@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { sentimentReussite } from "@/lib/tokens";
+import { classeStatutSecteur, sentimentReussite } from "@/lib/tokens";
 import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugCollege } from "@/lib/slug";
 
@@ -23,6 +23,14 @@ type CarteCollegeDonnees = {
   section_internationale: boolean;
   section_europeenne: boolean;
   brevet_taux_reussite_general?: number | null;
+  // Optionnels sur CollegeVille, toujours présents sur EtablissementRecherche
+  // (/recherche). La page ville les fournit désormais explicitement (cf.
+  // ville/page.tsx, convention "chaque carte porte nom + ville + département") —
+  // la ligne de localisation s'affiche donc sur les deux pages dès qu'ils sont
+  // fournis.
+  commune?: string;
+  libelle_departement?: string;
+  code_departement?: string;
 };
 
 // Classes Tailwind statiques — jamais interpolées dans un template string
@@ -72,10 +80,7 @@ export function CarteCollege({
       ? sentimentReussite(college.brevet_taux_reussite_general, tauxReussiteNational)
       : null;
 
-  const classeStatut =
-    college.secteur === "Public"
-      ? "bg-statut-public-pale text-statut-public"
-      : "bg-statut-prive-pale text-statut-prive";
+  const classeStatut = classeStatutSecteur(college.secteur);
 
   return (
     <Link
@@ -84,7 +89,15 @@ export function CarteCollege({
     >
       <div className="min-w-0 flex-1">
         <div className="font-baloo text-[15px] font-bold text-texte">{college.nom}</div>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {/* Ligne unique : ville/département (si présents, /recherche uniquement)
+            puis les tags à sa droite sur la même ligne — au lieu d'une ligne
+            dédiée à la localisation, pour limiter la hauteur de la carte. */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {college.commune && (
+            <span className="text-[12px] font-semibold text-texte-doux">
+              {college.commune} · {college.libelle_departement} ({college.code_departement})
+            </span>
+          )}
           <span className={`rounded-[7px] px-2 py-0.5 text-[10px] font-bold ${classeStatut}`}>
             {college.secteur}
           </span>
