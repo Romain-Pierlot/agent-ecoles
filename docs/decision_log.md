@@ -1458,3 +1458,13 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : Format code-devant ("69 · Rhône") — envisagé initialement, écarté après vérification que ce n'est pas le format dominant dans les sources destinées au grand public, contrairement à l'hypothèse de départ.
 
 **Conséquence** : `web/src/components/SousDivisionsTable.tsx` (nouvelle prop `afficherCode`, désactivée par défaut), `ZoneHub.tsx` (relais de la prop), `region/[regionSlug]/page.tsx` (activation), `departement/[deptSlug]/page.tsx` (H1 + fil d'Ariane), `.../ville/[villeSlug]/page.tsx` et `.../college/[collegeSlug]/page.tsx` (maillon département du fil d'Ariane). Testé avec `tsc --noEmit` et vérifié visuellement (captures d'écran Rhône et Auvergne-Rhône-Alpes).
+
+## S17.1 — Analytics d'audience du site : Umami auto-hébergé, plutôt que Google Analytics ou un outil tiers non maîtrisé
+
+**Décision** : Suivi des pages vues et du parcours de navigation sur le site via Umami, un outil open source auto-hébergé (conteneurs Docker : application Node.js + base Postgres dédiée), plutôt qu'un service tiers hébergé chez un tiers non maîtrisé. Intégration par un script chargé sur toutes les pages via le layout racine Next.js (`next/script`, stratégie `afterInteractive`), activé uniquement si les variables d'environnement `NEXT_PUBLIC_UMAMI_SRC` et `NEXT_PUBLIC_UMAMI_WEBSITE_ID` sont renseignées.
+
+**Pourquoi** : Umami ne nécessite que Postgres, le moteur de base de données déjà utilisé par ailleurs dans le projet (via Supabase pour `conversations_log`), ce qui limite le nombre de technologies différentes à opérer sur l'ensemble de la stack. L'auto-hébergement conserve la maîtrise complète des données de navigation des visiteurs, contrairement à Google Analytics, dont l'usage a été jugé non conforme au RGPD par la CNIL en France (transfert de données vers les Etats-Unis sans garanties suffisantes après l'arrêt Schrems II).
+
+**Rejeté** : Google Analytics, écarté pour la raison de conformité ci-dessus. Matomo, écarté car il nécessite MySQL/MariaDB, un moteur de base de données supplémentaire non utilisé ailleurs dans le projet. Plausible, écarté car il nécessite à la fois Postgres et ClickHouse, deux moteurs différents à opérer pour un seul outil.
+
+**Conséquence** : `web/src/app/layout.tsx` (composant `Script`), `web/.env.local` (non suivi par git, contient l'identifiant du site Umami de test). Testé en local uniquement pour l'instant (Docker via Colima, base de données jetable) : pages vues confirmées visibles dans le tableau de bord Umami après navigation sur le site en développement. L'hébergement définitif de l'instance Umami en production reste à trancher avec le reste du stack (cf. S9.5 dans `journal_de_bord.md`), pas encore acté.
