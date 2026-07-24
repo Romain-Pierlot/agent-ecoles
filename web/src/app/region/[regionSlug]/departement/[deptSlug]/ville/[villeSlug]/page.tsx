@@ -32,7 +32,7 @@ export default async function Page({
         </Link>
         <span className="text-filet-fonce">›</span>
         <Link href={`/region/${regionSlug}/departement/${deptSlug}`} className="hover:text-texte-doux">
-          {ville.libelle_departement}
+          {ville.libelle_departement} ({ville.code_departement})
         </Link>
         <span className="text-filet-fonce">›</span>
         <span className="text-texte">{ville.commune}</span>
@@ -66,7 +66,17 @@ export default async function Page({
       <RechercheBloc placeholder="Rechercher une autre ville, ou saisir une adresse pour trouver son secteur…" />
 
       <FiltresEtListeColleges
-        colleges={ville.colleges.map((c) => ({ ...c, hrefBase }))}
+        colleges={ville.colleges.map((c) => ({
+          ...c,
+          hrefBase,
+          // Convention établie sur /recherche : chaque carte porte toujours
+          // nom + ville + département, même ici où c'est déjà dans le
+          // fil d'Ariane — pour qu'un copier-coller depuis n'importe quelle
+          // liste de résultats donne toujours ces trois informations.
+          commune: ville.commune,
+          libelle_departement: ville.libelle_departement,
+          code_departement: ville.code_departement,
+        }))}
         tauxReussiteNational={ville.taux_reussite_national}
       />
 

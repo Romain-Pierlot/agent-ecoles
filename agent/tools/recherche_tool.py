@@ -189,6 +189,54 @@ def _echapper_like(texte: str) -> str:
     return texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _construire_clause_recherche_etablissements(requete_normalisee: str) -> tuple[str, list]:
+    """
+    Clause de matching des établissements sur `requete_normalisee` (déjà
+    normalisée par _normaliser_recherche). Deux régimes selon le nombre de
+    mots :
+
+    - Un seul mot (cas le plus fréquent) : comportement historique inchangé,
+      sous-chaîne sur le nom uniquement. Un mot seul élargi à
+      ville/département noierait les résultats sous des mots très génériques
+      (ex: "saint" seul matche déjà 1102 noms de collèges + 980 collèges
+      supplémentaires situés dans une commune contenant "saint" — mesuré
+      empiriquement, cf. session de conception du 2026-07-24).
+
+    - Deux mots ou plus : chaque mot doit correspondre à au moins une colonne
+      (nom, commune, département ou son code), pour couvrir le cas "nom du
+      collège + ville" ("pasteur lyon") qui ne matchait rien avant (chaque
+      mot comparé à une seule colonne à la fois). Condition supplémentaire :
+      au moins un mot doit être retrouvé dans le NOM du collège lui-même —
+      sans elle, une requête peut être entièrement absorbée par un
+      département composite (ex: "Seine-Saint-Denis" contient à lui seul
+      "saint" ET "denis", remontant 239 collèges sans rapport ; avec cette
+      contrainte, 26 résultats tous plausibles — mesuré empiriquement,
+      même session).
+    """
+    mots = requete_normalisee.split(" ")
+
+    if len(mots) == 1:
+        motif = f"%{_echapper_like(mots[0])}%"
+        return "normaliser(e.nom) LIKE ? ESCAPE '\\'", [motif]
+
+    clauses_par_mot = []
+    params_par_mot = []
+    clauses_nom = []
+    params_nom = []
+    for mot in mots:
+        motif = f"%{_echapper_like(mot)}%"
+        clauses_par_mot.append(
+            "(normaliser(e.nom) LIKE ? ESCAPE '\\' OR normaliser(e.commune) LIKE ? ESCAPE '\\' "
+            "OR normaliser(e.libelle_departement) LIKE ? ESCAPE '\\' OR normaliser(e.code_departement) LIKE ? ESCAPE '\\')"
+        )
+        params_par_mot.extend([motif, motif, motif, motif])
+        clauses_nom.append("normaliser(e.nom) LIKE ? ESCAPE '\\'")
+        params_nom.append(motif)
+
+    clause = "(" + " AND ".join(clauses_par_mot) + ") AND (" + " OR ".join(clauses_nom) + ")"
+    return clause, params_par_mot + params_nom
+
+
 def _normaliser_recherche(texte: str) -> str:
     """
     Normalisation utilisée pour le matching (côté requête ET côté colonnes,
@@ -310,6 +358,7 @@ def rechercher(
         }
 
     motif = f"%{_echapper_like(requete_normalisee)}%"
+    clause_recherche_etab, params_recherche_etab = _construire_clause_recherche_etablissements(requete_normalisee)
 
     conn = sqlite3.connect(DB_PATH)
     conn.create_function("normaliser", 1, _normaliser_recherche)
@@ -341,12 +390,12 @@ def rechercher(
             JOIN ivac v ON e.uai = v.uai AND v.session = s.session
             WHERE e.type_etablissement = 'Collège'
               AND e.nom NOT LIKE '%Section d%' AND e.nom NOT LIKE '%SEGPA%'
-              AND normaliser(e.nom) LIKE ? ESCAPE '\\'
+              AND {clause_recherche_etab}
               AND s.session = ?
               {clause_filtres}
             {ordre_by_etablissements}
             LIMIT ?
-        """, (motif, session, *params_filtres, limite)).fetchall()
+        """, (*params_recherche_etab, session, *params_filtres, limite)).fetchall()
 
         etablissements = [
             {
@@ -373,8 +422,9 @@ def rechercher(
         # Total réel (même WHERE, sans LIMIT) -- un simple "== limite" ne
         # donne qu'une borne basse ("au moins 50"), pas le vrai chiffre
         # (cf. retour utilisateur : "50+" partout n'est pas assez informatif
-        # pour un vrai produit). Réutilise motif/session/clause_filtres/
-        # params_filtres déjà construits : même filtre, jamais retapé.
+        # pour un vrai produit). Réutilise clause_recherche_etab/session/
+        # clause_filtres/params_filtres déjà construits : même filtre, jamais
+        # retapé.
         etablissements_total = conn.execute(f"""
             SELECT COUNT(*) AS total
             FROM etablissements e
@@ -382,10 +432,10 @@ def rechercher(
             JOIN ivac v ON e.uai = v.uai AND v.session = s.session
             WHERE e.type_etablissement = 'Collège'
               AND e.nom NOT LIKE '%Section d%' AND e.nom NOT LIKE '%SEGPA%'
-              AND normaliser(e.nom) LIKE ? ESCAPE '\\'
+              AND {clause_recherche_etab}
               AND s.session = ?
               {clause_filtres}
-        """, (motif, session, *params_filtres)).fetchone()["total"]
+        """, (*params_recherche_etab, session, *params_filtres)).fetchone()["total"]
         etablissements_tronques = len(etablissements) < etablissements_total
 
         rows_commune = conn.execute(f"""

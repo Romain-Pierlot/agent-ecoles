@@ -5,6 +5,8 @@ import Link from "next/link";
 import { API_URL } from "@/lib/api";
 import { hrefEtablissement, hrefCommune } from "@/lib/hrefsGeo";
 import type { RechercheResultats } from "@/lib/types";
+import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
+import { classeStatutSecteur } from "@/lib/tokens";
 
 // Bloc de recherche ville/adresse — présent sur les pages hub (région,
 // département), la page terminale ville et la page recherche (cf.
@@ -22,10 +24,15 @@ const DEBOUNCE_MS = 300;
 
 export function RechercheBloc({
   placeholder = "Rechercher une ville ou une adresse…",
+  valeurInitiale = "",
 }: {
   placeholder?: string;
+  // Pré-remplit le champ avec la requête déjà tapée (page /recherche avec
+  // résultats) — pour affiner sans tout retaper, au lieu de repartir d'un
+  // champ vide comme si on cherchait autre chose.
+  valeurInitiale?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(valeurInitiale);
   const [focused, setFocused] = useState(false);
   const [resultats, setResultats] = useState<RechercheResultats | null>(null);
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,29 +107,44 @@ export function RechercheBloc({
         </button>
 
         {afficherDropdown && resultats && (
-          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-2xl border-[1.5px] border-filet bg-white shadow-[0_18px_44px_rgba(34,59,48,.16)]">
+          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-2xl border-[1.5px] border-filet bg-white text-left shadow-[0_18px_44px_rgba(34,59,48,.16)]">
             {resultats.etablissements.length > 0 && (
               <div className="py-1">
                 <div className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-texte-doux">
                   Établissements
                 </div>
-                {resultats.etablissements.slice(0, NB_SUGGESTIONS_PAR_GROUPE).map((e) => (
-                  <Link
-                    key={e.uai}
-                    href={hrefEtablissement(e)}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-fond-carte/60"
-                  >
-                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-fond-sable text-[11px] font-bold text-texte-doux">
-                      {e.notation ?? "—"}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-bold text-texte">{e.nom}</div>
-                      <div className="truncate text-[11px] text-texte-doux">
-                        {e.commune} · {e.libelle_departement} · {e.secteur}
+                {resultats.etablissements.slice(0, NB_SUGGESTIONS_PAR_GROUPE).map((e) => {
+                  const gradient = e.notation ? NOTATION_GRADIENTS[e.notation] : null;
+                  return (
+                    <Link
+                      key={e.uai}
+                      href={hrefEtablissement(e)}
+                      className="flex items-center gap-3 px-4 py-2 hover:bg-fond-carte/60"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-bold text-texte">{e.nom}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span className="truncate text-[11px] text-texte-doux">
+                            {e.commune} · {e.libelle_departement} ({e.code_departement})
+                          </span>
+                          <span className={`flex-none rounded-md px-1.5 py-px text-[9.5px] font-bold ${classeStatutSecteur(e.secteur)}`}>
+                            {e.secteur}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                      <span
+                        className="flex h-8 w-8 flex-none items-center justify-center rounded-lg font-baloo text-[11px] font-extrabold text-white"
+                        style={
+                          gradient
+                            ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }
+                            : { backgroundColor: "var(--color-descriptif)" }
+                        }
+                      >
+                        {e.notation ?? "—"}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             )}
 
@@ -137,9 +159,6 @@ export function RechercheBloc({
                     href={hrefCommune(c)}
                     className="flex items-center gap-3 px-4 py-2 hover:bg-fond-carte/60"
                   >
-                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-fond-sable text-[14px] text-texte-doux">
-                      ⌂
-                    </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-bold text-texte">{c.commune}</div>
                       <div className="truncate text-[11px] text-texte-doux">
@@ -147,6 +166,9 @@ export function RechercheBloc({
                         {c.nb_etablissements > 1 ? "collèges" : "collège"}
                       </div>
                     </div>
+                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-fond-sable text-[14px] text-texte-doux">
+                      ⌂
+                    </span>
                   </Link>
                 ))}
               </div>

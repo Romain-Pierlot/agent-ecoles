@@ -31,3 +31,11 @@ export function sentimentReussite(taux: number, tauxNational: number): TokenSema
 export function sentimentDescriptif(): TokenSemantique {
   return "descriptif";
 }
+
+// Classes du badge secteur Public/Privé — dupliqué à l'identique dans
+// CarteCollege, CarteCollegeSecteur et BlocTopEtablissements avant
+// factorisation ici (règle de factorisation du projet : même critère, même
+// logique, un seul endroit).
+export function classeStatutSecteur(secteur: string): string {
+  return secteur === "Public" ? "bg-statut-public-pale text-statut-public" : "bg-statut-prive-pale text-statut-prive";
+}

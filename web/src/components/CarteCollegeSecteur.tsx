@@ -7,6 +7,7 @@ import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugCollege } from "@/lib/slug";
 import { hrefBaseVille } from "@/lib/hrefsGeo";
 import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
+import { classeStatutSecteur } from "@/lib/tokens";
 
 // Carte "collège de secteur" — visuellement distincte de CarteCollege
 // (fond dégradé framboise, bordure 2px, badge ★), utilisée pour le collège
@@ -36,10 +37,7 @@ export function CarteCollegeSecteur({
   const gradient = college.notation ? NOTATION_GRADIENTS[college.notation] : null;
   const hrefBase = hrefBaseVille(college);
 
-  const classeStatut =
-    college.secteur === "Public"
-      ? "bg-statut-public-pale text-statut-public"
-      : "bg-statut-prive-pale text-statut-prive";
+  const classeStatut = classeStatutSecteur(college.secteur);
 
   return (
     <div

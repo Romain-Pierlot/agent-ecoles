@@ -57,12 +57,12 @@ export default async function Page({
           Résultats pour « {query} »
         </h1>
         <p className="mt-1.5 text-[12.5px] text-texte-doux">
-          {resultatsBruts.communes_total} commune{resultatsBruts.communes_total > 1 ? "s" : ""} ·{" "}
-          {resultatsBruts.etablissements_total} établissement{resultatsBruts.etablissements_total > 1 ? "s" : ""}
+          {resultatsBruts.etablissements_total} établissement{resultatsBruts.etablissements_total > 1 ? "s" : ""} ·{" "}
+          {resultatsBruts.communes_total} commune{resultatsBruts.communes_total > 1 ? "s" : ""}
         </p>
       </div>
 
-      <RechercheBloc placeholder="Rechercher un autre collège ou une autre ville…" />
+      <RechercheBloc placeholder="Rechercher un autre collège ou une autre ville…" valeurInitiale={query} />
 
       {aucunResultat ? (
         <div className="mt-7 rounded-2xl border-[1.5px] border-dashed border-filet-fonce bg-white py-10 text-center text-[13px] font-semibold text-texte-doux">

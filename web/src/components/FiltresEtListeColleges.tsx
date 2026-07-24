@@ -183,7 +183,7 @@ export function FiltresEtListeColleges({
         <div className="text-[12px] font-bold text-texte-doux">
           {nbResultats} résultat{nbResultats > 1 ? "s" : ""}
           {resultatsTronques && (
-            <span className="ml-1.5 font-semibold text-texte-doux/70">({colleges.length} affichés)</span>
+            <span className="ml-1.5 font-semibold text-texte-doux/70">(affichage limité à {colleges.length})</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-texte-doux">
