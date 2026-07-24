@@ -103,7 +103,7 @@ export default async function Page({
                   <span className="text-[13px] font-bold text-texte">{resultats.adresse_normalisee ?? adresse}</span>
                   <span className="text-[12px] text-texte-doux"> — adresse géolocalisée</span>
                 </div>
-                <Link href="/mon-secteur" className="text-[12px] font-bold text-action-dark hover:text-action">
+                <Link href="/carte-scolaire" className="text-[12px] font-bold text-action-dark hover:text-action">
                   Modifier
                 </Link>
               </div>

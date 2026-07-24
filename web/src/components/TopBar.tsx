@@ -12,7 +12,7 @@ export function TopBar() {
         <div className="flex items-center gap-5.5">
           <div className="hidden items-center gap-5.5 text-[13px] font-semibold text-texte-doux md:flex">
             <Link href="/recherche" className="hover:text-texte">Rechercher</Link>
-            <Link href="/mon-secteur" className="hover:text-texte">Carte scolaire</Link>
+            <Link href="/carte-scolaire" className="hover:text-texte">Carte scolaire</Link>
             <Link href="/explorer" className="hover:text-texte">Explorer</Link>
             <Link href="/comprendre/ips" className="hover:text-texte">Comprendre</Link>
           </div>

@@ -23,7 +23,7 @@ const NB_SUGGESTIONS_PAR_GROUPE = 4;
 const DEBOUNCE_MS = 300;
 
 export function RechercheBloc({
-  placeholder = "Rechercher une ville ou une adresse…",
+  placeholder = "Rechercher un collège et/ou une ville, département…",
   valeurInitiale = "",
 }: {
   placeholder?: string;

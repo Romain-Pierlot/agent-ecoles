@@ -25,7 +25,7 @@ export function BlocAdresseAmbigue({ suggestions }: { suggestions: SuggestionAdr
             {suggestions.map((s) => (
               <Link
                 key={s.label}
-                href={`/mon-secteur?adresse=${encodeURIComponent(s.label)}`}
+                href={`/carte-scolaire?adresse=${encodeURIComponent(s.label)}`}
                 className="flex items-center gap-2.5 rounded-xl border-[1.5px] border-filet bg-white px-4 py-2.5 text-[13px] font-semibold text-texte hover:border-action hover:bg-action-pale"
               >
                 <span className="flex-none text-[13px] text-texte-doux">📍</span>

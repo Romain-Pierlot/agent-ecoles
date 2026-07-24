@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { recupererRecherche } from "@/lib/recherche";
 import { lireFiltres, filtresActifs } from "@/lib/rechercheParams";
 import { AgentBlock } from "@/components/AgentBlock";
@@ -9,6 +10,13 @@ import { ResultatsRecherche } from "./_components/ResultatsRecherche";
 function premiereValeur(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
+
+// Un seul mot de recherche ne matche que le nom du collège ou celui de la
+// commune, jamais le département seul (cf. recherche_tool.py, décision
+// volontaire testée empiriquement). Donc pas d'exemple "département" ici,
+// ce serait trompeur (résultat vide ou hors-sujet pour l'utilisateur qui
+// cliquerait dessus).
+const EXEMPLES_RECHERCHE = ["Jean Jaurès", "Sedan", "Toulouse Emile Zola", "Paul Drôme"];
 
 export default async function Page({
   searchParams,
@@ -23,12 +31,29 @@ export default async function Page({
       <div className="mx-auto w-full max-w-2xl px-4 py-20 text-center md:px-8">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">Recherche</span>
         <h1 className="mt-1 font-baloo text-[26px] font-extrabold leading-tight text-texte">
-          Chercher un collège ou une ville
+          Chercher un collège
         </h1>
-        <p className="mt-1.5 text-[12.5px] text-texte-doux">
-          Un nom de collège, une ville, un département…
-        </p>
         <RechercheBloc />
+
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <span className="text-[11.5px] font-semibold text-texte-doux">Par exemple :</span>
+          {EXEMPLES_RECHERCHE.map((exemple) => (
+            <Link
+              key={exemple}
+              href={`/recherche?q=${encodeURIComponent(exemple)}`}
+              className="rounded-full border border-filet bg-white px-3.5 py-1.5 text-[12px] font-semibold text-texte hover:border-action hover:text-action"
+            >
+              {exemple}
+            </Link>
+          ))}
+        </div>
+
+        <p className="mt-5 text-[12.5px] text-texte-doux">
+          Vous cherchez le collège dont vous dépendez administrativement ?{" "}
+          <Link href="/carte-scolaire" className="font-bold text-action hover:text-action-dark">
+            Carte scolaire →
+          </Link>
+        </p>
       </div>
     );
   }

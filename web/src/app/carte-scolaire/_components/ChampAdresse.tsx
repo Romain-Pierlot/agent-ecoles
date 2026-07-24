@@ -59,7 +59,7 @@ export function ChampAdresse({ adresseInitiale = "" }: { adresseInitiale?: strin
     const v = valeur.trim();
     if (!v) return;
     setAdresse(v);
-    router.push(`/mon-secteur?adresse=${encodeURIComponent(v)}`);
+    router.push(`/carte-scolaire?adresse=${encodeURIComponent(v)}`);
   };
 
   const afficherDropdown = focus && adresse.trim().length > 0 && suggestions.length > 0;

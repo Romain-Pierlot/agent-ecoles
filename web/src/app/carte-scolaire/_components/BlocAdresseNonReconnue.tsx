@@ -16,7 +16,7 @@ export function BlocAdresseNonReconnue({ adresse }: { adresse: string }) {
         {EXEMPLES.map((exemple) => (
           <a
             key={exemple}
-            href={`/mon-secteur?adresse=${encodeURIComponent(exemple)}`}
+            href={`/carte-scolaire?adresse=${encodeURIComponent(exemple)}`}
             className="rounded-2xl border border-filet bg-fond-carte px-3.5 py-1.5 text-[12px] font-semibold text-texte-doux hover:border-action hover:text-action-dark"
           >
             {exemple}

@@ -63,7 +63,7 @@ export default async function Page({
         </div>
       </div>
 
-      <RechercheBloc placeholder="Rechercher une autre ville, ou saisir une adresse pour trouver son secteur…" />
+      <RechercheBloc />
 
       <FiltresEtListeColleges
         colleges={ville.colleges.map((c) => ({
