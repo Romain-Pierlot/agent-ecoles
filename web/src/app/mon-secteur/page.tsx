@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { recupererSecteur } from "@/lib/secteur";
 import { NOM_ASSISTANT } from "@/lib/constants";
@@ -8,6 +9,12 @@ import { BlocMultiSecteur } from "./_components/BlocMultiSecteur";
 import { BlocNonDeterminable } from "./_components/BlocNonDeterminable";
 import { BlocAdresseNonReconnue } from "./_components/BlocAdresseNonReconnue";
 import { BlocAdresseAmbigue } from "./_components/BlocAdresseAmbigue";
+
+export const metadata: Metadata = {
+  title: "Carte scolaire : quel est mon collège de secteur ?",
+  description:
+    "À partir de votre adresse, trouvez votre collège de rattachement (carte scolaire officielle du Ministère), les collèges alentour, et vos options : privé, dérogation.",
+};
 
 // Next.js fournit un tableau si un paramètre est répété dans l'URL — même
 // garde que /recherche/page.tsx.
