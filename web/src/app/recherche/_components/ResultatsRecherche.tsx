@@ -115,6 +115,7 @@ export function ResultatsRecherche({
           <FiltresEtListeColleges
             colleges={collegesAvecHrefBase}
             tauxReussiteNational={resultats.taux_reussite_national}
+            apercu={10}
             modeServeur={{
               filtresInitiaux: {
                 secteur: filtresInitiaux.secteur,

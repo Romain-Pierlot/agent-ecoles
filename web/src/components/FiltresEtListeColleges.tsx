@@ -19,6 +19,7 @@ export function FiltresEtListeColleges({
   colleges,
   tauxReussiteNational,
   modeServeur,
+  apercu,
 }: {
   // hrefBase porté par chaque collège (pas un prop séparé) : partagé avec
   // /recherche, où chaque résultat peut venir d'une ville différente — la
@@ -47,6 +48,11 @@ export function FiltresEtListeColleges({
     nbTotal: number;
     tronque: boolean;
   };
+  // Nombre de résultats affichés avant dépliage (bouton "voir plus"), même
+  // principe que ListeCommunes::APERCU_COMMUNES. Optionnel et utilisé sur
+  // /recherche uniquement : absent sur la page ville, qui doit continuer à
+  // afficher tous les collèges de la ville sans troncature d'affichage.
+  apercu?: number;
 }) {
   const [filtreSecteur, setFiltreSecteur] = useState(modeServeur?.filtresInitiaux.secteur ?? "tous");
   const [filtreDispositif, setFiltreDispositif] = useState(modeServeur?.filtresInitiaux.dispositif ?? "tous");
@@ -56,6 +62,7 @@ export function FiltresEtListeColleges({
   const [notationMin, setNotationMin] = useState(modeServeur?.filtresInitiaux.notationMin ?? "toutes");
   const [critereTri, setCritereTri] = useState<CritereTri>(modeServeur?.filtresInitiaux.tri ?? "notation");
   const [directionTri, setDirectionTri] = useState<DirectionTri>(modeServeur?.filtresInitiaux.direction ?? "desc");
+  const [depliee, setDepliee] = useState(false);
 
   const optionsDispositifs = useMemo(() => {
     const set = new Set<string>();
@@ -140,6 +147,9 @@ export function FiltresEtListeColleges({
   const nbResultats = modeServeur ? modeServeur.nbTotal : resultats.length;
   const resultatsTronques = modeServeur?.tronque ?? false;
 
+  const resultatsAffiches = apercu && !depliee ? resultats.slice(0, apercu) : resultats;
+  const nbMasques = resultats.length - resultatsAffiches.length;
+
   return (
     <>
       {/* ===== BARRE DE FILTRES ===== */}
@@ -205,11 +215,22 @@ export function FiltresEtListeColleges({
           Aucun collège ne correspond à ces filtres.
         </div>
       ) : (
-        <ListeColleges
-          colleges={resultats}
-          tauxReussiteNational={tauxReussiteNational}
-          critereTriActif={critereTri === "alphabetique" ? undefined : critereTri}
-        />
+        <>
+          <ListeColleges
+            colleges={resultatsAffiches}
+            tauxReussiteNational={tauxReussiteNational}
+            critereTriActif={critereTri === "alphabetique" ? undefined : critereTri}
+          />
+          {nbMasques > 0 && (
+            <button
+              type="button"
+              onClick={() => setDepliee(true)}
+              className="mt-2.5 w-full cursor-pointer rounded-[13px] border-[1.5px] border-dashed border-filet-fonce py-2.5 text-center text-[12.5px] font-semibold text-texte-doux hover:border-action hover:text-action"
+            >
+              Voir {nbMasques} collège{nbMasques > 1 ? "s" : ""} de plus
+            </button>
+          )}
+        </>
       )}
     </>
   );

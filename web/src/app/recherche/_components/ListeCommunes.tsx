@@ -12,7 +12,7 @@ import type { TriCommunes } from "@/lib/rechercheParams";
 // Plafonné pour qu'une recherche à beaucoup de communes homonymes (ex:
 // "saint") ne force pas à scroller une longue liste avant d'atteindre les
 // établissements, qui précèdent cette section sur /recherche.
-const APERCU_COMMUNES = 5;
+const APERCU_COMMUNES = 10;
 
 export function ListeCommunes({
   communes,
