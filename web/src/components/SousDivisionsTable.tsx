@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { LigneSousDivision } from "@/components/ZoneHub";
+import { formaterTaux } from "@/lib/format";
 import { SelectFiltre } from "@/components/SelectFiltre";
 import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirectionTri";
 
@@ -12,10 +13,6 @@ import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirect
 const NB_AFFICHEES_INITIALEMENT = 25;
 
 type CritereTri = "alphabetique" | "nb_etablissements" | "reussite";
-
-function formaterTaux(taux: number | null): string {
-  return taux === null ? "—" : `${taux.toFixed(0)} %`;
-}
 
 export function SousDivisionsTable({
   labelColonne,

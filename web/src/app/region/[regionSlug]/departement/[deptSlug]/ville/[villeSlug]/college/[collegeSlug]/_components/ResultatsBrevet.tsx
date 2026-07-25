@@ -1,5 +1,6 @@
 import type { BrevetResultats, EvolutionPoint } from "@/lib/types";
 import { sentimentReussite } from "@/lib/tokens";
+import { formaterDecimale, formaterPourcentage } from "@/lib/format";
 import { BoutonAide } from "@/components/BoutonAide";
 
 // Classes Tailwind statiques — jamais interpolées dans un template string
@@ -156,12 +157,12 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
             <div className="mt-3 flex gap-3.5 border-t border-filet-fonce pt-2.5 text-[12px] text-texte-doux">
               {brevet.taux_reussite_national != null && (
                 <span>
-                  National <b className="text-texte">{brevet.taux_reussite_national.toFixed(0)}%</b>
+                  National <b className="text-texte">{formaterPourcentage(brevet.taux_reussite_national, 0)}</b>
                 </span>
               )}
               {brevet.taux_reussite_departemental != null && (
                 <span>
-                  Département <b className="text-texte">{brevet.taux_reussite_departemental.toFixed(0)}%</b>
+                  Département <b className="text-texte">{formaterPourcentage(brevet.taux_reussite_departemental, 0)}</b>
                 </span>
               )}
             </div>
@@ -173,19 +174,19 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
           <div
             className={`mt-1.5 font-ui text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentNoteEcrit]}`}
           >
-            {brevet.brevet_note_ecrit_general ?? "—"}
+            {brevet.brevet_note_ecrit_general != null ? formaterDecimale(brevet.brevet_note_ecrit_general, 1) : "—"}
             <span className="text-[18px]">/20</span>
           </div>
           {(brevet.note_ecrit_national != null || brevet.note_ecrit_departemental != null) && (
             <div className="mt-3 flex gap-3.5 border-t border-filet-fonce pt-2.5 text-[12px] text-texte-doux">
               {brevet.note_ecrit_national != null && (
                 <span>
-                  National <b className="text-texte">{brevet.note_ecrit_national.toFixed(1)}</b>
+                  National <b className="text-texte">{formaterDecimale(brevet.note_ecrit_national, 1)}</b>
                 </span>
               )}
               {brevet.note_ecrit_departemental != null && (
                 <span>
-                  Département <b className="text-texte">{brevet.note_ecrit_departemental.toFixed(1)}</b>
+                  Département <b className="text-texte">{formaterDecimale(brevet.note_ecrit_departemental, 1)}</b>
                 </span>
               )}
             </div>
@@ -207,12 +208,12 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
             <div className="mt-3 flex gap-3.5 border-t border-filet-fonce pt-2.5 text-[12px] text-texte-doux">
               {brevet.taux_acces_6eme_3eme_national != null && (
                 <span>
-                  National <b className="text-texte">{brevet.taux_acces_6eme_3eme_national.toFixed(0)}%</b>
+                  National <b className="text-texte">{formaterPourcentage(brevet.taux_acces_6eme_3eme_national, 0)}</b>
                 </span>
               )}
               {brevet.taux_acces_6eme_3eme_departemental != null && (
                 <span>
-                  Département <b className="text-texte">{brevet.taux_acces_6eme_3eme_departemental.toFixed(0)}%</b>
+                  Département <b className="text-texte">{formaterPourcentage(brevet.taux_acces_6eme_3eme_departemental, 0)}</b>
                 </span>
               )}
             </div>

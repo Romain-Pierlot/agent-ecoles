@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CollegeSecteurItem } from "@/lib/types";
+import { formaterDecimale } from "@/lib/format";
 import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugCollege } from "@/lib/slug";
 import { hrefBaseVille } from "@/lib/hrefsGeo";
@@ -94,7 +95,7 @@ export function CarteCollegeSecteur({
       </div>
 
       <span className="flex flex-none items-center gap-1 rounded-[9px] bg-distance-pale px-2.5 py-1.5 font-ui text-[11.5px] font-bold text-distance">
-        📍 {college.distance_km.toFixed(1).replace(".", ",")} km
+        📍 {formaterDecimale(college.distance_km, 1)} km
       </span>
 
       <span

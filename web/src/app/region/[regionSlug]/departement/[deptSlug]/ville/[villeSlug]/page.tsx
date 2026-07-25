@@ -1,12 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { recupererVille } from "@/lib/geographie";
+import { formaterTaux } from "@/lib/format";
 import { AgentBlock } from "@/components/AgentBlock";
 import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
-
-function formaterTaux(taux: number | null): string {
-  return taux === null ? "—" : `${taux.toFixed(0)} %`;
-}
 
 export default async function Page({
   params,

@@ -1,6 +1,7 @@
 "use client";
 
 import type { PositionnementSocial as PositionnementSocialType } from "@/lib/types";
+import { formaterDecimale } from "@/lib/format";
 import { BoutonAide } from "@/components/BoutonAide";
 
 // Jauge en barre de progression + marqueur circulaire — le curseur est
@@ -62,7 +63,7 @@ function Jauge({
             className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-texte-doux"
             style={{ left: `${position(national)}%` }}
           >
-            Moyenne nationale : {national.toFixed(0)}
+            Moyenne nationale : {formaterDecimale(national, 0)}
           </span>
         </div>
       )}
@@ -86,7 +87,7 @@ export function PositionnementSocial({ positionnementSocial }: { positionnementS
               <BoutonAide texte="L'IPS résume les conditions socio-économiques et culturelles moyennes des familles des élèves, déterminées à partir de la profession des parents : plus il est élevé, plus ces conditions sont en moyenne favorables à la scolarité." />
             </div>
             <div className="mt-1 font-ui text-[34px] font-extrabold leading-none text-descriptif">
-              {ips_moyen.toFixed(0)}
+              {formaterDecimale(ips_moyen, 0)}
             </div>
             <Jauge
               valeur={ips_moyen}
@@ -106,7 +107,7 @@ export function PositionnementSocial({ positionnementSocial }: { positionnementS
               <BoutonAide texte="L'écart-type mesure la diversité des profils sociaux au sein du collège : plus il est élevé, plus les familles des élèves sont différentes socialement (grande mixité) ; plus il est bas, plus elles se ressemblent (population homogène)." />
             </div>
             <div className="mt-1 font-ui text-[34px] font-extrabold leading-none text-descriptif">
-              {ecart_type_ips.toFixed(1)}
+              {formaterDecimale(ecart_type_ips, 1)}
             </div>
             <Jauge
               valeur={ecart_type_ips}

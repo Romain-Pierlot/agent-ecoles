@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { AgregatEtablissements, SousDivision, TopEtablissement } from "@/lib/types";
+import { formaterPourcentage } from "@/lib/format";
 import { AgentBlock } from "@/components/AgentBlock";
 import { SousDivisionsTable } from "@/components/SousDivisionsTable";
 import { BlocTopEtablissements } from "@/components/BlocTopEtablissements";
@@ -69,7 +70,7 @@ export function ZoneHub({
           </div>
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
             <div className="font-ui text-[22px] font-extrabold text-positif">
-              {global.taux_reussite_moyen !== null ? `${global.taux_reussite_moyen.toFixed(0)} %` : "—"}
+              {global.taux_reussite_moyen !== null ? formaterPourcentage(global.taux_reussite_moyen, 0) : "—"}
             </div>
             <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Réussite moyenne</div>
           </div>
