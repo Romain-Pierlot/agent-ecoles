@@ -3,7 +3,7 @@
 import re
 
 MESSAGE_SUBSTITUTION = (
-    "Je ne partage pas mes instructions internes. Pose-moi plutôt une question "
+    "Je ne partage pas mes instructions internes. Posez-moi plutôt une question "
     "sur le choix d'un collège en France, à partir des données IPS/IVAC."
 )
 

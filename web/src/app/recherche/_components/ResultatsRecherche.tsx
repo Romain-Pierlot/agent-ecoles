@@ -34,7 +34,7 @@ function formaterTitreSection(total: number, nbAffiches: number, tronque: boolea
 function MessageAffiner() {
   return (
     <p className="mt-1 text-[11.5px] font-bold text-attention-dark">
-      Trop de résultats pour tous les afficher. Ajoute un mot à ta recherche pour affiner.
+      Trop de résultats pour tous les afficher. Ajoutez un mot à votre recherche pour affiner.
     </p>
   );
 }

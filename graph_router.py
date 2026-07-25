@@ -977,7 +977,7 @@ def _generer_moyennes_par_etablissement(lignes):
         if not scores:
             continue
         annees = _decrire_quantite(len(scores), nom="année", verbe="")
-        ligne = f"**{nom_etab}** — score moyen : {sum(scores) / len(scores):.2f} (sur {annees})"
+        ligne = f"**{nom_etab}**, score moyen : {sum(scores) / len(scores):.2f} (sur {annees})"
         taux = [r["brevet_taux_reussite_general"] for r in rows_etab if isinstance(r.get("brevet_taux_reussite_general"), (int, float))]
         if taux:
             ligne += f", taux de réussite moyen : {sum(taux) / len(taux):.1f}%"
@@ -1141,8 +1141,8 @@ def _generer_tableaux_ville_environs(resultats_sql):
     bloc_prive = _generer_tableau_depuis_lignes(environs_prive) or "Aucun établissement privé trouvé dans les environs."
     return (
         f"**Établissements à {commune}**\n\n{bloc_ville}\n\n"
-        f"**Meilleurs établissements des environs — publics**\n\n{bloc_public}\n\n"
-        f"**Meilleurs établissements des environs — privés**\n\n{bloc_prive}"
+        f"**Meilleurs établissements des environs : publics**\n\n{bloc_public}\n\n"
+        f"**Meilleurs établissements des environs : privés**\n\n{bloc_prive}"
     )
 
 
@@ -1452,7 +1452,7 @@ def _generer_explication_score_template(tableau_contient_score):
     if not tableau_contient_score:
         return ""
     return ("\n\nLa notation (de A+ à B) combine à parts égales le taux de réussite, "
-            "la note à l'écrit, et la valeur ajoutée sur ces deux mêmes indicateurs — "
+            "la note à l'écrit, et la valeur ajoutée sur ces deux mêmes indicateurs, "
             "comparés aux autres établissements de la même année. Ce n'est pas une note "
             "absolue, et elle n'est comparable qu'entre établissements de la même session.")
 
@@ -1462,7 +1462,7 @@ def _generer_explication_va_template(tableau_contient_va):
     if not tableau_contient_va:
         return ""
     return ("\n\nLa VA (valeur ajoutée) compare les résultats réels de l'établissement "
-            "à ceux attendus compte tenu du profil de ses élèves — un badge positif "
+            "à ceux attendus compte tenu du profil de ses élèves. Un badge positif "
             "signifie que l'établissement fait mieux que prévu.")
 
 
@@ -1616,18 +1616,18 @@ def noeud_clarification_geo(state: AgentState) -> AgentState:
             )
             state["reponse_finale"] = (
                 f"Plusieurs communes correspondent à « {zone} » :\n{lignes}\n\n"
-                "Peux-tu préciser laquelle (indique le numéro, ou le nom complet) ?"
+                "Pouvez-vous préciser laquelle (indiquez le numéro, ou le nom complet) ?"
             )
         else:
             state["reponse_finale"] = (
-                f"Plusieurs communes correspondent à « {zone} » ({len(candidats)} résultats) — "
-                "peux-tu préciser un département, une région, ou le nom complet de la ville ?"
+                f"Plusieurs communes correspondent à « {zone} » ({len(candidats)} résultats). "
+                "Pouvez-vous préciser un département, une région, ou le nom complet de la ville ?"
             )
         return state
 
     state["reponse_finale"] = (
-        "Je n'ai pas réussi à identifier la zone géographique de ta question. "
-        "Peux-tu préciser une adresse, une ville ou un code postal ?"
+        "Je n'ai pas réussi à identifier la zone géographique de votre question. "
+        "Pouvez-vous préciser une adresse, une ville ou un code postal ?"
     )
     return state
 
@@ -1659,8 +1659,8 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
 
     if not candidats_par_nom:
         reponse = (
-            "Je n'ai pas identifié d'établissement nommé dans ta question. "
-            "Peux-tu préciser le nom du ou des établissements à comparer ?"
+            "Je n'ai pas identifié d'établissement nommé dans votre question. "
+            "Pouvez-vous préciser le nom du ou des établissements à comparer ?"
         )
         if state.get("nuance_methodologique_demandee"):
             requete = state.get("requete_rag_nuance") or state["question"]
@@ -1675,7 +1675,7 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
             zone = zones_sans_resultat[nom]
             morceaux.append(
                 f"Aucun établissement nommé « {nom} » n'a été trouvé pour « {zone} ». "
-                f"Précise une autre ville ou un autre département."
+                f"Précisez une autre ville ou un autre département."
             )
         elif len(candidats) == 0:
             morceaux.append(f"Aucun établissement nommé « {nom} » n'a été trouvé dans les données.")
@@ -1687,21 +1687,21 @@ def noeud_clarification_noms(state: AgentState) -> AgentState:
             # département plutôt qu'afficher une liste trop longue (même
             # seuil que la désambiguïsation de zone géo, cf. S11.2).
             morceaux.append(
-                f"Plusieurs établissements correspondent à « {nom} » ({len(candidats)} résultats) — "
-                f"peux-tu préciser une ville ou un département ?"
+                f"Plusieurs établissements correspondent à « {nom} » ({len(candidats)} résultats). "
+                f"Pouvez-vous préciser une ville ou un département ?"
             )
         elif len(candidats) > 1:
             a_candidats_multiples = True
             lignes = "\n".join(
-                f"  {i + 1}. {c['nom']} — {c['commune']} ({c['secteur']})"
+                f"  {i + 1}. {c['nom']}, {c['commune']} ({c['secteur']})"
                 for i, c in enumerate(candidats)
             )
             morceaux.append(f"Plusieurs établissements correspondent à « {nom} » :\n{lignes}")
 
     cloture = (
-        "\n\nPeux-tu préciser lequel tu veux (indique le numéro) ?"
+        "\n\nPouvez-vous préciser lequel vous voulez (indiquez le numéro) ?"
         if a_candidats_multiples
-        else "\n\nPeux-tu vérifier le nom ou préciser une autre ville/département ?"
+        else "\n\nPouvez-vous vérifier le nom ou préciser une autre ville/département ?"
     )
     reponse = "\n\n".join(morceaux) + cloture
     if state.get("nuance_methodologique_demandee"):

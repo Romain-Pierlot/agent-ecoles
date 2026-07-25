@@ -17,7 +17,7 @@ def verifier_limite_zones(zone_geo):
     if nb_zones > MAX_ZONES_COMPAREES:
         message = (
             f"Je peux comparer jusqu'à {MAX_ZONES_COMPAREES} zones géographiques à la fois "
-            f"(villes, départements...). Peux-tu reformuler ta question avec "
+            f"(villes, départements...). Pouvez-vous reformuler votre question avec "
             f"{MAX_ZONES_COMPAREES} zones maximum ?"
         )
         return False, message

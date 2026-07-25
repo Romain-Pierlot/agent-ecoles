@@ -5,8 +5,8 @@ from config import Categorie, OrdreSouhaite
 MESSAGE_HORS_SUJET = (
     "Je réponds uniquement aux questions sur le choix d'un collège en France, à "
     "partir des données IPS/IVAC officielles (recherche par zone géographique, "
-    "comparaison d'établissements nommés, questions méthodologiques). Peux-tu "
-    "reformuler ta question dans ce cadre ?"
+    "comparaison d'établissements nommés, questions méthodologiques). Pouvez-vous "
+    "reformuler votre question dans ce cadre ?"
 )
 
 

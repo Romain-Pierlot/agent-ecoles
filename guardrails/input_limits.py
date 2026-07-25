@@ -16,8 +16,8 @@ def verifier_longueur_question(question):
     """
     if len(question) > MAX_CARACTERES_QUESTION:
         message = (
-            f"Ta question est trop longue ({len(question)} caractères, "
-            f"{MAX_CARACTERES_QUESTION} maximum). Peux-tu la reformuler en quelques phrases ?"
+            f"Votre question est trop longue ({len(question)} caractères, "
+            f"{MAX_CARACTERES_QUESTION} maximum). Pouvez-vous la reformuler en quelques phrases ?"
         )
         return False, message
     return True, None

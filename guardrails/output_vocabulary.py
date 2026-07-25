@@ -10,7 +10,7 @@ MOTS_INTERDITS = ["sql", "base de donnees", "requete", "outil", "backend"]
 
 MESSAGE_SUBSTITUTION = (
     "Je ne peux pas formuler cette partie de la réponse correctement. "
-    "Précise ta question si tu veux une explication méthodologique."
+    "Précisez votre question si vous voulez une explication méthodologique."
 )
 
 
