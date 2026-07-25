@@ -52,7 +52,7 @@ export default async function Page({
         <p className="mt-5 text-[12.5px] text-texte-doux">
           Vous cherchez le collège dont vous dépendez administrativement ?{" "}
           <Link href="/carte-scolaire" className="font-bold text-action hover:text-action-dark">
-            Carte scolaire →
+            Mon collège de secteur →
           </Link>
         </p>
       </div>

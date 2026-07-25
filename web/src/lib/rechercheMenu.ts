@@ -44,7 +44,7 @@ export function construireLignes({
   }
   if (aucunResultat) {
     return [
-      { type: "lien-fixe", href: "/carte-scolaire", label: "Carte scolaire" },
+      { type: "lien-fixe", href: "/carte-scolaire", label: "Mon collège de secteur" },
       { type: "lien-fixe", href: "/comprendre/ips", label: "Comprendre" },
       { type: "camille" },
     ];

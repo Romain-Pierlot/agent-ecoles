@@ -30,7 +30,7 @@ import { RechercheMobile } from "@/components/RechercheMobile";
 type LienNav = { href: string; label: string; match?: string };
 
 const LIENS_NAV: LienNav[] = [
-  { href: "/carte-scolaire", label: "Carte scolaire" },
+  { href: "/carte-scolaire", label: "Mon collège de secteur" },
   { href: "/explorer", label: "Explorer" },
   { href: "/comprendre/ips", label: "Comprendre", match: "/comprendre" },
 ];
