@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { recupererDepartement } from "@/lib/geographie";
 import { slugifier } from "@/lib/slug";
+import { accorder } from "@/lib/format";
 import { ZoneHub } from "@/components/ZoneHub";
 
 export default async function Page({
@@ -26,7 +27,7 @@ export default async function Page({
       ]}
       eyebrow="Département"
       titre={libelleDepartementAvecCode}
-      sousTitre={`${departement.communes.length} communes`}
+      sousTitre={`${departement.communes.length} ${accorder(departement.communes.length, "commune")}`}
       global={departement.global}
       labelColonneSousDivision="Commune"
       topNotation={departement.top_notation}

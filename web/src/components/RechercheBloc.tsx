@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { API_URL } from "@/lib/api";
 import { hrefEtablissement, hrefCommune } from "@/lib/hrefsGeo";
+import { accorder } from "@/lib/format";
 import type { RechercheResultats } from "@/lib/types";
 import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
 import { classeStatutSecteur } from "@/lib/tokens";
@@ -163,7 +164,7 @@ export function RechercheBloc({
                       <div className="truncate text-[13px] font-bold text-texte">{c.commune}</div>
                       <div className="truncate text-[11px] text-texte-doux">
                         {c.libelle_departement} ({c.code_departement}) · {c.nb_etablissements}{" "}
-                        {c.nb_etablissements > 1 ? "collèges" : "collège"}
+                        {accorder(c.nb_etablissements, "collège")}
                       </div>
                     </div>
                     <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-fond-sable text-[14px] text-texte-doux">

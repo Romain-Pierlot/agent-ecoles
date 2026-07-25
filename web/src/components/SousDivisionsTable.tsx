@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { LigneSousDivision } from "@/components/ZoneHub";
-import { formaterTaux, formaterEcart, formaterDecimale } from "@/lib/format";
+import { formaterTaux, formaterEcart, formaterDecimale, accorder } from "@/lib/format";
 import { SelectFiltre } from "@/components/SelectFiltre";
 import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirectionTri";
 import { BarreDivergente } from "@/components/BarreDivergente";
@@ -76,6 +76,10 @@ export function SousDivisionsTable({
 
   const affichees = toutAfficher ? trie : trie.slice(0, NB_AFFICHEES_INITIALEMENT);
   const nbRestantes = trie.length - affichees.length;
+  // labelColonne ne prend que 3 valeurs dans tout le projet (cf. ZoneHub) :
+  // "Commune"/"Région" (féminin), "Département" (seul masculin) — accord de
+  // genre de "restant" dérivé ici plutôt qu'un prop dédié pour un seul mot.
+  const feminin = labelColonne !== "Département";
 
   // Note unique sous le tableau, pas une par ligne : dès qu'une division
   // affichée s'appuie sur une couverture VA faible (< 70 %, cf. astérisque).
@@ -165,7 +169,7 @@ export function SousDivisionsTable({
             onClick={() => setToutAfficher(true)}
             className="w-full cursor-pointer border-t border-filet py-2.5 text-center text-[12.5px] font-bold text-action hover:bg-fond-carte/60"
           >
-            Voir les {nbRestantes} {labelColonne.toLowerCase()}s restant{nbRestantes > 1 ? "e" : ""}s
+            Voir les {nbRestantes} {accorder(nbRestantes, labelColonne.toLowerCase())} restant{feminin ? "e" : ""}{nbRestantes > 1 ? "s" : ""}
           </button>
         )}
       </div>

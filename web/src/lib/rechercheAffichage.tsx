@@ -1,5 +1,6 @@
 import type { EtablissementRecherche, CommuneRecherche } from "@/lib/types";
 import { normaliser } from "@/lib/pagesRecherche";
+import { accorder } from "@/lib/format";
 
 // Formatage partagé entre RechercheChamp (desktop) et RechercheMobile
 // (overlay plein écran) — même ligne « meta » et même surlignage des deux
@@ -10,8 +11,7 @@ export function metaEtablissement(e: EtablissementRecherche): string {
 }
 
 export function metaCommune(c: CommuneRecherche): string {
-  const suffixe = c.nb_etablissements > 1 ? "collèges" : "collège";
-  return `${c.libelle_departement} (${c.code_departement}) · ${c.nb_etablissements} ${suffixe}`;
+  return `${c.libelle_departement} (${c.code_departement}) · ${c.nb_etablissements} ${accorder(c.nb_etablissements, "collège")}`;
 }
 
 /** Surlignage inversé (règle tour 14, non négociable) : ce que le parent a

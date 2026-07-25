@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { CollegeVille } from "@/lib/types";
+import { accorder } from "@/lib/format";
 import { CarteCollege } from "./CarteCollege";
 
 const NB_AFFICHES_INITIALEMENT = 15;
@@ -57,7 +58,7 @@ export function ListeColleges({
           onClick={() => setToutAfficher(true)}
           className="cursor-pointer rounded-[13px] border-[1.5px] border-filet bg-white py-2.5 text-center text-[12.5px] font-bold text-action hover:bg-fond-carte/60"
         >
-          Voir les {nbRestants} collèges restants
+          Voir les {nbRestants} {accorder(nbRestants, "collège")} {accorder(nbRestants, "restant")}
         </button>
       )}
     </div>

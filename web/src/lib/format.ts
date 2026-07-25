@@ -28,3 +28,11 @@ export function formaterEcart(valeur: number, decimales = 1): string {
   const signe = valeur < 0 ? "−" : "+";
   return `${signe}${formaterDecimale(Math.abs(valeur), decimales)}`;
 }
+
+// Accord singulier/pluriel d'un compteur : seul 1 prend le singulier (0
+// compris, comme en français) — centralisé pour éviter qu'un ternaire
+// `n > 1 ? "s" : ""` soit recopié à chaque affichage d'un compteur
+// (collèges, communes, départements, candidats...).
+export function accorder(n: number, singulier: string, pluriel: string = `${singulier}s`): string {
+  return n === 1 ? singulier : pluriel;
+}

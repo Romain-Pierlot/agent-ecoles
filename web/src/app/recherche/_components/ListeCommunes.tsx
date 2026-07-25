@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CommuneRecherche } from "@/lib/types";
 import { hrefCommune } from "@/lib/hrefsGeo";
+import { accorder } from "@/lib/format";
 import { CarteCommune } from "./CarteCommune";
 import { SelectFiltre } from "@/components/SelectFiltre";
 import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirectionTri";
@@ -59,7 +60,7 @@ export function ListeCommunes({
             onClick={() => setDepliee(true)}
             className="cursor-pointer rounded-[13px] border-[1.5px] border-dashed border-filet-fonce py-2.5 text-center text-[12.5px] font-semibold text-texte-doux hover:border-action hover:text-action"
           >
-            Voir {nbMasquees} commune{nbMasquees > 1 ? "s" : ""} de plus
+            Voir {nbMasquees} {accorder(nbMasquees, "commune")} de plus
           </button>
         )}
       </div>

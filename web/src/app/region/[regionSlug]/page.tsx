@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { recupererRegion } from "@/lib/geographie";
 import { construireSlugDepartement } from "@/lib/slug";
+import { accorder } from "@/lib/format";
 import { ZoneHub } from "@/components/ZoneHub";
 
 export default async function Page({
@@ -22,7 +23,7 @@ export default async function Page({
       ]}
       eyebrow="Région"
       titre={region.libelle_region}
-      sousTitre={`${region.departements.length} départements`}
+      sousTitre={`${region.departements.length} ${accorder(region.departements.length, "département")}`}
       global={region.global}
       labelColonneSousDivision="Département"
       afficherCodeSousDivisions

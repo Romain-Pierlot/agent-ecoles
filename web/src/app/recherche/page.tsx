@@ -2,6 +2,7 @@ import Link from "next/link";
 import { after } from "next/server";
 import { recupererRecherche, journaliserRecherche } from "@/lib/recherche";
 import { lireFiltres, filtresActifs } from "@/lib/rechercheParams";
+import { accorder } from "@/lib/format";
 import { AgentBlock } from "@/components/AgentBlock";
 import { RechercheBloc } from "@/components/RechercheBloc";
 import { ResultatsRecherche } from "./_components/ResultatsRecherche";
@@ -90,8 +91,8 @@ export default async function Page({
           Résultats pour « {query} »
         </h1>
         <p className="mt-1.5 text-[12.5px] text-texte-doux">
-          {resultatsBruts.etablissements_total} établissement{resultatsBruts.etablissements_total > 1 ? "s" : ""} ·{" "}
-          {resultatsBruts.communes_total} commune{resultatsBruts.communes_total > 1 ? "s" : ""}
+          {resultatsBruts.etablissements_total} {accorder(resultatsBruts.etablissements_total, "établissement")} ·{" "}
+          {resultatsBruts.communes_total} {accorder(resultatsBruts.communes_total, "commune")}
         </p>
       </div>
 

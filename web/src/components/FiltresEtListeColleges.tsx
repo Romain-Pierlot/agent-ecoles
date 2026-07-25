@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CollegeVille } from "@/lib/types";
 import { deriveDispositifsEducatifs, deriveSections, SECTION_VERS_CLE_API, CLE_API_VERS_SECTION } from "@/lib/dispositifs";
+import { accorder } from "@/lib/format";
 import { ListeColleges } from "@/components/ListeColleges";
 import { SelectFiltre } from "@/components/SelectFiltre";
 import { BoutonDirectionTri, type DirectionTri } from "@/components/BoutonDirectionTri";
@@ -189,7 +190,7 @@ export function FiltresEtListeColleges({
       {/* ===== TRI + RÉSULTATS ===== */}
       <div className="mt-3.5 flex items-center justify-between">
         <div className="text-[12px] font-bold text-texte-doux">
-          {nbResultats} résultat{nbResultats > 1 ? "s" : ""}
+          {nbResultats} {accorder(nbResultats, "résultat")}
           {resultatsTronques && (
             <span className="ml-1.5 font-semibold text-texte-doux/70">(affichage limité à {colleges.length})</span>
           )}
@@ -221,7 +222,7 @@ export function FiltresEtListeColleges({
               onClick={() => setDepliee(true)}
               className="mt-2.5 w-full cursor-pointer rounded-[13px] border-[1.5px] border-dashed border-filet-fonce py-2.5 text-center text-[12.5px] font-semibold text-texte-doux hover:border-action hover:text-action"
             >
-              Voir {nbMasques} collège{nbMasques > 1 ? "s" : ""} de plus
+              Voir {nbMasques} {accorder(nbMasques, "collège")} de plus
             </button>
           )}
         </>

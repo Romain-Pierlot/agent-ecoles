@@ -1,6 +1,6 @@
 import type { BrevetResultats, EvolutionPoint } from "@/lib/types";
 import { sentimentReussite } from "@/lib/tokens";
-import { formaterDecimale, formaterPourcentage } from "@/lib/format";
+import { formaterDecimale, formaterPourcentage, accorder } from "@/lib/format";
 import { BoutonAide } from "@/components/BoutonAide";
 
 // Classes Tailwind statiques — jamais interpolées dans un template string
@@ -50,7 +50,7 @@ function DonutMentions({ brevet }: { brevet: BrevetResultats }) {
         >
           <div className="absolute inset-[26px] flex flex-col items-center justify-center rounded-full bg-white">
             <div className="font-ui text-[22px] font-extrabold text-texte">{total}</div>
-            <div className="text-[9.5px] font-semibold text-texte-doux">candidats</div>
+            <div className="text-[9.5px] font-semibold text-texte-doux">{accorder(total, "candidat")}</div>
           </div>
         </div>
         <div className="flex flex-col gap-2">

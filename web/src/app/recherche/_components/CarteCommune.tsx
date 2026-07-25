@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CommuneRecherche } from "@/lib/types";
+import { accorder } from "@/lib/format";
 
 // Carte résultat "commune" de la page recherche — même famille visuelle que
 // CarteCollege (web/src/components/), mais propre à /recherche : aucune
@@ -25,7 +26,7 @@ export function CarteCommune({
         <div className="font-titre text-[15px] font-semibold text-texte">{commune.commune}</div>
         <div className="mt-1 text-[11.5px] font-semibold text-texte-doux">
           {commune.libelle_departement} ({commune.code_departement}) · {commune.nb_etablissements}{" "}
-          {commune.nb_etablissements > 1 ? "collèges" : "collège"}
+          {accorder(commune.nb_etablissements, "collège")}
         </div>
       </div>
       <span className="flex-none text-[12.5px] font-bold text-action">Voir la commune →</span>

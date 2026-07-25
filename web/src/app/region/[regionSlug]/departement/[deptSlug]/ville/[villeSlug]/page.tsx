@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { recupererVille } from "@/lib/geographie";
-import { formaterPourcentage, formaterEcart } from "@/lib/format";
+import { formaterPourcentage, formaterEcart, accorder } from "@/lib/format";
 import { AgentBlock } from "@/components/AgentBlock";
 import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
 
@@ -50,13 +50,17 @@ export default async function Page({
             Collèges à {ville.commune}
           </h1>
           <p className="mt-1.5 text-[12.5px] text-texte-doux">
-            {ville.global.nb_etablissements} collèges · {ville.nb_publics} publics, {ville.nb_prives} privés
+            {ville.global.nb_etablissements} {accorder(ville.global.nb_etablissements, "collège")} ·{" "}
+            {ville.nb_publics} {accorder(ville.nb_publics, "public")}, {ville.nb_prives}{" "}
+            {accorder(ville.nb_prives, "privé")}
           </p>
         </div>
         <div className="grid grid-cols-[120px_224px] items-stretch gap-3">
           <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
             <div className="font-ui text-[26px] font-extrabold text-texte">{ville.global.nb_etablissements}</div>
-            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">Collèges</div>
+            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">
+              {accorder(ville.global.nb_etablissements, "Collège")}
+            </div>
           </div>
           <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
             <div className="font-ui text-[26px] font-extrabold text-texte">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { AgregatEtablissements, SousDivision, TopEtablissement } from "@/lib/types";
-import { formaterPourcentage, formaterEcart } from "@/lib/format";
+import { formaterPourcentage, formaterEcart, accorder } from "@/lib/format";
 
 // Seuil en dessous duquel va_moyenne repose sur une part insuffisante des
 // collèges du territoire pour être affichée sans nuance — même seuil que la
@@ -72,7 +72,9 @@ export function ZoneHub({
         <div className="grid grid-cols-[120px_224px] items-stretch gap-3">
           <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
             <div className="font-ui text-[26px] font-extrabold text-texte">{global.nb_etablissements}</div>
-            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">Collèges</div>
+            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">
+              {accorder(global.nb_etablissements, "Collège")}
+            </div>
           </div>
           <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
             <div className="font-ui text-[26px] font-extrabold text-texte">
