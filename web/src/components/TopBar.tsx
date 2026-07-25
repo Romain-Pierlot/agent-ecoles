@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { NOM_ASSISTANT } from "@/lib/constants";
-import { GaletCamille } from "@/components/GaletCamille";
+import { GaletAgent } from "@/components/GaletAgent";
 
 // Remplacement de src/components/TopBar.tsx
 // Changements refonte :
 //  - logo : coin net (rounded-[9px]) sans rotation « bancale » (-rotate-6 retiré)
 //  - marque « écoles » en font-titre (Newsreader) au lieu de font-baloo
 //  - nav en font-ui
-//  - CTA Camille : IDENTITÉ APRICOT dédiée (pilule bg-camille-pale + point
+//  - CTA agent : IDENTITÉ APRICOT dédiée (pilule bg-agent-pale + galet
 //    apricot), distincte du terracotta d'action — on repère l'agent sans
 //    qu'il prenne le pas sur les actions produit.
 export function TopBar() {
@@ -27,9 +27,9 @@ export function TopBar() {
           </div>
           <Link
             href="/assistant"
-            className="flex items-center gap-2 rounded-full border border-camille bg-camille-pale py-2 pl-[7px] pr-[15px] font-ui text-[12.5px] font-bold text-camille-ink"
+            className="flex items-center gap-2 rounded-full border border-agent bg-agent-pale py-2 pl-[7px] pr-[15px] font-ui text-[12.5px] font-bold text-agent-ink"
           >
-            <GaletCamille taille="mini" />
+            <GaletAgent taille="mini" />
             Demander à {NOM_ASSISTANT}
           </Link>
         </div>

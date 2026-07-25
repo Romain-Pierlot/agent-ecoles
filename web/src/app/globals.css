@@ -7,7 +7,7 @@
    Tous les tokens sémantiques gardent LEUR NOM : les composants qui les
    lisent (bg-action, text-positif, bg-statut-public-pale…) continuent de
    fonctionner sans modification — seules les VALEURS changent.
-   Nouveaux rôles ajoutés en fin de bloc (badges par famille, Camille).
+   Nouveaux rôles ajoutés en fin de bloc (badges par famille, agent).
    ===================================================================== */
 
 :root {
@@ -85,13 +85,14 @@
   --color-distance: #8B7D6B;
   --color-distance-pale: #EFE7D7;
 
-  /* ---- NOUVEAU · Camille (agent) — identité apricot, à part ----
+  /* ---- NOUVEAU · Agent conversationnel — identité apricot, à part ----
      N'apparaît nulle part ailleurs : c'est le repère visuel de l'agent.
-     Le CTA de Camille utilise CES tokens, jamais --color-action. */
-  --color-camille: #E79A2C;
-  --color-camille-dark: #C97D14;
-  --color-camille-pale: #FBEEDA;
-  --color-camille-ink: #3A2610;          /* texte lisible sur apricot plein */
+     Le CTA de l'agent utilise CES tokens, jamais --color-action. Nom du
+     token générique à dessein : l'agent peut changer de nom, le token non. */
+  --color-agent: #E79A2C;
+  --color-agent-dark: #C97D14;
+  --color-agent-pale: #FBEEDA;
+  --color-agent-ink: #3A2610;          /* texte lisible sur apricot plein */
 }
 
 body {

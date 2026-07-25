@@ -40,8 +40,13 @@ const CLASSE_TEXTE_SENTIMENT: Record<string, string> = {
   attention: "text-attention",
 };
 
-// Dégradés de la pastille notation — valeurs inchangées (déjà cohérentes avec
-// le sable). Seule la POLICE de la lettre change (Schibsted, cf. className).
+// Registre de référence légitime (cf. docs/Design_system/REFERENCE.md,
+// section 2) : dégradés de la pastille notation, nécessairement en hex brut
+// (injectés dans un style inline `backgroundImage`, pas une classe Tailwind
+// statique possible pour un dégradé à 2 couleurs). Valeurs inchangées
+// depuis avant la refonte — déjà cohérentes avec le sable. Seule la POLICE
+// de la lettre change (Schibsted, cf. className).
+/* eslint-disable no-restricted-syntax -- registre de référence, voir commentaire ci-dessus */
 export const NOTATION_GRADIENTS: Record<string, { fond: string; ombre: string }> = {
   "A+": { fond: "linear-gradient(155deg,#2E8F5E,#1F6B44)", ombre: "0 5px 13px rgba(46,143,94,.3)" },
   "A": { fond: "linear-gradient(155deg,#4FA772,#2E8F5E)", ombre: "0 5px 13px rgba(79,167,114,.3)" },
@@ -49,6 +54,7 @@ export const NOTATION_GRADIENTS: Record<string, { fond: string; ombre: string }>
   "B+": { fond: "linear-gradient(155deg,#F0A02E,#CE821A)", ombre: "0 5px 13px rgba(240,160,46,.28)" },
   "B": { fond: "linear-gradient(155deg,#E58A3C,#B0741A)", ombre: "0 5px 13px rgba(229,138,60,.3)" },
 };
+/* eslint-enable no-restricted-syntax */
 
 export function CarteCollege({
   college,

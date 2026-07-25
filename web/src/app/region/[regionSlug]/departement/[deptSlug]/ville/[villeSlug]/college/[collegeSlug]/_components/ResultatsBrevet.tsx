@@ -10,10 +10,19 @@ const CLASSE_TEXTE_SENTIMENT: Record<string, string> = {
   descriptif: "text-descriptif",
 };
 
+// Registre de référence légitime (cf. docs/Design_system/REFERENCE.md,
+// section 2) : couleurs du donut des mentions, nécessairement en hex brut
+// car injectées dans un `conic-gradient()` dynamique — pas une classe
+// Tailwind statique possible ici. Valeurs = mêmes tokens que
+// --color-mention-* dans globals.css, gardées synchronisées à la main.
 const COULEURS_MENTIONS: Record<string, string> = {
+  // eslint-disable-next-line no-restricted-syntax -- registre de référence, voir commentaire ci-dessus
   "Très bien": "#2E8F5E",
+  // eslint-disable-next-line no-restricted-syntax -- registre de référence, voir commentaire ci-dessus
   "Bien": "#5DB98B",
+  // eslint-disable-next-line no-restricted-syntax -- registre de référence, voir commentaire ci-dessus
   "Assez bien": "#9BCBAF",
+  // eslint-disable-next-line no-restricted-syntax -- registre de référence, voir commentaire ci-dessus
   "Sans mention": "#D8CBB4",
 };
 
@@ -26,6 +35,7 @@ function DonutMentions({ brevet }: { brevet: BrevetResultats }) {
     [0]
   );
   const segments = brevet.mentions.map(
+    // eslint-disable-next-line no-restricted-syntax -- repli du registre COULEURS_MENTIONS ci-dessus
     (m, i) => `${COULEURS_MENTIONS[m.libelle] ?? "#D8CBB4"} ${bornes[i]}% ${bornes[i + 1]}%`
   );
 
@@ -47,6 +57,7 @@ function DonutMentions({ brevet }: { brevet: BrevetResultats }) {
             <div key={m.libelle} className="flex items-center gap-2 text-[12.5px] font-semibold text-texte">
               <span
                 className="h-3 w-3 rounded"
+                // eslint-disable-next-line no-restricted-syntax -- repli du registre COULEURS_MENTIONS ci-dessus
                 style={{ backgroundColor: COULEURS_MENTIONS[m.libelle] ?? "#D8CBB4" }}
               />
               {m.libelle} — <b>{m.taux_pct ?? "—"}%</b>{" "}
@@ -89,7 +100,7 @@ function EvolutionTaux({ evolution }: { evolution: EvolutionPoint[] }) {
             <div key={p.session} className="flex flex-1 flex-col items-center justify-end gap-1.5">
               <div className="text-[11px] font-bold text-positif">{valeur}%</div>
               <div
-                className="w-[70%] rounded-t-lg bg-gradient-to-t from-[#5DB98B] to-[#2E8F5E]"
+                className="w-[70%] rounded-t-lg bg-gradient-to-t from-mention-b to-positif"
                 style={{ height: `${hauteurPx}px` }}
               />
               <div className="text-[11px] font-semibold text-texte-doux">{p.session}</div>

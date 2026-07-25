@@ -10,10 +10,7 @@ export function BlocNonDeterminable({ resultats }: { resultats: SecteurResultats
 
   return (
     <div>
-      <div
-        className="rounded-[20px] border-[1.5px] border-[#F0D9A8] p-5.5"
-        style={{ background: "linear-gradient(155deg,#FFF6E8,#FDF1F5)" }}
-      >
+      <div className="rounded-[20px] border-[1.5px] border-attention/35 bg-attention-pale p-5.5">
         <div className="flex items-start gap-3.5">
           <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-attention font-titre text-xl font-semibold text-white shadow-[0_5px_13px_rgba(176,116,26,.28)]">
             ?
@@ -22,14 +19,14 @@ export function BlocNonDeterminable({ resultats }: { resultats: SecteurResultats
             <div className="font-titre text-xl font-semibold text-texte">
               Nous n&apos;avons pas pu déterminer votre collège de secteur
             </div>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#6A5A3E]">
+            <p className="mt-1.5 text-[13.5px] leading-relaxed text-texte-doux">
               Nous avons bien reconnu votre adresse, mais pas au numéro près — et le rattachement à la carte scolaire
               dépend précisément de ce niveau de détail. Plutôt que de vous indiquer un collège qui pourrait être faux,
               nous préférons vous le dire franchement.
             </p>
-            <p className="mt-2 text-[13.5px] leading-relaxed text-[#6A5A3E]">
+            <p className="mt-2 text-[13.5px] leading-relaxed text-texte-doux">
               Pour connaître votre établissement de rattachement, le mieux est de contacter le{" "}
-              <b className="font-extrabold text-[#5C6A50]">rectorat de l&apos;académie de {academie}</b> (les services
+              <b className="font-extrabold text-texte">rectorat de l&apos;académie de {academie}</b> (les services
               départementaux de l&apos;Éducation nationale). Le portail Service-Public détaille aussi la démarche
               d&apos;inscription au collège.
             </p>

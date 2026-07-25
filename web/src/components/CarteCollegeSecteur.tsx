@@ -40,11 +40,15 @@ export function CarteCollegeSecteur({
     <Link
       href={`${hrefBase}/college/${construireSlugCollege(college.nom, college.uai)}`}
       className="flex items-center gap-3.5 rounded-[14px] border-[1.5px] p-3.5 transition-colors"
+      /* eslint-disable no-restricted-syntax -- fond dégradé pêche propre à
+         cette carte, registre de référence (docs/Design_system/REFERENCE.md
+         section 2), nécessairement en hex brut pour le dégradé */
       style={{
         background: "linear-gradient(150deg,#FCEBD8,#F9DEE4)",
         borderColor: "#E7B0A0",
         boxShadow: "0 12px 28px rgba(191,74,42,.16)",
       }}
+      /* eslint-enable no-restricted-syntax */
     >
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">

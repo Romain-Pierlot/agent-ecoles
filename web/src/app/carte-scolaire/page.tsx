@@ -22,11 +22,11 @@ function premiereValeur(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
-// Titre/sous-titre du bloc Camille contextuels par état (cf. maquette) —
+// Titre/sous-titre du bloc agent contextuels par état (cf. maquette) —
 // "trouve" et "adresse_non_reconnue" partagent le même message par défaut
 // (la maquette de référence ne prévoit pas de texte dédié à une adresse non
 // reconnue, elle retombe sur ce même cas par défaut).
-function camilleContextuel(etat: string | undefined) {
+function contexteBlocAgent(etat: string | undefined) {
   if (etat === "multi_secteur") {
     // Générique plutôt que "Deux collèges..." : le nombre réel de
     // candidats varie (cas réel à 3, cf. Maxéville/Rue Blaise Pascal),
@@ -63,7 +63,7 @@ export default async function Page({
   const adresse = (premiereValeur(tousParams.adresse) ?? "").trim();
 
   const resultats = adresse ? await recupererSecteur(adresse) : null;
-  const camille = camilleContextuel(resultats?.etat);
+  const blocAgent = contexteBlocAgent(resultats?.etat);
   const afficherBandeauAdresse =
     resultats && (resultats.etat === "trouve" || resultats.etat === "multi_secteur" || resultats.etat === "non_determinable");
 
@@ -121,8 +121,8 @@ export default async function Page({
 
         <AgentBlock
           exemple={`Quels collèges autour de ${resultats?.colleges_secteur[0]?.commune ?? "chez moi"} correspondent à mes critères ?`}
-          titre={camille.titre}
-          sousTitre={camille.sousTitre}
+          titre={blocAgent.titre}
+          sousTitre={blocAgent.sousTitre}
         />
       </div>
 

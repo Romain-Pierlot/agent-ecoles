@@ -5,7 +5,7 @@
 // entre les filtres et le tri de la page ville et des tableaux hub.
 export function classesFiltre(actif: boolean): string {
   return actif
-    ? "border-[1.5px] border-[#E9A9C0] bg-action-pale text-action-dark"
+    ? "border-[1.5px] border-action bg-action-pale text-action-dark"
     : "border-[1.5px] border-filet bg-white text-texte-doux";
 }
 

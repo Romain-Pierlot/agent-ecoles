@@ -10,12 +10,12 @@ export function BlocMultiSecteur({ resultats }: { resultats: SecteurResultats })
 
   return (
     <div>
-      <div className="mb-3.5 flex gap-2.5 rounded-2xl border-[1.5px] border-[#F0D9A8] bg-[#FFF6E8] p-3.5">
+      <div className="mb-3.5 flex gap-2.5 rounded-2xl border-[1.5px] border-attention/35 bg-attention-pale p-3.5">
         <span className="flex h-7.5 w-7.5 flex-none items-center justify-center rounded-lg bg-attention font-bold text-white">
           !
         </span>
-        <p className="text-[13px] leading-relaxed text-[#7A5B1E]">
-          <b className="font-extrabold text-[#8A5A12]">Votre adresse peut relever de plusieurs secteurs.</b> Selon le
+        <p className="text-[13px] leading-relaxed text-attention-dark">
+          <b className="font-extrabold text-attention-dark">Votre adresse peut relever de plusieurs secteurs.</b> Selon le
           côté de la rue ou la langue vivante choisie, plusieurs collèges sont légitimes pour votre domicile. Confirmez
           le vôtre auprès de votre rectorat.
         </p>
@@ -28,7 +28,7 @@ export function BlocMultiSecteur({ resultats }: { resultats: SecteurResultats })
       </div>
 
       <div className="mt-3 flex gap-2 px-1">
-        <span className="flex-none text-[13px] text-[#B6A488]">ⓘ</span>
+        <span className="flex-none text-[13px] text-texte-doux">ⓘ</span>
         <p className="text-[12px] leading-relaxed text-texte-doux">
           Ces résultats correspondent à l&apos;adresse que vous avez saisie{" "}
           <b className="text-texte-doux">dans la carte scolaire 2025 du Ministère</b> — c&apos;est la donnée sur

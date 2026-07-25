@@ -75,7 +75,7 @@ export function ChampAdresse({ adresseInitiale = "" }: { adresseInitiale?: strin
           focus ? "border-action" : "border-filet"
         }`}
       >
-        <span className="text-lg text-[#C9A98A]">📍</span>
+        <span className="text-lg text-texte-doux">📍</span>
         <input
           type="text"
           value={adresse}

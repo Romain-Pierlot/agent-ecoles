@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { NOM_ASSISTANT } from "@/lib/constants";
-import { GaletCamille } from "@/components/GaletCamille";
+import { GaletAgent } from "@/components/GaletAgent";
 
 const VILLES_POPULAIRES = ["Paris", "Lyon", "Marseille", "Rhône (69)", "Toulouse"];
 
@@ -42,7 +42,7 @@ export default function Page() {
             Choisir un collège,
             <br />
             on y voit{" "}
-            <span className="text-action underline decoration-wavy decoration-[#F0C8D8] decoration-4 underline-offset-[10px]">
+            <span className="text-action underline decoration-wavy decoration-action/30 decoration-4 underline-offset-[10px]">
               clair ensemble.
             </span>
           </h1>
@@ -56,8 +56,8 @@ export default function Page() {
         <div className="mx-auto grid max-w-4xl items-stretch gap-7 md:grid-cols-[1.4fr_0.8fr]">
           {/* CHAT WINDOW */}
           <div className="flex flex-col overflow-hidden rounded-[28px_22px_28px_24px] border-2 border-filet bg-white shadow-[0_18px_44px_rgba(34,59,48,0.13)]">
-            <div className="flex items-center gap-3 border-b border-filet bg-camille-pale px-5 py-4">
-              <GaletCamille taille="carte" />
+            <div className="flex items-center gap-3 border-b border-filet bg-agent-pale px-5 py-4">
+              <GaletAgent taille="carte" />
               <div className="flex-1">
                 <div className="font-titre text-[15px] font-semibold text-texte">
                   {NOM_ASSISTANT} · votre guide
@@ -74,7 +74,7 @@ export default function Page() {
                 trop loin.
               </div>
               <div className="max-w-[92%] self-start">
-                <div className="rounded-[16px_16px_16px_5px] border border-[#F1E7D3] bg-fond-carte px-4 py-3.5 text-[13.5px] leading-relaxed text-texte">
+                <div className="rounded-[16px_16px_16px_5px] border border-filet bg-fond-carte px-4 py-3.5 text-[13.5px] leading-relaxed text-texte">
                   Bien sûr ! Deux collèges publics à moins d&apos;1 km avec une chorale, qui font{" "}
                   <b>progresser</b>
                   {" "}leurs élèves au-delà de ce qu&apos;on attendrait :
@@ -92,7 +92,7 @@ export default function Page() {
                         {["Chorale", "0,8 km", "ULIS"].map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-xl bg-fond-sable px-2.5 py-0.5 text-[10.5px] font-semibold text-[#6B6250]"
+                            className="rounded-xl bg-fond-sable px-2.5 py-0.5 text-[10.5px] font-semibold text-texte-doux"
                           >
                             {tag}
                           </span>
@@ -112,7 +112,7 @@ export default function Page() {
                         {["Chorale", "1,2 km"].map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-xl bg-fond-sable px-2.5 py-0.5 text-[10.5px] font-semibold text-[#6B6250]"
+                            className="rounded-xl bg-fond-sable px-2.5 py-0.5 text-[10.5px] font-semibold text-texte-doux"
                           >
                             {tag}
                           </span>
@@ -138,10 +138,10 @@ export default function Page() {
             <div className="mt-auto border-t border-filet px-5 pb-[18px] pt-3.5">
               <Link
                 href="/assistant"
-                className="flex items-center gap-2.5 rounded-2xl border border-filet-fonce bg-fond-carte py-2 pl-4 pr-2 text-[13.5px] text-[#A8987F] hover:border-camille"
+                className="flex items-center gap-2.5 rounded-2xl border border-filet-fonce bg-fond-carte py-2 pl-4 pr-2 text-[13.5px] text-texte-doux hover:border-agent"
               >
                 <span className="flex-1">Écrivez à {NOM_ASSISTANT}…</span>
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-camille-dark text-lg font-extrabold text-white shadow-[0_4px_12px_rgba(201,125,20,0.32)]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-agent-dark text-lg font-extrabold text-white shadow-[0_4px_12px_rgba(201,125,20,0.32)]">
                   ↑
                 </span>
               </Link>
@@ -206,12 +206,12 @@ export default function Page() {
             method="get"
             className="flex min-w-[280px] flex-1 items-center gap-2.5 rounded-2xl border border-filet-fonce bg-fond-carte py-2 pl-4 pr-2"
           >
-            <span className="text-[#A8987F]">⌕</span>
+            <span className="text-texte-doux">⌕</span>
             <input
               type="text"
               name="q"
               placeholder="Ex : Lyon, Jean Moulin, 69005…"
-              className="flex-1 bg-transparent text-[13.5px] text-texte outline-none placeholder:text-[#A8987F]"
+              className="flex-1 bg-transparent text-[13.5px] text-texte outline-none placeholder:text-texte-doux/60"
             />
             <button
               type="submit"
@@ -222,7 +222,7 @@ export default function Page() {
           </form>
         </div>
         <div className="mt-3.5 flex flex-wrap items-center gap-2 pl-1">
-          <span className="text-[11.5px] font-semibold text-[#8A7B64]">Souvent recherché :</span>
+          <span className="text-[11.5px] font-semibold text-texte-doux">Souvent recherché :</span>
           {VILLES_POPULAIRES.map((ville) => (
             <Link
               key={ville}
@@ -263,7 +263,7 @@ export default function Page() {
 
       {/* ===== FOOTER ===== */}
       <div className="border-t border-filet bg-fond-sable">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 md:px-8 py-[18px] text-xs font-semibold text-[#8A7B64]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 md:px-8 py-[18px] text-xs font-semibold text-texte-doux">
           <span>Données officielles du Ministère · mises à jour chaque année</span>
           <span className="flex gap-[18px]">
             <Link href="/methodologie" className="underline hover:text-texte">

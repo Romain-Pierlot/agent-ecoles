@@ -13,7 +13,7 @@ export function BlocTrouve({ resultats }: { resultats: SecteurResultats }) {
       <CarteCollegeSecteur college={college} />
 
       <div className="mt-3 flex gap-2 px-1">
-        <span className="flex-none text-[13px] text-[#B6A488]">ⓘ</span>
+        <span className="flex-none text-[13px] text-texte-doux">ⓘ</span>
         <p className="text-[12px] leading-relaxed text-texte-doux">
           Ce résultat correspond à l&apos;adresse que vous avez saisie{" "}
           <b className="text-texte-doux">dans la carte scolaire 2025 du Ministère</b> — c&apos;est la donnée sur
