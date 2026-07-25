@@ -43,11 +43,34 @@ function BandeauVacances({ zone, prochainesVacances }: { zone: string; prochaine
   );
 }
 
+function contenuSectionSportive(sectionSport: boolean, sectionsSportives: string[]) {
+  if (sectionsSportives.length > 0 && sectionSport) {
+    return <div className="mt-2 text-[13.5px] font-bold text-texte">{sectionsSportives.join(" · ")}</div>;
+  }
+  if (sectionsSportives.length > 0 && !sectionSport) {
+    return (
+      <div className="mt-2 text-[12.5px] font-semibold text-texte-doux">
+        Information incertaine, à vérifier auprès de l&apos;établissement.
+      </div>
+    );
+  }
+  if (sectionSport) {
+    return (
+      <div className="mt-2 text-[12.5px] font-semibold text-texte-doux">
+        Section sportive présente, sport non précisé par les données officielles.
+      </div>
+    );
+  }
+  return <div className="mt-2 text-[12.5px] font-semibold text-texte-doux">Pas de section sportive.</div>;
+}
+
 function BlocLanguesEtSports({
   langues,
+  sectionSport,
   sectionsSportives,
 }: {
   langues: LanguesOffertes | null;
+  sectionSport: boolean;
   sectionsSportives: string[];
 }) {
   const groupesLangues: { label: string; valeurs: string[] }[] = langues
@@ -81,14 +104,7 @@ function BlocLanguesEtSports({
         <span className="text-[10px] font-bold uppercase tracking-wide text-texte-doux/70">
           Section sportive
         </span>
-        {sectionsSportives.length > 0 ? (
-          <div className="mt-2 text-[13.5px] font-bold text-texte">{sectionsSportives.join(" · ")}</div>
-        ) : (
-          <div className="mt-2 text-[12.5px] font-semibold text-texte-doux">
-            Aucune donnée répertoriée
-            <br />à vérifier auprès de l&apos;établissement.
-          </div>
-        )}
+        {contenuSectionSportive(sectionSport, sectionsSportives)}
       </div>
     </div>
   );
@@ -214,7 +230,7 @@ export function FicheIdentite({
           ))}
         </div>
 
-        <BlocLanguesEtSports langues={langues} sectionsSportives={sectionsSportives} />
+        <BlocLanguesEtSports langues={langues} sectionSport={identite.section_sport} sectionsSportives={sectionsSportives} />
         {zoneVacances && prochainesVacances && (
           <BandeauVacances zone={zoneVacances} prochainesVacances={prochainesVacances} />
         )}
