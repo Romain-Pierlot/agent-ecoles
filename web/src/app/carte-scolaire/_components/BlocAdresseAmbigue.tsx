@@ -11,11 +11,11 @@ export function BlocAdresseAmbigue({ suggestions }: { suggestions: SuggestionAdr
   return (
     <div className="rounded-[20px] border-[1.5px] border-[#F0D9A8] bg-white p-5.5">
       <div className="flex items-start gap-3.5">
-        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-attention font-baloo text-xl font-extrabold text-white shadow-[0_5px_13px_rgba(176,116,26,.28)]">
+        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-attention font-titre text-xl font-semibold text-white shadow-[0_5px_13px_rgba(176,116,26,.28)]">
           ?
         </span>
         <div className="flex-1">
-          <div className="font-baloo text-xl font-extrabold text-texte">
+          <div className="font-titre text-xl font-semibold text-texte">
             Votre adresse correspond à plusieurs endroits différents
           </div>
           <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#6A5A3E]">

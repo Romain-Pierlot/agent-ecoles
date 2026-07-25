@@ -15,11 +15,11 @@ export function BlocNonDeterminable({ resultats }: { resultats: SecteurResultats
         style={{ background: "linear-gradient(155deg,#FFF6E8,#FDF1F5)" }}
       >
         <div className="flex items-start gap-3.5">
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-attention font-baloo text-xl font-extrabold text-white shadow-[0_5px_13px_rgba(176,116,26,.28)]">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-attention font-titre text-xl font-semibold text-white shadow-[0_5px_13px_rgba(176,116,26,.28)]">
             ?
           </span>
           <div className="flex-1">
-            <div className="font-baloo text-xl font-extrabold text-texte">
+            <div className="font-titre text-xl font-semibold text-texte">
               Nous n&apos;avons pas pu déterminer votre collège de secteur
             </div>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#6A5A3E]">
@@ -38,7 +38,7 @@ export function BlocNonDeterminable({ resultats }: { resultats: SecteurResultats
                 href={URL_RECTORATS}
                 target="_blank"
                 rel="noopener"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-action px-4 py-2.5 text-[12.5px] font-bold text-white shadow-[0_4px_12px_rgba(217,69,122,.28)] hover:bg-action-dark"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-action px-4 py-2.5 text-[12.5px] font-bold text-white shadow-[0_4px_12px_rgba(158,58,31,.28)] hover:bg-action-dark"
               >
                 Contacter le rectorat de {academie} →
               </a>

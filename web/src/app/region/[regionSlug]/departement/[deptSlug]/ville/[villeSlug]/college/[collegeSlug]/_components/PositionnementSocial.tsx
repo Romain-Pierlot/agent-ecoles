@@ -76,7 +76,7 @@ export function PositionnementSocial({ positionnementSocial }: { positionnementS
 
   return (
     <div id="social" className="mt-4 scroll-mt-28">
-      <div className="font-baloo text-[25px] font-extrabold text-texte">Le milieu social des élèves</div>
+      <div className="font-titre text-[25px] font-semibold text-texte">Le milieu social des élèves</div>
 
       <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
         {ips_moyen != null && (
@@ -85,7 +85,7 @@ export function PositionnementSocial({ positionnementSocial }: { positionnementS
               Indice de position sociale (IPS)
               <BoutonAide texte="L'IPS résume les conditions socio-économiques et culturelles moyennes des familles des élèves, déterminées à partir de la profession des parents : plus il est élevé, plus ces conditions sont en moyenne favorables à la scolarité." />
             </div>
-            <div className="mt-1 font-baloo text-[34px] font-extrabold leading-none text-descriptif">
+            <div className="mt-1 font-ui text-[34px] font-extrabold leading-none text-descriptif">
               {ips_moyen.toFixed(0)}
             </div>
             <Jauge
@@ -105,7 +105,7 @@ export function PositionnementSocial({ positionnementSocial }: { positionnementS
               Mixité sociale
               <BoutonAide texte="L'écart-type mesure la diversité des profils sociaux au sein du collège : plus il est élevé, plus les familles des élèves sont différentes socialement (grande mixité) ; plus il est bas, plus elles se ressemblent (population homogène)." />
             </div>
-            <div className="mt-1 font-baloo text-[34px] font-extrabold leading-none text-descriptif">
+            <div className="mt-1 font-ui text-[34px] font-extrabold leading-none text-descriptif">
               {ecart_type_ips.toFixed(1)}
             </div>
             <Jauge

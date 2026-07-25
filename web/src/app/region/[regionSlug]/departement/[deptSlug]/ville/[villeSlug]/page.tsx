@@ -42,7 +42,7 @@ export default async function Page({
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">Ville</span>
-          <h1 className="mt-1 font-baloo text-[30px] font-extrabold leading-tight text-texte">
+          <h1 className="mt-1 font-titre text-[30px] font-semibold leading-tight text-texte">
             Collèges à {ville.commune}
           </h1>
           <p className="mt-1.5 text-[12.5px] text-texte-doux">
@@ -51,11 +51,11 @@ export default async function Page({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-baloo text-[22px] font-extrabold text-texte">{ville.global.nb_etablissements}</div>
+            <div className="font-ui text-[22px] font-extrabold text-texte">{ville.global.nb_etablissements}</div>
             <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Collèges</div>
           </div>
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-baloo text-[22px] font-extrabold text-positif">
+            <div className="font-ui text-[22px] font-extrabold text-positif">
               {formaterTaux(ville.global.taux_reussite_moyen)}
             </div>
             <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Réussite moyenne</div>

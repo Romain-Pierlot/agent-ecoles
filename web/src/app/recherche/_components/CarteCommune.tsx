@@ -22,7 +22,7 @@ export function CarteCommune({
         ⌂
       </span>
       <div className="min-w-0 flex-1">
-        <div className="font-baloo text-[15px] font-bold text-texte">{commune.commune}</div>
+        <div className="font-titre text-[15px] font-semibold text-texte">{commune.commune}</div>
         <div className="mt-1 text-[11.5px] font-semibold text-texte-doux">
           {commune.libelle_departement} ({commune.code_departement}) · {commune.nb_etablissements}{" "}
           {commune.nb_etablissements > 1 ? "collèges" : "collège"}

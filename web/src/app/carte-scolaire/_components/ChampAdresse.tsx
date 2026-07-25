@@ -92,7 +92,7 @@ export function ChampAdresse({ adresseInitiale = "" }: { adresseInitiale?: strin
         />
         <button
           type="submit"
-          className="whitespace-nowrap rounded-[13px] bg-action px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_4px_12px_rgba(217,69,122,.28)] hover:bg-action-dark"
+          className="whitespace-nowrap rounded-[13px] bg-action px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_4px_12px_rgba(158,58,31,.28)] hover:bg-action-dark"
         >
           Trouver mon secteur
         </button>

@@ -12,7 +12,7 @@ import { MapContainer, Marker, TileLayer } from "react-leaflet";
 const ICONE_PIN = L.divIcon({
   className: "",
   html: `<svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg">
-    <path d="M15 0C6.7 0 0 6.7 0 15c0 11.25 15 27 15 27s15-15.75 15-27C30 6.7 23.3 0 15 0z" fill="#D9457A" stroke="#A82C58" stroke-width="1.5"/>
+    <path d="M15 0C6.7 0 0 6.7 0 15c0 11.25 15 27 15 27s15-15.75 15-27C30 6.7 23.3 0 15 0z" fill="var(--color-action)" stroke="var(--color-action-dark)" stroke-width="1.5"/>
     <circle cx="15" cy="15" r="6" fill="white"/>
   </svg>`,
   iconSize: [24, 34],

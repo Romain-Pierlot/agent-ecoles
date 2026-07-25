@@ -7,7 +7,7 @@ function CarteVa({ titre, attendu, obtenu, unite }: { titre: string; attendu: nu
   return (
     <div className="rounded-2xl border border-[color:var(--color-positif-pale)] bg-white p-[18px_20px]">
       <div className="text-[13px] font-bold text-texte">{titre}</div>
-      <div className={`mt-1.5 font-baloo text-[34px] font-extrabold leading-none ${positif ? "text-positif" : "text-attention"}`}>
+      <div className={`mt-1.5 font-ui text-[34px] font-extrabold leading-none ${positif ? "text-positif" : "text-attention"}`}>
         {positif ? "+" : ""}
         {ecart.toFixed(1)}
         {unite === "pts" ? " pts" : ""}
@@ -32,7 +32,7 @@ function CarteVa({ titre, attendu, obtenu, unite }: { titre: string; attendu: nu
 export function ValeurAjoutee({ valeurAjoutee }: { valeurAjoutee: ValeurAjouteeDetail | null }) {
   return (
     <div className="mt-4 rounded-[22px] border-2 border-[color:var(--color-positif-pale)] bg-fond-carte p-6">
-      <div className="font-baloo text-[25px] font-extrabold text-texte">La valeur ajoutée</div>
+      <div className="font-titre text-[25px] font-semibold text-texte">La valeur ajoutée</div>
       <p className="mt-1 max-w-[660px] text-[12.5px] leading-relaxed text-texte-doux">
         On compare les résultats obtenus à ceux attendus compte tenu du profil des élèves. Un écart positif = le
         collège fait progresser ses élèves au-delà des prévisions.

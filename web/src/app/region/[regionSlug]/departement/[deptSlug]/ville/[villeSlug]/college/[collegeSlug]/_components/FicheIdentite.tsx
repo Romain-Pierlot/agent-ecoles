@@ -3,16 +3,11 @@ import type { EtablissementIdentite, LanguesOffertes, ProchainesVacances } from 
 import { slugifier } from "@/lib/slug";
 import { NOM_ASSISTANT } from "@/lib/constants";
 import { deriveBadgesDispositifs } from "@/lib/dispositifs";
+import { classeStatutSecteur, classeBadgeDispositif } from "@/lib/tokens";
+import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
 import { BoutonAide } from "@/components/BoutonAide";
 import { CarteLocalisation } from "@/components/CarteLocalisation";
-
-const NOTATION_CLASSES: Record<string, string> = {
-  "A+": "bg-notation-a-plus",
-  "A": "bg-notation-a",
-  "A-": "bg-notation-a-moins",
-  "B+": "bg-notation-b-plus",
-  "B": "bg-notation-b",
-};
+import { AgentBlock } from "@/components/AgentBlock";
 
 // L'URL complète (avec chemin) peut dépasser 40 caractères sur 62% des
 // établissements qui renseignent un site web — affichée telle quelle, elle
@@ -36,7 +31,7 @@ function formaterDate(iso: string): string {
 function BandeauVacances({ zone, prochainesVacances }: { zone: string; prochainesVacances: ProchainesVacances }) {
   return (
     <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-filet bg-fond-carte px-3.5 py-2.5">
-      <span className="font-baloo text-xl">🗓️</span>
+      <span className="text-xl">🗓️</span>
       <p className="text-[12.5px] leading-snug text-texte-doux">
         <b className="text-texte">
           Prochaines vacances (Zone {zone})
@@ -115,7 +110,7 @@ export function FicheIdentite({
   const badges = deriveBadgesDispositifs(identite);
 
   const coordonnees: { label: string; valeur: string; classe?: string; lien?: string }[] = [
-    { label: "Identifiant UAI", valeur: identite.uai, classe: "font-jetbrains" },
+    { label: "Identifiant UAI", valeur: identite.uai, classe: "font-mono" },
   ];
   if (identite.telephone) coordonnees.push({ label: "Téléphone", valeur: identite.telephone });
   if (identite.mail) coordonnees.push({ label: "Courriel", valeur: identite.mail, classe: "text-positif" });
@@ -144,12 +139,12 @@ export function FicheIdentite({
         <div className="flex items-start justify-between gap-4.5">
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-2">
-              <span className="rounded-full bg-positif-pale px-3 py-1 text-[11px] font-bold text-positif">
+              <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${classeStatutSecteur(identite.secteur)}`}>
                 {identite.type_etablissement} {identite.secteur.toLowerCase()}
               </span>
               <span className="text-[12.5px] font-semibold text-texte-doux">{identite.commune}</span>
             </div>
-            <h1 className="font-baloo text-[34px] font-extrabold leading-[1.05] text-texte">{identite.nom}</h1>
+            <h1 className="font-titre text-[34px] font-semibold leading-[1.05] text-texte">{identite.nom}</h1>
             {identite.adresse && (
               <p className="mt-2 text-[13.5px] text-texte-doux">
                 {identite.adresse}
@@ -161,11 +156,17 @@ export function FicheIdentite({
           {identite.notation && (
             <div className="flex-none text-center">
               <div
-                className={`flex h-20 w-20 -rotate-3 items-center justify-center rounded-[24px_20px_24px_22px] shadow-lg ${
-                  NOTATION_CLASSES[identite.notation] ?? "bg-descriptif"
-                }`}
+                className="flex h-[74px] w-[74px] items-center justify-center rounded-[18px]"
+                style={
+                  NOTATION_GRADIENTS[identite.notation]
+                    ? {
+                        backgroundImage: NOTATION_GRADIENTS[identite.notation].fond,
+                        boxShadow: NOTATION_GRADIENTS[identite.notation].ombre,
+                      }
+                    : { backgroundColor: "var(--color-descriptif)" }
+                }
               >
-                <span className="font-baloo text-4xl font-extrabold text-white">{identite.notation}</span>
+                <span className="font-notation text-[34px] font-bold text-white">{identite.notation}</span>
               </div>
               <div className="mt-2 flex items-center justify-center text-[9.5px] font-bold uppercase tracking-wide text-texte-doux/70">
                 Notation
@@ -186,10 +187,7 @@ export function FicheIdentite({
         {badges.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
             {badges.map((b) => (
-              <span
-                key={b}
-                className="rounded-xl bg-descriptif-pale px-3 py-1 text-[11.5px] font-bold text-descriptif"
-              >
+              <span key={b} className={`rounded-xl px-3 py-1 text-[11.5px] font-bold ${classeBadgeDispositif(b)}`}>
                 {b}
               </span>
             ))}
@@ -244,27 +242,11 @@ export function FicheIdentite({
         )}
 
         {/* Carte assistant (compacte) */}
-        <div className="rounded-[22px_18px_22px_20px] bg-gradient-to-br from-action to-action-dark p-4 text-white shadow-lg">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8.5 w-8.5 flex-none items-center justify-center rounded-full bg-white font-baloo text-base font-extrabold text-action">
-              C
-            </div>
-            <div className="leading-tight">
-              <div className="font-baloo text-[13.5px] font-bold">Comprendre les chiffres</div>
-              <div className="text-[10.5px] opacity-85">{NOM_ASSISTANT} · à partir des données affichées</div>
-            </div>
-          </div>
-          <p className="mt-2.5 text-[11.5px] leading-relaxed opacity-90">
-            {NOM_ASSISTANT} explique et nuance les indicateurs de cette page en s&apos;appuyant sur les sources
-            officielles de l&apos;Éducation nationale.
-          </p>
-          <Link
-            href="/assistant"
-            className="mt-2.5 block rounded-xl bg-white py-2.5 text-center font-baloo text-[12.5px] font-extrabold text-action-dark"
-          >
-            Interroger {NOM_ASSISTANT} →
-          </Link>
-        </div>
+        <AgentBlock
+          exemple="Expliquez-moi ces chiffres"
+          titre="Comprendre les chiffres"
+          sousTitre={`${NOM_ASSISTANT} · à partir des données affichées`}
+        />
       </div>
     </div>
   );

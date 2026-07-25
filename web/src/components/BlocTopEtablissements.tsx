@@ -23,7 +23,7 @@ function BadgeNotation({ notation }: { notation: string | null }) {
   const gradient = notation ? NOTATION_GRADIENTS[notation] : null;
   return (
     <span
-      className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] font-baloo text-[11.5px] font-extrabold text-white"
+      className="flex h-7 w-7 flex-none items-center justify-center rounded-[9px] font-notation text-[11.5px] font-extrabold text-white"
       style={gradient ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre } : { backgroundColor: "var(--color-descriptif)" }}
     >
       {notation ?? "—"}
@@ -35,7 +35,7 @@ function BadgeVa({ valeur }: { valeur: number }) {
   const positif = valeur >= 0;
   return (
     <span
-      className={`flex h-7 w-7 flex-none items-center justify-center rounded-[9px] font-baloo text-[10.5px] font-extrabold text-white ${
+      className={`flex h-7 w-7 flex-none items-center justify-center rounded-[9px] font-ui text-[10.5px] font-extrabold text-white ${
         positif ? "bg-positif" : "bg-attention"
       }`}
     >

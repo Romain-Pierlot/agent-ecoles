@@ -7,17 +7,14 @@ import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugCollege } from "@/lib/slug";
 import { hrefBaseVille } from "@/lib/hrefsGeo";
 import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
-import { classeStatutSecteur } from "@/lib/tokens";
+import { classeStatutSecteur, classeBadgeDispositif } from "@/lib/tokens";
 
-// Carte "collège de secteur" — visuellement distincte de CarteCollege
-// (fond dégradé framboise, bordure 2px, badge ★), utilisée pour le collège
-// de rattachement mis en avant sur la page dédiée. Contrairement à
-// CarteCollege (liste "alentours" et /recherche), applique la règle des
-// tags harmonisés avec troncature "+N" (documentée dans
-// docs/Design_system/recherche/README.md, jamais implémentée jusqu'ici) —
-// nouvelle sur cette page uniquement, /recherche non touché (cf. décision
-// produit : gain marginal à rattraper là-bas, risque de régression visuelle
-// non justifié pour cette tâche).
+// Carte "collège de secteur" — même anatomie que CarteCollege (ligne
+// entièrement cliquable : infos à gauche, distance, tuile de notation,
+// chevron), seul l'habillage la distingue : fond dégradé pêche, bordure,
+// badge ★ au-dessus du nom (cf. maquette de référence, tour 12 : "même
+// anatomie que les voisines" — pas de bouton CTA séparé, pas de légende
+// "notation" sous la pastille).
 const MAX_TAGS_VISIBLES = 2;
 
 export function CarteCollegeSecteur({
@@ -40,81 +37,74 @@ export function CarteCollegeSecteur({
   const classeStatut = classeStatutSecteur(college.secteur);
 
   return (
-    <div
-      className="rounded-[20px] border-2 p-4"
+    <Link
+      href={`${hrefBase}/college/${construireSlugCollege(college.nom, college.uai)}`}
+      className="flex items-center gap-3.5 rounded-[14px] border-[1.5px] p-3.5 transition-colors"
       style={{
-        background: "linear-gradient(160deg,#FFFFFF 55%,#FDEFF4)",
-        borderColor: "#E9A9C0",
-        boxShadow: "0 12px 30px rgba(168,44,88,.13)",
+        background: "linear-gradient(150deg,#FCEBD8,#F9DEE4)",
+        borderColor: "#E7B0A0",
+        boxShadow: "0 12px 28px rgba(191,74,42,.16)",
       }}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2.5">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full bg-action px-3 py-1 text-[11.5px] font-extrabold text-white"
-          style={{ boxShadow: "0 4px 11px rgba(168,44,88,.28)" }}
-        >
-          ★ Collège de secteur
-        </span>
-        {rang !== undefined && totalRang !== undefined && (
-          <span className="text-[12px] font-bold text-texte-doux">
-            Rattachement possible · {rang} sur {totalRang}
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="min-w-[170px] flex-1">
-          <div className="font-baloo text-xl font-bold text-texte">{college.nom}</div>
-          <div className="mt-0.5 text-[12.5px] font-semibold text-texte-doux">
-            {college.secteur} · {college.commune} · {college.libelle_departement} ({college.code_departement})
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className={`rounded-[7px] px-2 py-0.5 text-[10.5px] font-bold ${classeStatut}`}>
-              {college.secteur}
-            </span>
-            {visibles.map((b) => (
-              <span key={b} className="rounded-[7px] bg-fond-sable px-2 py-0.5 text-[10.5px] font-bold text-texte-doux">
-                {b}
-              </span>
-            ))}
-            {reste > 0 && (
-              <button
-                type="button"
-                onClick={() => setDeplie((v) => !v)}
-                className="rounded-[7px] bg-fond-sable px-2 py-0.5 text-[10.5px] font-bold text-texte-doux hover:bg-filet-fonce"
-              >
-                {deplie ? "− réduire" : `+${reste}`}
-              </button>
-            )}
-          </div>
-        </div>
-
-        <span className="flex flex-none items-center gap-1 rounded-[9px] bg-distance-pale px-2.5 py-1.5 text-[11.5px] font-bold text-distance">
-          📍 {college.distance_km.toFixed(1).replace(".", ",")} km
-        </span>
-
-        <div className="flex-none text-center">
-          <div
-            className="inline-flex min-w-[40px] items-center justify-center rounded-[11px] px-3 py-1.5 font-baloo text-[17px] font-extrabold text-white"
-            style={
-              gradient
-                ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }
-                : { backgroundColor: "var(--color-descriptif)" }
-            }
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-action px-3 py-1 text-[10px] font-extrabold text-white"
+            style={{ boxShadow: "0 3px 9px rgba(191,74,42,.26)" }}
           >
-            {college.notation ?? "—"}
-          </div>
-          <div className="mt-1 text-[9px] font-semibold text-texte-doux">notation</div>
+            ★ Collège de secteur
+          </span>
+          {rang !== undefined && totalRang !== undefined && (
+            <span className="text-[12px] font-bold text-texte-doux">
+              Rattachement possible · {rang} sur {totalRang}
+            </span>
+          )}
         </div>
-
-        <Link
-          href={`${hrefBase}/college/${construireSlugCollege(college.nom, college.uai)}`}
-          className="flex-none rounded-xl bg-action px-4 py-2.5 text-[12.5px] font-bold text-white hover:bg-action-dark"
-          style={{ boxShadow: "0 4px 12px rgba(217,69,122,.28)" }}
-        >
-          Voir le collège →
-        </Link>
+        <div className="font-titre text-[17px] font-semibold text-texte">{college.nom}</div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="font-ui text-[12px] font-semibold text-texte-doux">
+            {college.commune} · {college.libelle_departement} ({college.code_departement})
+          </span>
+          <span className={`rounded-[6px] px-2 py-0.5 font-ui text-[10.5px] font-bold ${classeStatut}`}>
+            {college.secteur}
+          </span>
+          {visibles.map((b) => (
+            <span key={b} className={`rounded-[6px] px-2 py-0.5 font-ui text-[10.5px] font-bold ${classeBadgeDispositif(b)}`}>
+              {b}
+            </span>
+          ))}
+          {reste > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDeplie((v) => !v);
+              }}
+              className="rounded-[6px] bg-fond-sable px-2 py-0.5 font-ui text-[10.5px] font-bold text-texte-doux hover:bg-filet-fonce"
+            >
+              {deplie ? "− réduire" : `+${reste}`}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+
+      <span className="flex flex-none items-center gap-1 rounded-[9px] bg-distance-pale px-2.5 py-1.5 font-ui text-[11.5px] font-bold text-distance">
+        📍 {college.distance_km.toFixed(1).replace(".", ",")} km
+      </span>
+
+      <span
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] font-notation text-[20px] font-bold text-white"
+        style={
+          gradient
+            ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }
+            : { backgroundColor: "var(--color-descriptif)" }
+        }
+      >
+        {college.notation ?? "—"}
+      </span>
+
+      <span className="flex-none text-[15px] text-filet-fonce">›</span>
+    </Link>
   );
 }

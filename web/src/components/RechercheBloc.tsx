@@ -133,7 +133,7 @@ export function RechercheBloc({
                         </div>
                       </div>
                       <span
-                        className="flex h-8 w-8 flex-none items-center justify-center rounded-lg font-baloo text-[11px] font-extrabold text-white"
+                        className="flex h-8 w-8 flex-none items-center justify-center rounded-lg font-notation text-[11px] font-extrabold text-white"
                         style={
                           gradient
                             ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }

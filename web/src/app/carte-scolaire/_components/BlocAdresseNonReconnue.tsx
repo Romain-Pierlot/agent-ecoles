@@ -3,10 +3,10 @@ const EXEMPLES = ["12 rue des Farges, 69005 Lyon", "Villeurbanne"];
 export function BlocAdresseNonReconnue({ adresse }: { adresse: string }) {
   return (
     <div className="mx-auto max-w-lg rounded-[20px] border-[1.5px] border-filet bg-white p-8.5 text-center">
-      <span className="inline-flex h-12.5 w-12.5 items-center justify-center rounded-2xl bg-fond-sable font-baloo text-2xl font-extrabold text-texte-doux">
+      <span className="inline-flex h-12.5 w-12.5 items-center justify-center rounded-2xl bg-fond-sable font-titre text-2xl font-semibold text-texte-doux">
         ✕
       </span>
-      <div className="mt-3.5 font-baloo text-xl font-extrabold text-texte">Adresse non reconnue</div>
+      <div className="mt-3.5 font-titre text-xl font-semibold text-texte">Adresse non reconnue</div>
       <p className="mt-2 text-[13.5px] leading-relaxed text-texte-doux">
         Nous n&apos;avons pas trouvé « {adresse} ». Vérifiez l&apos;orthographe et ajoutez la ville ou le code postal —
         par exemple <span className="font-bold text-action-dark">12 rue des Farges, 69005 Lyon</span>.

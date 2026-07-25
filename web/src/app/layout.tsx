@@ -1,41 +1,33 @@
+// Remplacement de src/app/layout.tsx — chargement des polices de la refonte.
+// Newsreader (sérif éditorial) + Hanken Grotesk (UI + chiffres) + Schibsted
+// Grotesk (lettre de notation). Baloo / Figtree / Caveat / Geist retirés
+// (Caveat = plus aucun manuscrit dans la refonte). Si des composants pas
+// encore migrés lisent encore --font-baloo & co, les alias transitionnels
+// de globals.css les font pointer vers les nouvelles polices.
+
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Geist, Geist_Mono, Baloo_2, Figtree, Caveat, JetBrains_Mono } from "next/font/google";
+import { Newsreader, Hanken_Grotesk, Schibsted_Grotesk } from "next/font/google";
 import { TopBar } from "@/components/TopBar";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const baloo2 = Baloo_2({
-  variable: "--font-baloo-2",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-});
-
-const figtree = Figtree({
-  variable: "--font-figtree-sans",
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
 
-const caveat = Caveat({
-  variable: "--font-caveat-hand",
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-schibsted",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -51,7 +43,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} ${baloo2.variable} ${figtree.variable} ${caveat.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${hanken.variable} ${schibsted.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <TopBar />

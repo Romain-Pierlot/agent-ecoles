@@ -31,7 +31,7 @@ export default async function Page({
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-20 text-center md:px-8">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">Recherche</span>
-        <h1 className="mt-1 font-baloo text-[26px] font-extrabold leading-tight text-texte">
+        <h1 className="mt-1 font-titre text-[26px] font-semibold leading-tight text-texte">
           Chercher un collège
         </h1>
         <RechercheBloc />
@@ -86,7 +86,7 @@ export default async function Page({
       {/* ===== HERO ===== */}
       <div className="pt-3.5">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">Recherche</span>
-        <h1 className="mt-1 font-baloo text-[26px] font-extrabold leading-tight text-texte">
+        <h1 className="mt-1 font-titre text-[26px] font-semibold leading-tight text-texte">
           Résultats pour « {query} »
         </h1>
         <p className="mt-1.5 text-[12.5px] text-texte-doux">

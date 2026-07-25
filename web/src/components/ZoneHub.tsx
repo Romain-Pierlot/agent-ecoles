@@ -61,15 +61,15 @@ export function ZoneHub({
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0">
           <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">{eyebrow}</span>
-          <h1 className="mt-1 font-baloo text-[30px] font-extrabold leading-tight text-texte">{titre}</h1>
+          <h1 className="mt-1 font-titre text-[30px] font-semibold leading-tight text-texte">{titre}</h1>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-baloo text-[22px] font-extrabold text-texte">{global.nb_etablissements}</div>
+            <div className="font-ui text-[22px] font-extrabold text-texte">{global.nb_etablissements}</div>
             <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Collèges</div>
           </div>
           <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-baloo text-[22px] font-extrabold text-positif">
+            <div className="font-ui text-[22px] font-extrabold text-positif">
               {global.taux_reussite_moyen !== null ? `${global.taux_reussite_moyen.toFixed(0)} %` : "—"}
             </div>
             <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Réussite moyenne</div>
@@ -108,7 +108,7 @@ export function ZoneHub({
           de colonne du tableau ("Département") reste : son rôle est de nommer
           une colonne, pas d'annoncer la section. */}
       <div className="mt-7">
-        <h2 className="font-baloo text-[19px] font-extrabold text-texte">{sousTitre}</h2>
+        <h2 className="font-titre text-[19px] font-semibold text-texte">{sousTitre}</h2>
         <SousDivisionsTable
           labelColonne={labelColonneSousDivision}
           sousDivisions={sousDivisions}

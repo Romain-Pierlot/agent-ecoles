@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { NOM_ASSISTANT } from "@/lib/constants";
+import { GaletCamille } from "@/components/GaletCamille";
 
 const VILLES_POPULAIRES = ["Paris", "Lyon", "Marseille", "Rhône (69)", "Toulouse"];
 
@@ -30,14 +31,14 @@ const CARTES_COMPRENDRE = [
 
 export default function Page() {
   return (
-    <div className="bg-fond-creme text-texte font-figtree min-h-screen">
+    <div className="bg-fond-creme text-texte min-h-screen">
       {/* ===== HERO ===== */}
       <div className="mx-auto max-w-6xl px-4 md:px-8 pb-5 pt-8">
         <div className="mx-auto mb-9 max-w-xl text-center">
-          <span className="inline-block -rotate-1 rounded-2xl border border-dashed border-[#EDA9C2] bg-action-pale px-4 py-1.5 text-xs font-bold text-action-dark">
+          <span className="inline-block -rotate-1 rounded-2xl border border-dashed border-action/40 bg-action-pale px-4 py-1.5 text-xs font-bold text-action-dark">
             Pensé par des parents, pas par un algorithme
           </span>
-          <h1 className="mt-4 font-baloo text-[clamp(38px,5vw,54px)] font-extrabold leading-[1.05] text-texte">
+          <h1 className="mt-4 font-titre text-[clamp(38px,5vw,54px)] font-semibold leading-[1.05] text-texte">
             Choisir un collège,
             <br />
             on y voit{" "}
@@ -55,12 +56,10 @@ export default function Page() {
         <div className="mx-auto grid max-w-4xl items-stretch gap-7 md:grid-cols-[1.4fr_0.8fr]">
           {/* CHAT WINDOW */}
           <div className="flex flex-col overflow-hidden rounded-[28px_22px_28px_24px] border-2 border-filet bg-white shadow-[0_18px_44px_rgba(34,59,48,0.13)]">
-            <div className="flex items-center gap-3 border-b border-[#F1EADA] bg-[#FDEFF4] px-5 py-4">
-              <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-action font-baloo text-lg font-extrabold text-white">
-                {NOM_ASSISTANT.charAt(0)}
-              </div>
+            <div className="flex items-center gap-3 border-b border-filet bg-camille-pale px-5 py-4">
+              <GaletCamille taille="carte" />
               <div className="flex-1">
-                <div className="font-baloo text-[15px] font-bold text-texte">
+                <div className="font-titre text-[15px] font-semibold text-texte">
                   {NOM_ASSISTANT} · votre guide
                 </div>
                 <div className="text-[11.5px] font-semibold text-positif">
@@ -70,7 +69,7 @@ export default function Page() {
             </div>
 
             <div className="flex flex-col gap-3 p-5">
-              <div className="max-w-[74%] self-end rounded-[16px_16px_5px_16px] bg-action-pale px-[15px] py-3 text-[13.5px] leading-relaxed text-[#8A2350]">
+              <div className="max-w-[74%] self-end rounded-[16px_16px_5px_16px] bg-action-pale px-[15px] py-3 text-[13.5px] leading-relaxed text-action-dark">
                 Ma fille entre en 6ᵉ à Lyon 5ᵉ. J&apos;aimerais un collège avec une chorale, et pas
                 trop loin.
               </div>
@@ -82,7 +81,7 @@ export default function Page() {
                   <div className="mt-3 flex flex-col gap-2">
                     <div className="rounded-[15px_13px_16px_12px] border border-filet bg-white p-3 shadow-sm">
                       <div className="flex items-center justify-between">
-                        <span className="font-baloo text-sm font-bold text-texte">
+                        <span className="font-titre text-sm font-semibold text-texte">
                           Collège Jean Moulin
                         </span>
                         <span className="rounded-xl bg-positif-pale px-2.5 py-0.5 text-[10.5px] font-bold text-positif">
@@ -102,7 +101,7 @@ export default function Page() {
                     </div>
                     <div className="rounded-[14px_16px_12px_15px] border border-filet bg-white p-3 shadow-sm">
                       <div className="flex items-center justify-between">
-                        <span className="font-baloo text-sm font-bold text-texte">
+                        <span className="font-titre text-sm font-semibold text-texte">
                           Collège des Battières
                         </span>
                         <span className="rounded-xl bg-positif-pale px-2.5 py-0.5 text-[10.5px] font-bold text-positif">
@@ -136,13 +135,13 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="mt-auto border-t border-[#F1EADA] px-5 pb-[18px] pt-3.5">
+            <div className="mt-auto border-t border-filet px-5 pb-[18px] pt-3.5">
               <Link
                 href="/assistant"
-                className="flex items-center gap-2.5 rounded-2xl border border-filet-fonce bg-fond-carte py-2 pl-4 pr-2 text-[13.5px] text-[#A8987F] hover:border-action"
+                className="flex items-center gap-2.5 rounded-2xl border border-filet-fonce bg-fond-carte py-2 pl-4 pr-2 text-[13.5px] text-[#A8987F] hover:border-camille"
               >
                 <span className="flex-1">Écrivez à {NOM_ASSISTANT}…</span>
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-action font-baloo text-lg font-extrabold text-white shadow-[0_4px_12px_rgba(217,69,122,0.32)]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-camille-dark text-lg font-extrabold text-white shadow-[0_4px_12px_rgba(201,125,20,0.32)]">
                   ↑
                 </span>
               </Link>
@@ -172,7 +171,7 @@ export default function Page() {
               />
             </div>
             <div className="absolute left-[-12px] top-9 z-10 -rotate-3 rounded-[14px_12px_15px_11px] bg-white px-3.5 py-2.5 shadow-[0_6px_16px_rgba(34,59,48,0.14)]">
-              <div className="font-baloo text-base font-extrabold text-action">9 143</div>
+              <div className="font-ui text-base font-extrabold text-action">9 143</div>
               <div className="text-[10px] font-semibold text-texte-doux">collèges, en clair</div>
             </div>
             <div className="absolute bottom-6 right-[-6px] z-10 h-[100px] w-[100px] overflow-hidden rounded-full border-4 border-fond-creme shadow-[0_6px_16px_rgba(34,59,48,0.16)]">
@@ -184,7 +183,7 @@ export default function Page() {
                 sizes="100px"
               />
             </div>
-            <div className="absolute bottom-[-6px] left-0 rotate-[-3deg] font-caveat text-lg font-semibold text-accent">
+            <div className="absolute bottom-[-6px] left-0 rotate-[-3deg] font-titre italic text-lg font-medium text-accent">
               Plus qu&apos;un agent, un guide ✿
             </div>
           </div>
@@ -195,7 +194,7 @@ export default function Page() {
       <div className="mx-auto max-w-4xl px-4 md:px-8 pb-4 pt-8">
         <div className="flex flex-wrap items-center gap-6 rounded-[22px_18px_22px_20px] border border-filet bg-white p-6">
           <div className="flex-none">
-            <div className="font-baloo text-lg font-extrabold text-texte">
+            <div className="font-titre text-lg font-semibold text-texte">
               Vous savez déjà où chercher ?
             </div>
             <div className="mt-0.5 text-[13px] text-texte-doux">
@@ -239,10 +238,10 @@ export default function Page() {
       {/* ===== COMPRENDRE ===== */}
       <div className="mx-auto max-w-4xl px-4 md:px-8 pb-10 pt-6">
         <div className="mb-4 flex items-baseline gap-2.5">
-          <div className="font-baloo text-[22px] font-extrabold text-texte">
+          <div className="font-titre text-[22px] font-semibold text-texte">
             Comprendre, sans jargon
           </div>
-          <div className="-rotate-2 font-caveat text-lg font-semibold text-accent">
+          <div className="-rotate-2 font-titre italic text-lg font-medium text-accent">
             promis, c&apos;est simple
           </div>
         </div>
@@ -253,7 +252,7 @@ export default function Page() {
               href={`/comprendre/${carte.slug}`}
               className={`rounded-[18px_15px_18px_14px] p-[18px] ${carte.fondClass} hover:opacity-90`}
             >
-              <div className={`font-baloo mb-1.5 text-[15px] font-bold ${carte.texteClass}`}>
+              <div className={`font-titre mb-1.5 text-[15px] font-semibold ${carte.texteClass}`}>
                 {carte.titre}
               </div>
               <div className="text-[12.5px] leading-normal text-texte-doux">{carte.texte}</div>

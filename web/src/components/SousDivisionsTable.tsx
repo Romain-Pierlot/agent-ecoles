@@ -92,10 +92,10 @@ export function SousDivisionsTable({
               {sd.libelle}
               {afficherCode ? ` (${sd.code})` : ""}
             </span>
-            <span className="text-right font-baloo text-[13px] font-bold text-texte">
+            <span className="text-right font-ui text-[13px] font-bold text-texte">
               {sd.nb_etablissements}
             </span>
-            <span className="text-right font-baloo text-[14px] font-bold text-texte">
+            <span className="text-right font-ui text-[14px] font-bold text-texte">
               {formaterTaux(sd.taux_reussite_moyen)}
             </span>
             <span className="text-right text-[14px] text-filet-fonce">›</span>

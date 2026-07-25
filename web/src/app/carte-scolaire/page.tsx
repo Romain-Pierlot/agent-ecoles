@@ -70,10 +70,10 @@ export default async function Page({
   return (
     <div className="min-h-full flex-1 bg-fond-creme">
       <div className="mx-auto max-w-2xl px-4 pb-1.5 pt-8 text-center md:px-8">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#CDE3D4] bg-[#EEF4EF] px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-[#227049]">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-statut-public/30 bg-statut-public-pale px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-statut-public">
           Carte scolaire officielle du Ministère
         </span>
-        <h1 className="mt-3.5 font-baloo text-[31px] font-extrabold leading-tight text-texte">
+        <h1 className="mt-3.5 font-titre text-[31px] font-semibold leading-tight text-texte">
           Quel est mon collège de secteur ?
         </h1>
         <p className="mx-auto mt-2 max-w-md text-[14.5px] leading-relaxed text-texte-doux">
@@ -87,7 +87,7 @@ export default async function Page({
             useState(adresseInitiale) ne se réexécute qu'au premier montage
             et le champ garde l'ancien texte tapé après la résolution. */}
         <ChampAdresse key={adresse} adresseInitiale={adresse} />
-        <p className="mx-auto mt-2.5 max-w-md text-[12px] leading-relaxed text-[#A8987F]">
+        <p className="mx-auto mt-2.5 max-w-md text-[12px] leading-relaxed text-texte-doux">
           Le rattachement dépend de l&apos;adresse exacte. Il n&apos;est pas toujours déterminable au numéro près
           dans les données officielles — dans ce cas nous vous l&apos;indiquons clairement.
         </p>

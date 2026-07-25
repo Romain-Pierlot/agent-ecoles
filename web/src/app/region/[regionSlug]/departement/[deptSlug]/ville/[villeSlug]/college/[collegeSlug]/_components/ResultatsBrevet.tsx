@@ -31,14 +31,14 @@ function DonutMentions({ brevet }: { brevet: BrevetResultats }) {
 
   return (
     <div className="rounded-[22px] border-2 border-filet bg-white p-[22px_24px]">
-      <div className="mb-3.5 font-baloo text-[15px] font-bold text-texte">Répartition des mentions</div>
+      <div className="mb-3.5 font-titre text-[15px] font-semibold text-texte">Répartition des mentions</div>
       <div className="flex items-center gap-[22px]">
         <div
           className="relative h-[132px] w-[132px] flex-none rounded-full"
           style={{ background: `conic-gradient(${segments.join(", ")})` }}
         >
           <div className="absolute inset-[26px] flex flex-col items-center justify-center rounded-full bg-white">
-            <div className="font-baloo text-[22px] font-extrabold text-texte">{total}</div>
+            <div className="font-ui text-[22px] font-extrabold text-texte">{total}</div>
             <div className="text-[9.5px] font-semibold text-texte-doux">candidats</div>
           </div>
         </div>
@@ -71,7 +71,7 @@ function EvolutionTaux({ evolution }: { evolution: EvolutionPoint[] }) {
   return (
     <div className="rounded-[22px] border-2 border-filet bg-white p-[22px_24px]">
       <div className="mb-2 flex items-baseline justify-between">
-        <div className="font-baloo text-[15px] font-bold text-texte">Évolution du taux de réussite</div>
+        <div className="font-titre text-[15px] font-semibold text-texte">Évolution du taux de réussite</div>
         <div className="text-[11px] font-semibold text-texte-doux">
           {points[0].session} → {points[points.length - 1].session}
         </div>
@@ -130,13 +130,13 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
       <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-action">
         Diplôme national du brevet · session {brevet.session}
       </div>
-      <h2 className="font-baloo text-[25px] font-extrabold text-texte">Les résultats au brevet</h2>
+      <h2 className="font-titre text-[25px] font-semibold text-texte">Les résultats au brevet</h2>
 
       <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
         <div className="rounded-[18px] border-2 border-filet bg-white p-[18px_20px]">
           <div className="text-[13.5px] font-bold text-texte">Taux de réussite au brevet</div>
           <div
-            className={`mt-1.5 font-baloo text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentTaux]}`}
+            className={`mt-1.5 font-ui text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentTaux]}`}
           >
             {brevet.brevet_taux_reussite_general ?? "—"}
             <span className="text-[20px]">%</span>
@@ -160,7 +160,7 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
         <div className="rounded-[18px] border-2 border-filet bg-white p-[18px_20px]">
           <div className="text-[13.5px] font-bold text-texte">Note moyenne à l&apos;écrit</div>
           <div
-            className={`mt-1.5 font-baloo text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentNoteEcrit]}`}
+            className={`mt-1.5 font-ui text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentNoteEcrit]}`}
           >
             {brevet.brevet_note_ecrit_general ?? "—"}
             <span className="text-[18px]">/20</span>
@@ -187,7 +187,7 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
             <BoutonAide texte="Part d'élèves qui poursuivent sans redoubler ni partir." />
           </div>
           <div
-            className={`mt-1.5 font-baloo text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentAcces]}`}
+            className={`mt-1.5 font-ui text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentAcces]}`}
           >
             {brevet.taux_acces_6eme_3eme ?? "—"}
             <span className="text-[20px]">%</span>

@@ -105,7 +105,7 @@ export function ResultatsRecherche({
     <>
       {afficherSectionEtablissements && (
         <div className="mt-7">
-          <h2 className="font-baloo text-[15px] font-extrabold text-texte">
+          <h2 className="font-titre text-[15px] font-semibold text-texte">
             Établissements · {formaterTitreSection(
               resultats.etablissements_total, resultats.etablissements.length, resultats.etablissements_tronques
             )}
@@ -135,7 +135,7 @@ export function ResultatsRecherche({
 
       {resultats.communes.length > 0 && (
         <div className="mt-7">
-          <h2 className="font-baloo text-[15px] font-extrabold text-texte">
+          <h2 className="font-titre text-[15px] font-semibold text-texte">
             Communes · {formaterTitreSection(
               resultats.communes_total, resultats.communes.length, resultats.communes_tronquees
             )}

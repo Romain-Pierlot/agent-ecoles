@@ -1,46 +1,56 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* =====================================================================
+   REFONTE « terracotta » — remplacement complet de src/app/globals.css
+   Rupture assumée avec l'ancien framboise (#D9457A) + Baloo/Figtree.
+   Tous les tokens sémantiques gardent LEUR NOM : les composants qui les
+   lisent (bg-action, text-positif, bg-statut-public-pale…) continuent de
+   fonctionner sans modification — seules les VALEURS changent.
+   Nouveaux rôles ajoutés en fin de bloc (badges par famille, Camille).
+   ===================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F3F0EA;   /* fond de page = sable calme (ancien #FCF4E9) */
+  --foreground: #201C17;   /* encre chaude (ancien #171717) */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 
-  /* Design system "écoles" — tokens sémantiques (docs/Design_system/design_handoff_fiche_etablissement/DESIGN_SYSTEM.md) */
-  --color-action: #D9457A;
-  --color-action-dark: #A82C58;
-  --color-action-pale: #FCE4EC;
+  /* ---- ACTION : terracotta (ancien framboise) ---- */
+  --color-action: #BF4A2A;
+  --color-action-dark: #9E3A1F;
+  --color-action-pale: #F6E4DC;
+
+  /* ---- Sémantiques data (inchangés de rôle, retouchés pour le sable) ---- */
   --color-positif: #2E8F5E;
-  --color-positif-pale: #E7F1E9;
-  --color-descriptif: #3A5A8C;
-  --color-descriptif-pale: #E9EEF6;
-  --color-attention: #F0A02E;
-  --color-attention-dark: #B0741A;
-  --color-attention-pale: #FBF4E4;
+  --color-positif-pale: #E6EFE6;
+  --color-descriptif: #33506E;      /* bleu encre (ex #3A5A8C) */
+  --color-descriptif-pale: #E5E9F4;
+  --color-attention: #C68A2E;       /* ambre (ex #F0A02E) */
+  --color-attention-dark: #9A6714;
+  --color-attention-pale: #F7E8CF;
   --color-accent: #C15A3C;
 
-  --color-fond-creme: #FCF4E9;
-  --color-fond-sable: #F1E7D6;
-  --color-fond-carte: #FBF6EC;
-  --color-texte: #223B30;
-  --color-texte-doux: #5C6A60;
-  --color-filet: #EFE1CE;
-  --color-filet-fonce: #EBD9BF;
+  /* ---- Fonds & filets (réchauffés, sans le rose) ---- */
+  --color-fond-creme: #F3F0EA;   /* page */
+  --color-fond-sable: #ECE3D2;   /* section un ton plus dense */
+  --color-fond-carte: #FFFCF6;   /* surface carte */
+  --color-texte: #201C17;
+  --color-texte-doux: #6E655A;
+  --color-filet: #E4DDCE;
+  --color-filet-fonce: #D8CDB9;
 
-  --font-baloo: var(--font-baloo-2);
-  --font-figtree: var(--font-figtree-sans);
-  --font-caveat: var(--font-caveat-hand);
-  --font-jetbrains: var(--font-jetbrains-mono);
+  /* ---- Polices (voir layout.tsx) ---- */
+  --font-titre: var(--font-newsreader);     /* sérif éditorial : titres, noms de collèges/communes, titres de section */
+  --font-ui: var(--font-hanken);            /* grotesque : corps, UI, TOUS les chiffres */
+  --font-notation: var(--font-schibsted);   /* la lettre de notation A+/A/B uniquement */
 
-  /* Nuances au-delà des 4 tokens sémantiques de base — pastille de notation
-     (A+/A/A-/B+/B) et donut des mentions au brevet. Jamais un hex en dur sur
-     une donnée : ces variables sont le point de passage obligé. */
+  /* ---- Pastille notation (A+ → B) : gradients gérés dans CarteCollege
+     (NOTATION_GRADIENTS) ; ces tokens restent pour le badge solide de la
+     fiche et le donut mentions. Valeurs inchangées. ---- */
   --color-notation-a-plus: #2E8F5E;
   --color-notation-a: #4FA772;
   --color-notation-a-moins: #7FB65E;
@@ -51,25 +61,42 @@
   --color-mention-ab: #9BCBAF;
   --color-mention-sans: #D8CBB4;
 
-  /* Statut public/privé (chip sur la carte collège, page ville) — rôle
-     distinct des 4 tokens sémantiques de base : ici on décrit un type
-     d'établissement, pas un jugement positif/négatif ni une donnée
-     positionnelle (cf. docs/Design_system/hub_departement_comparateur/README.md). */
-  --color-statut-public: #227049;
-  --color-statut-public-pale: #E7F1E9;
-  --color-statut-prive: #2C6FA6;
-  --color-statut-prive-pale: #EAF2FA;
+  /* ---- Statut Public / Privé ---- */
+  --color-statut-public: #3E7150;
+  --color-statut-public-pale: #E6EFE6;
+  --color-statut-prive: #3B4F87;         /* indigo (ex bleu #2C6FA6) */
+  --color-statut-prive-pale: #E5E9F4;
 
-  /* Badge distance (page collège de secteur) — même famille bleue que
-     statut-prive (coïncidence de la maquette), mais rôle sémantique
-     distinct ("une couleur = un rôle", cf. lib/tokens.ts) : ceci décrit une
-     distance, pas un statut d'établissement. */
-  --color-distance: #2C6FA6;
-  --color-distance-pale: #EAF2FA;
+  /* ---- NOUVEAU · Badges dispositifs/sections par famille ----
+     « une couleur = un rôle ». Consommés via classeBadgeDispositif()
+     (lib/tokens.ts). Public/Privé réutilisent les tokens statut ci-dessus. */
+  --color-badge-prioritaire: #9A6714;    /* REP / REP+ — ocre */
+  --color-badge-prioritaire-pale: #F7E8CF;
+  --color-badge-inclusion: #2C6C68;      /* ULIS / SEGPA — sarcelle */
+  --color-badge-inclusion-pale: #DBEBEA;
+  --color-badge-langue: #7C3A61;         /* section internationale / européenne — prune */
+  --color-badge-langue-pale: #EFE0EB;
+  --color-badge-option: #9C5A34;         /* section sport / arts / cinéma / théâtre — argile */
+  --color-badge-option-pale: #F2E6D6;
+
+  /* ---- Distance (carte scolaire) — DÉSORMAIS NEUTRE ----
+     Passée du bleu au gris chaud : l'ancien bleu se confondait avec le
+     tag « Privé ». Décrit une distance, pas un statut. */
+  --color-distance: #8B7D6B;
+  --color-distance-pale: #EFE7D7;
+
+  /* ---- NOUVEAU · Camille (agent) — identité apricot, à part ----
+     N'apparaît nulle part ailleurs : c'est le repère visuel de l'agent.
+     Le CTA de Camille utilise CES tokens, jamais --color-action. */
+  --color-camille: #E79A2C;
+  --color-camille-dark: #C97D14;
+  --color-camille-pale: #FBEEDA;
+  --color-camille-ink: #3A2610;          /* texte lisible sur apricot plein */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-fond-creme);
+  color: var(--color-texte);
+  font-family: var(--font-ui), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
