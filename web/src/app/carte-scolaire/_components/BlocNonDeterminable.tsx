@@ -1,5 +1,5 @@
 import type { SecteurResultats } from "@/lib/types";
-import { ListeAlentours } from "./ListeAlentours";
+import { ListeAlentours } from "@/components/ListeAlentours";
 
 const URL_RECTORATS =
   "https://www.education.gouv.fr/les-regions-academiques-academies-et-services-departementaux-de-l-education-nationale-6557";

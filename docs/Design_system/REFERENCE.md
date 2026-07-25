@@ -97,9 +97,14 @@ patron :
   ligne** qui regroupe commune/département, badge statut Public/Privé, et
   badges dispositifs — jamais deux lignes séparées (texte à gauche, tout le
   reste empilé à droite).
-- Bloc de droite, dans l'ordre : badge distance (si applicable) ou taux de
-  réussite, pastille de notation carrée (dégradé `NOTATION_GRADIENTS`,
-  `font-notation`, sans légende "notation" en dessous), chevron `›`.
+- Bloc de droite, **dans cet ordre fixe, jamais l'inverse** : badge distance
+  (si applicable) ou taux de réussite, *puis* pastille de notation carrée
+  (dégradé `NOTATION_GRADIENTS`, `font-notation`, sans légende "notation"
+  en dessous), *puis* chevron `›`. Défaut trouvé dans `CarteCollege.tsx` le
+  2026-07-25 (notation placée avant la distance, contrairement à
+  `CarteCollegeSecteur.tsx` qui suivait déjà le bon ordre) : invisible à la
+  relecture du code, seule la comparaison avec `CarteCollegeSecteur.tsx`
+  l'a révélé. Corrigé dans la même session.
 - `CarteCollegeSecteur` reprend exactement cette anatomie ; seuls le fond
   dégradé, la bordure et le badge ★ au-dessus du nom la distinguent.
 

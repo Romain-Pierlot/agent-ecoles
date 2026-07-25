@@ -9,8 +9,9 @@ import os
 from datetime import date
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from config import DB_PATH
+from config import DB_PATH, FICHE_RAYON_PROCHES_KM, FICHE_MAX_ETABLISSEMENTS_PROCHES
 from agent.tools.sql_tool import obtenir_evolution_etablissements
+from agent.tools.geo_tool import trouver_etablissements_dans_rayon, ligne_vers_college
 
 
 COLONNES_IDENTITE = """
@@ -74,6 +75,7 @@ def obtenir_fiche_etablissement(uai: str) -> dict:
                 "positionnement_social": _obtenir_positionnement_social(conn, uai),
                 "langues": _obtenir_langues(conn, uai),
                 "sections_sportives": _obtenir_sections_sportives(conn, uai),
+                "etablissements_proches": _obtenir_etablissements_proches(uai, base["latitude"], base["longitude"]),
             }
             zone, prochaines_vacances = _obtenir_zone_et_vacances(conn, base["code_academie"])
             fiche["zone_vacances"] = zone
@@ -193,6 +195,24 @@ def _obtenir_sections_sportives(conn, uai: str) -> list[str]:
         "SELECT sport FROM sections_sportives WHERE uai = ? ORDER BY sport", (uai,)
     ).fetchall()
     return [row["sport"] for row in rows]
+
+
+def _obtenir_etablissements_proches(uai: str, latitude: float | None, longitude: float | None) -> list[dict]:
+    """Les FICHE_MAX_ETABLISSEMENTS_PROCHES collèges les plus proches dans un
+    rayon de FICHE_RAYON_PROCHES_KM, hors l'établissement lui-même. Liste
+    vide (pas d'erreur) si l'établissement n'a pas de coordonnées ou si aucun
+    collège n'est dans le rayon (décision actée : pas de résultat plutôt
+    qu'un établissement trop éloigné pour être pertinent)."""
+    if latitude is None or longitude is None:
+        return []
+    rows = trouver_etablissements_dans_rayon(
+        latitude, longitude, rayon_km=FICHE_RAYON_PROCHES_KM, type_etablissement="Collège",
+    )
+    return [
+        {**ligne_vers_college(row), "distance_km": row["distance_km"]}
+        for row in rows
+        if row["uai"] != uai
+    ][:FICHE_MAX_ETABLISSEMENTS_PROCHES]
 
 
 def _obtenir_langues(conn, uai: str) -> dict | None:

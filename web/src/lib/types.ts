@@ -106,6 +106,7 @@ export type FicheEtablissement = {
   sections_sportives: string[];
   zone_vacances: string | null;
   prochaines_vacances: ProchainesVacances | null;
+  etablissements_proches: CollegeSecteurItem[];
 };
 
 // Miroir TypeScript de api/schemas.py (RegionHub, DepartementHub) —

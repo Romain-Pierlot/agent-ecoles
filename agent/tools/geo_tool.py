@@ -189,6 +189,39 @@ def trouver_etablissements_dans_rayon(latitude, longitude, rayon_km=None, type_e
         conn.close()
 
 
+def ligne_vers_college(row) -> dict:
+    """Forme commune à carte_scolaire_tool.py::trouver_college_secteur
+    (jointure carte_scolaire_troncons), à l'enrichissement de
+    trouver_etablissements_dans_rayon ci-dessus (repli "alentours" de la
+    carte scolaire, et établissements à proximité de la fiche établissement,
+    cf. etablissement_tool.py) — mêmes clés attendues par api/schemas.py::
+    CollegeSecteurItem et par web/src/lib/dispositifs.ts::deriveBadgesDispositifs
+    côté front (mêmes noms de colonnes que EntiteAvecDispositifs). Accepte
+    aussi bien un sqlite3.Row qu'un dict (les deux supportent .keys()/[])."""
+    return {
+        "uai": row["code_rne"] if "code_rne" in row.keys() else row["uai"],
+        "nom": row["nom"],
+        "commune": row["commune"],
+        "secteur": row["secteur"],
+        "libelle_region": row["libelle_region"],
+        "code_departement": row["code_departement"],
+        "libelle_departement": row["libelle_departement"],
+        "latitude": row["latitude"],
+        "longitude": row["longitude"],
+        "notation": row["notation"],
+        "badge_va": row["badge_va"],
+        "appartenance_education_prioritaire": row["appartenance_education_prioritaire"],
+        "ulis": bool(row["ulis"]),
+        "segpa": bool(row["segpa"]),
+        "section_arts": bool(row["section_arts"]),
+        "section_cinema": bool(row["section_cinema"]),
+        "section_theatre": bool(row["section_theatre"]),
+        "section_sport": bool(row["section_sport"]),
+        "section_internationale": bool(row["section_internationale"]),
+        "section_europeenne": bool(row["section_europeenne"]),
+    }
+
+
 def _normaliser_nom_commune(nom: str) -> str:
     """
     Minuscules, sans accents, tirets ET apostrophes traités comme des

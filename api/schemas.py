@@ -140,6 +140,39 @@ class ProchainesVacances(BaseModel):
     date_fin: Optional[str] = None
 
 
+class CollegeSecteurItem(BaseModel):
+    """Mêmes champs que CollegeVille/EtablissementRecherche (notation,
+    dispositifs) + la lignée géo complète (nécessaire pour construire le
+    lien vers la fiche établissement, cf. web/src/lib/hrefsGeo.ts) + une
+    distance (calculée par rapport à un point de référence : adresse
+    recherchée pour /secteur, établissement consulté pour la fiche) — pas de
+    brevet_taux_reussite_general, ces contextes affichent la distance à la
+    place. Défini ici (avant FicheEtablissement) car partagé par deux
+    endpoints : FicheEtablissement.etablissements_proches (GET
+    /etablissement/{uai}) et SecteurResultats.colleges_secteur/
+    colleges_alentours (GET /secteur) — même forme produite des deux côtés
+    par agent/tools/geo_tool.py::ligne_vers_college."""
+    uai: str
+    nom: str
+    commune: str
+    secteur: str
+    libelle_region: str
+    code_departement: str
+    libelle_departement: str
+    distance_km: float
+    notation: Optional[str] = None
+    badge_va: Optional[str] = None
+    appartenance_education_prioritaire: Optional[str] = None
+    ulis: bool
+    segpa: bool
+    section_arts: bool
+    section_cinema: bool
+    section_theatre: bool
+    section_sport: bool
+    section_internationale: bool
+    section_europeenne: bool
+
+
 class FicheEtablissement(BaseModel):
     identite: EtablissementIdentite
     brevet: Optional[BrevetResultats] = None
@@ -150,6 +183,7 @@ class FicheEtablissement(BaseModel):
     sections_sportives: list[str] = []
     zone_vacances: Optional[str] = None
     prochaines_vacances: Optional[ProchainesVacances] = None
+    etablissements_proches: list[CollegeSecteurItem] = []
 
 
 # ============================================================
@@ -340,35 +374,6 @@ class RechercheResultats(BaseModel):
 # scolaire du Ministère, collèges publics uniquement) à partir d'une
 # adresse, cf. agent/tools/carte_scolaire_tool.py.
 # ============================================================
-
-class CollegeSecteurItem(BaseModel):
-    """Mêmes champs que CollegeVille/EtablissementRecherche (notation,
-    dispositifs) + la lignée géo complète (nécessaire pour construire le
-    lien vers la fiche établissement, cf. web/src/lib/hrefsGeo.ts) + une
-    distance (calculée par rapport à l'adresse recherchée) — pas de
-    brevet_taux_reussite_general, la maquette de cette page affiche la
-    distance à la place. Même forme pour colleges_secteur et
-    colleges_alentours (cf. carte_scolaire_tool.py::_ligne_vers_college)."""
-    uai: str
-    nom: str
-    commune: str
-    secteur: str
-    libelle_region: str
-    code_departement: str
-    libelle_departement: str
-    distance_km: float
-    notation: Optional[str] = None
-    badge_va: Optional[str] = None
-    appartenance_education_prioritaire: Optional[str] = None
-    ulis: bool
-    segpa: bool
-    section_arts: bool
-    section_cinema: bool
-    section_theatre: bool
-    section_sport: bool
-    section_internationale: bool
-    section_europeenne: bool
-
 
 class SuggestionAdresse(BaseModel):
     label: str

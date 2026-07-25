@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { classeStatutSecteur, classeBadgeDispositif, sentimentReussite } from "@/lib/tokens";
+import { formaterDecimale, formaterPourcentage } from "@/lib/format";
 import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugCollege } from "@/lib/slug";
 
@@ -106,22 +107,9 @@ export function CarteCollege({
         </div>
       </div>
 
-      <span
-        className={`flex h-11 w-11 flex-none items-center justify-center rounded-[12px] font-notation text-[19px] font-bold text-white ${
-          critereTriActif === "notation" ? "ring-2 ring-action ring-offset-2 ring-offset-fond-carte" : ""
-        }`}
-        style={
-          gradient
-            ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }
-            : { backgroundColor: "var(--color-descriptif)" }
-        }
-      >
-        {college.notation ?? "—"}
-      </span>
-
       {distanceKm !== undefined ? (
         <span className="flex flex-none items-center gap-1 rounded-[9px] bg-distance-pale px-2.5 py-1.5 font-ui text-[11.5px] font-bold text-distance">
-          📍 {distanceKm.toFixed(1).replace(".", ",")} km
+          📍 {formaterDecimale(distanceKm, 1)} km
         </span>
       ) : (
         college.brevet_taux_reussite_general != null && (
@@ -135,12 +123,25 @@ export function CarteCollege({
                 sentimentTaux ? CLASSE_TEXTE_SENTIMENT[sentimentTaux] : "text-texte"
               }`}
             >
-              {college.brevet_taux_reussite_general.toFixed(0)} %
+              {formaterPourcentage(college.brevet_taux_reussite_general, 0)}
             </div>
             <div className="font-ui text-[9px] font-semibold text-texte-doux">réussite brevet</div>
           </div>
         )
       )}
+
+      <span
+        className={`flex h-11 w-11 flex-none items-center justify-center rounded-[12px] font-notation text-[19px] font-bold text-white ${
+          critereTriActif === "notation" ? "ring-2 ring-action ring-offset-2 ring-offset-fond-carte" : ""
+        }`}
+        style={
+          gradient
+            ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }
+            : { backgroundColor: "var(--color-descriptif)" }
+        }
+      >
+        {college.notation ?? "—"}
+      </span>
 
       <span className="flex-none text-[15px] text-filet-fonce">›</span>
     </Link>

@@ -7,6 +7,7 @@ import { ResultatsBrevet } from "./_components/ResultatsBrevet";
 import { ValeurAjoutee } from "./_components/ValeurAjoutee";
 import { PositionnementSocial } from "./_components/PositionnementSocial";
 import { DispositifsExpliques } from "./_components/DispositifsExpliques";
+import { ListeAlentours } from "@/components/ListeAlentours";
 
 export default async function Page({
   params,
@@ -71,6 +72,8 @@ export default async function Page({
         </div>
 
         <DispositifsExpliques identite={fiche.identite} />
+
+        <ListeAlentours colleges={fiche.etablissements_proches} titre="Établissements à proximité" />
 
         {/* ===== FOOTER ===== */}
         <div className="mt-11 flex flex-wrap items-center justify-between gap-2.5 border-t border-filet pt-5 text-[11px] font-semibold text-texte-doux">

@@ -2,9 +2,11 @@ import { CarteCollege } from "@/components/CarteCollege";
 import { hrefBaseVille } from "@/lib/hrefsGeo";
 import type { CollegeSecteurItem } from "@/lib/types";
 
-// Repli commun aux 3 états géocodés (trouvé / multi-secteur / non
-// déterminable) — collèges déjà dédupliqués contre colleges_secteur côté
-// backend (cf. agent/tools/carte_scolaire_tool.py::resoudre_secteur).
+// Bandeau partagé par la page carte scolaire (repli "alentours" des 3 états
+// géocodés, collèges déjà dédupliqués contre colleges_secteur côté backend,
+// cf. agent/tools/carte_scolaire_tool.py::resoudre_secteur) et la fiche
+// établissement (3 collèges les plus proches, cf.
+// agent/tools/etablissement_tool.py::_obtenir_etablissements_proches).
 export function ListeAlentours({
   colleges,
   titre,

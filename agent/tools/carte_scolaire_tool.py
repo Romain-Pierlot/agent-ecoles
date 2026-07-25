@@ -22,6 +22,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from config import DB_PATH, SECTEUR_RAYON_REPLI_KM, SECTEUR_MAX_COLLEGES_ALENTOURS, SECTEUR_NB_SUGGESTIONS_ADRESSE
 from agent.tools.geo_tool import (
     geocoder_suggestions, _normaliser_nom_commune, trouver_etablissements_dans_rayon, haversine,
+    ligne_vers_college,
 )
 
 _DB_ABS_PATH = os.path.join(
@@ -31,36 +32,6 @@ _DB_ABS_PATH = os.path.join(
 
 def _parite_numero(numero: int) -> str:
     return "P" if numero % 2 == 0 else "I"
-
-
-def _ligne_vers_college(row: sqlite3.Row) -> dict:
-    """Forme commune à trouver_college_secteur (jointure carte_scolaire_troncons)
-    et à l'enrichissement de trouver_etablissements_dans_rayon (repli
-    alentours) — mêmes clés attendues par api/schemas.py::CollegeSecteurItem/
-    CollegeAlentourItem et par web/src/lib/dispositifs.ts::deriveBadgesDispositifs
-    côté front (mêmes noms de colonnes que EntiteAvecDispositifs)."""
-    return {
-        "uai": row["code_rne"] if "code_rne" in row.keys() else row["uai"],
-        "nom": row["nom"],
-        "commune": row["commune"],
-        "secteur": row["secteur"],
-        "libelle_region": row["libelle_region"],
-        "code_departement": row["code_departement"],
-        "libelle_departement": row["libelle_departement"],
-        "latitude": row["latitude"],
-        "longitude": row["longitude"],
-        "notation": row["notation"],
-        "badge_va": row["badge_va"],
-        "appartenance_education_prioritaire": row["appartenance_education_prioritaire"],
-        "ulis": bool(row["ulis"]),
-        "segpa": bool(row["segpa"]),
-        "section_arts": bool(row["section_arts"]),
-        "section_cinema": bool(row["section_cinema"]),
-        "section_theatre": bool(row["section_theatre"]),
-        "section_sport": bool(row["section_sport"]),
-        "section_internationale": bool(row["section_internationale"]),
-        "section_europeenne": bool(row["section_europeenne"]),
-    }
 
 
 def _academie_pour_departement(code_departement: str | None) -> str | None:
@@ -133,7 +104,7 @@ def trouver_college_secteur(code_insee: str, numero: int, voie: str) -> dict:
         finally:
             conn.close()
 
-        colleges = [_ligne_vers_college(row) for row in rows]
+        colleges = [ligne_vers_college(row) for row in rows]
         return {"success": True, "colleges_secteur": colleges, "multi_secteur": len(colleges) > 1, "error": None}
     except Exception as e:
         return {"success": False, "colleges_secteur": [], "multi_secteur": False, "error": str(e)}
@@ -275,7 +246,7 @@ def resoudre_secteur(adresse: str) -> dict:
         rayon_km=SECTEUR_RAYON_REPLI_KM, type_etablissement="Collège",
     )
     alentours = [
-        {**_ligne_vers_college(row), "distance_km": row["distance_km"]}
+        {**ligne_vers_college(row), "distance_km": row["distance_km"]}
         for row in rows
         if row["uai"] not in uais_deja_affiches
     ][:SECTEUR_MAX_COLLEGES_ALENTOURS]

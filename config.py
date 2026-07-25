@@ -233,6 +233,14 @@ SECTEUR_RAYON_REPLI_KM = 5
 # déterminable / multi-secteur de la page dédiée).
 SECTEUR_MAX_COLLEGES_ALENTOURS = 4
 
+# --- Fiche établissement individuelle (bandeau "établissements à proximité") ---
+# Rayon volontairement identique à GEO_RAYON_DEFAUT_KM (10km) : au-delà, un
+# établissement "le plus proche" n'est plus pertinent pour un parent qui
+# compare des options de proximité réelle — pas de résultat plutôt qu'un
+# résultat éloigné et non pertinent (décision validée le 2026-07-25).
+FICHE_RAYON_PROCHES_KM = 10
+FICHE_MAX_ETABLISSEMENTS_PROCHES = 3
+
 # Nombre de suggestions d'autocomplétion adresse proposées pendant la
 # saisie (cf. agent/tools/geo_tool.py::geocoder_suggestions) — évite de
 # résoudre une adresse tapée en partie sur le seul premier résultat BAN
