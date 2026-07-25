@@ -264,8 +264,8 @@ def rechercher(
     dispositif: str = None,
     section: str = None,
     notation_min: str = None,
-    tri: str = "notation",
-    direction: str = "desc",
+    tri: str = "alphabetique",
+    direction: str = "asc",
     tri_communes: str = "alphabetique",
     direction_communes: str = "asc",
 ) -> dict:
@@ -299,8 +299,8 @@ def rechercher(
             "va_imputee", "appartenance_education_prioritaire", "ulis",
             "segpa", "section_arts", "section_cinema", "section_theatre",
             "section_sport", "section_internationale", "section_europeenne",
-            "brevet_taux_reussite_general", "libelle_region",
-            "code_departement", "libelle_departement", "commune"}],
+            "brevet_taux_reussite_general", "brevet_va_taux_reussite_general",
+            "libelle_region", "code_departement", "libelle_departement", "commune"}],
         "communes": [{"commune", "code_departement", "libelle_departement",
             "libelle_region", "nb_etablissements", "taux_reussite_moyen"}],
         "etablissements_total": int, "communes_total": int,
@@ -383,7 +383,7 @@ def rechercher(
                    e.appartenance_education_prioritaire, e.ulis, e.segpa,
                    e.section_arts, e.section_cinema, e.section_theatre,
                    e.section_sport, e.section_internationale, e.section_europeenne,
-                   v.brevet_taux_reussite_general,
+                   v.brevet_taux_reussite_general, v.brevet_va_taux_reussite_general,
                    s.notation, s.badge_va, s.va_imputee
             FROM etablissements e
             JOIN scores s ON e.uai = s.uai
@@ -409,6 +409,7 @@ def rechercher(
                 "section_internationale": bool(r["section_internationale"]),
                 "section_europeenne": bool(r["section_europeenne"]),
                 "brevet_taux_reussite_general": r["brevet_taux_reussite_general"],
+                "brevet_va_taux_reussite_general": r["brevet_va_taux_reussite_general"],
                 "libelle_region": r["libelle_region"], "code_departement": r["code_departement"],
                 "libelle_departement": r["libelle_departement"], "commune": r["commune"],
             }

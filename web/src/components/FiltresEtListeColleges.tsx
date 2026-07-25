@@ -17,7 +17,6 @@ type CritereTri = "notation" | "reussite" | "alphabetique";
 
 export function FiltresEtListeColleges({
   colleges,
-  tauxReussiteNational,
   modeServeur,
   apercu,
 }: {
@@ -35,7 +34,6 @@ export function FiltresEtListeColleges({
     libelle_departement?: string;
     code_departement?: string;
   })[];
-  tauxReussiteNational: number | null;
   // Mode serveur (page /recherche uniquement) : `colleges` est déjà filtré
   // et trié côté API (LIMIT appliqué après filtrage — cf. Phase 6, fix de
   // troncature). Ce composant ne refiltre alors plus localement : il
@@ -60,8 +58,8 @@ export function FiltresEtListeColleges({
     modeServeur?.filtresInitiaux.section ? (CLE_API_VERS_SECTION[modeServeur.filtresInitiaux.section] ?? "toutes") : "toutes"
   );
   const [notationMin, setNotationMin] = useState(modeServeur?.filtresInitiaux.notationMin ?? "toutes");
-  const [critereTri, setCritereTri] = useState<CritereTri>(modeServeur?.filtresInitiaux.tri ?? "notation");
-  const [directionTri, setDirectionTri] = useState<DirectionTri>(modeServeur?.filtresInitiaux.direction ?? "desc");
+  const [critereTri, setCritereTri] = useState<CritereTri>(modeServeur?.filtresInitiaux.tri ?? "alphabetique");
+  const [directionTri, setDirectionTri] = useState<DirectionTri>(modeServeur?.filtresInitiaux.direction ?? "asc");
   const [depliee, setDepliee] = useState(false);
 
   const optionsDispositifs = useMemo(() => {
@@ -216,11 +214,7 @@ export function FiltresEtListeColleges({
         </div>
       ) : (
         <>
-          <ListeColleges
-            colleges={resultatsAffiches}
-            tauxReussiteNational={tauxReussiteNational}
-            critereTriActif={critereTri === "alphabetique" ? undefined : critereTri}
-          />
+          <ListeColleges colleges={resultatsAffiches} />
           {nbMasques > 0 && (
             <button
               type="button"

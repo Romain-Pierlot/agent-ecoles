@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { classeStatutSecteur, classeBadgeDispositif, sentimentReussite } from "@/lib/tokens";
-import { formaterDecimale, formaterPourcentage } from "@/lib/format";
+import { classeStatutSecteur, classeBadgeDispositif } from "@/lib/tokens";
+import { formaterDecimale, formaterPourcentage, formaterEcart } from "@/lib/format";
 import { deriveBadgesDispositifs } from "@/lib/dispositifs";
 import { construireSlugCollege } from "@/lib/slug";
 
@@ -31,14 +31,15 @@ type CarteCollegeDonnees = {
   section_internationale: boolean;
   section_europeenne: boolean;
   brevet_taux_reussite_general?: number | null;
+  // Optionnels : absents sur CollegeSecteurItem (bandeau "établissements
+  // proches"/carte scolaire), qui affiche toujours une distance à la place
+  // de ce bloc (cf. le rendu conditionné par `distanceKm` plus bas) — la
+  // ligne d'écart n'est donc jamais lue dans ce contexte-là.
+  brevet_va_taux_reussite_general?: number | null;
+  va_imputee?: boolean;
   commune?: string;
   libelle_departement?: string;
   code_departement?: string;
-};
-
-const CLASSE_TEXTE_SENTIMENT: Record<string, string> = {
-  positif: "text-positif",
-  attention: "text-attention",
 };
 
 // Registre de référence légitime (cf. docs/Design_system/REFERENCE.md,
@@ -60,23 +61,14 @@ export const NOTATION_GRADIENTS: Record<string, { fond: string; ombre: string }>
 export function CarteCollege({
   college,
   hrefBase,
-  tauxReussiteNational,
-  critereTriActif,
   distanceKm,
 }: {
   college: CarteCollegeDonnees;
   hrefBase: string;
-  tauxReussiteNational: number | null;
-  critereTriActif?: "notation" | "reussite";
   distanceKm?: number;
 }) {
   const badgesDispositifs = deriveBadgesDispositifs(college);
   const gradient = college.notation ? NOTATION_GRADIENTS[college.notation] : null;
-
-  const sentimentTaux =
-    college.brevet_taux_reussite_general != null && tauxReussiteNational !== null
-      ? sentimentReussite(college.brevet_taux_reussite_general, tauxReussiteNational)
-      : null;
 
   const classeStatut = classeStatutSecteur(college.secteur);
 
@@ -113,27 +105,35 @@ export function CarteCollege({
         </span>
       ) : (
         college.brevet_taux_reussite_general != null && (
-          <div
-            className={`flex-none rounded-lg px-2 py-1 text-center ${
-              critereTriActif === "reussite" ? "bg-action-pale" : ""
-            }`}
-          >
-            <div
-              className={`font-ui text-[17px] font-extrabold ${
-                sentimentTaux ? CLASSE_TEXTE_SENTIMENT[sentimentTaux] : "text-texte"
-              }`}
-            >
+          <div className="w-[150px] flex-none rounded-lg px-2 py-1 text-center">
+            <div className="font-ui text-[20px] font-extrabold text-texte">
               {formaterPourcentage(college.brevet_taux_reussite_general, 0)}
             </div>
-            <div className="font-ui text-[9px] font-semibold text-texte-doux">réussite brevet</div>
+            {/* Libellé visible seul en dessous du point de rupture sm : au-delà,
+                l'en-tête partagé (ListeColleges) le remplace visuellement — mais
+                le texte reste dans le DOM (sr-only) pour les lecteurs d'écran,
+                qui parcourent les cartes indépendamment de l'en-tête. */}
+            <div className="mt-0.5 font-ui text-[12px] leading-tight font-semibold text-texte-doux sm:sr-only">
+              Réussite au brevet
+            </div>
+            {!college.va_imputee && college.brevet_va_taux_reussite_general != null && (
+              <div
+                className={`font-ui text-[12px] leading-tight font-semibold ${
+                  college.brevet_va_taux_reussite_general >= 0 ? "text-positif" : "text-attention"
+                }`}
+              >
+                {`${formaterEcart(college.brevet_va_taux_reussite_general, 1)} vs attendu`}
+              </div>
+            )}
+            {college.va_imputee && (
+              <div className="font-ui text-[12px] leading-tight font-normal text-texte-doux">non publiée</div>
+            )}
           </div>
         )
       )}
 
       <span
-        className={`flex h-11 w-11 flex-none items-center justify-center rounded-[12px] font-notation text-[19px] font-bold text-white ${
-          critereTriActif === "notation" ? "ring-2 ring-action ring-offset-2 ring-offset-fond-carte" : ""
-        }`}
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-[12px] font-notation text-[19px] font-bold text-white"
         style={
           gradient
             ? { backgroundImage: gradient.fond, boxShadow: gradient.ombre }

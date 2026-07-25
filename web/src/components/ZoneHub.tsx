@@ -1,6 +1,12 @@
 import Link from "next/link";
 import type { AgregatEtablissements, SousDivision, TopEtablissement } from "@/lib/types";
-import { formaterPourcentage } from "@/lib/format";
+import { formaterPourcentage, formaterEcart } from "@/lib/format";
+
+// Seuil en dessous duquel va_moyenne repose sur une part insuffisante des
+// collèges du territoire pour être affichée sans nuance — même seuil que la
+// colonne "Écart à l'attendu" des tableaux de sous-divisions, pour que le
+// lecteur associe l'astérisque au même sens partout sur la page.
+const SEUIL_COUVERTURE_VA = 0.7;
 import { AgentBlock } from "@/components/AgentBlock";
 import { SousDivisionsTable } from "@/components/SousDivisionsTable";
 import { BlocTopEtablissements } from "@/components/BlocTopEtablissements";
@@ -63,19 +69,33 @@ export function ZoneHub({
           <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">{eyebrow}</span>
           <h1 className="mt-1 font-titre text-[30px] font-semibold leading-tight text-texte">{titre}</h1>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-ui text-[22px] font-extrabold text-texte">{global.nb_etablissements}</div>
-            <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Collèges</div>
+        <div className="grid grid-cols-[120px_224px] items-stretch gap-3">
+          <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
+            <div className="font-ui text-[26px] font-extrabold text-texte">{global.nb_etablissements}</div>
+            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">Collèges</div>
           </div>
-          <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-ui text-[22px] font-extrabold text-positif">
+          <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
+            <div className="font-ui text-[26px] font-extrabold text-texte">
               {global.taux_reussite_moyen !== null ? formaterPourcentage(global.taux_reussite_moyen, 0) : "—"}
             </div>
-            <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Réussite moyenne</div>
+            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">Réussite au brevet</div>
+            {global.va_moyenne !== null && (
+              <div className="mt-1.5 border-t border-filet pt-1 text-[12px] leading-tight font-semibold">
+                <span className={global.va_moyenne >= 0 ? "text-positif" : "text-attention"}>
+                  {`${formaterEcart(global.va_moyenne, 1)} par rapport à l'attendu${
+                    global.va_couverture !== null && global.va_couverture < SEUIL_COUVERTURE_VA ? "*" : ""
+                  }`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      {global.va_moyenne !== null && global.va_couverture !== null && global.va_couverture < SEUIL_COUVERTURE_VA && (
+        <p className="mt-1.5 text-right text-[11px] text-texte-doux">
+          * Valeur ajoutée calculée sur une partie seulement des collèges du territoire.
+        </p>
+      )}
 
       {regionSlug && topNotation && topVa && (topNotation.length > 0 || topVa.length > 0) && (
         <div className="mt-5 grid gap-3 sm:grid-cols-2">

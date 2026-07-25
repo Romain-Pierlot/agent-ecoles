@@ -241,8 +241,8 @@ def obtenir_recherche(
     dispositif: Optional[Literal["REP", "REP+", "ULIS", "SEGPA"]] = None,
     section: Optional[Literal["sport", "arts", "cinema", "theatre", "internationale", "europeenne"]] = None,
     notation_min: Optional[Literal["A+", "A", "A-", "B+", "B"]] = None,
-    tri: Literal["notation", "reussite", "alphabetique"] = "notation",
-    direction: Literal["asc", "desc"] = "desc",
+    tri: Literal["notation", "reussite", "alphabetique"] = "alphabetique",
+    direction: Literal["asc", "desc"] = "asc",
     tri_communes: Literal["alphabetique", "reussite", "nb_etablissements"] = "alphabetique",
     direction_communes: Literal["asc", "desc"] = "asc",
 ):

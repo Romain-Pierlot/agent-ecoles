@@ -108,14 +108,17 @@ def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
     affiché sur la ligne de cette commune dans le tableau département.
 
     Retourne : {"success": bool, "session_utilisee": str | None,
-        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None} | None,
+        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None,
+            "va_moyenne": float | None, "va_couverture": float | None,
+            "va_nb_renseignees": int} | None,
         "nb_publics": int, "nb_prives": int,
         "taux_reussite_national": float | None,
         "colleges": [{"uai", "nom", "secteur", "notation", "badge_va",
             "va_imputee", "appartenance_education_prioritaire", "ulis",
             "segpa", "section_arts", "section_cinema", "section_theatre",
             "section_sport", "section_internationale", "section_europeenne",
-            "brevet_taux_reussite_general"}], "error": str | None}
+            "brevet_taux_reussite_general", "brevet_va_taux_reussite_general"}],
+        "error": str | None}
     Triée par notation décroissante par défaut (A+ -> B), conforme à la
     maquette ; le tri interactif (phase front à venir) part de cette liste
     déjà chargée, sans nouvel appel réseau.
@@ -136,6 +139,7 @@ def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
                    e.ulis, e.segpa, e.section_arts, e.section_cinema, e.section_theatre,
                    e.section_sport, e.section_internationale, e.section_europeenne,
                    v.brevet_taux_reussite_general, v.brevet_taux_reussite_national,
+                   v.brevet_va_taux_reussite_general,
                    s.notation, s.badge_va, s.va_imputee
             FROM etablissements e
             JOIN scores s ON e.uai = s.uai
@@ -147,12 +151,15 @@ def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
 
         colleges = []
         taux_liste: list[float] = []
+        va_liste: list[float] = []
         taux_national = None
         nb_publics = nb_prives = 0
         for row in rows:
             r = dict(row)
             if r["brevet_taux_reussite_general"] is not None:
                 taux_liste.append(r["brevet_taux_reussite_general"])
+            if r["brevet_va_taux_reussite_general"] is not None:
+                va_liste.append(r["brevet_va_taux_reussite_general"])
             if r["brevet_taux_reussite_national"] is not None:
                 taux_national = r["brevet_taux_reussite_national"]
             if r["secteur"] == "Public":
@@ -176,6 +183,7 @@ def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
                 "section_internationale": bool(r["section_internationale"]),
                 "section_europeenne": bool(r["section_europeenne"]),
                 "brevet_taux_reussite_general": r["brevet_taux_reussite_general"],
+                "brevet_va_taux_reussite_general": r["brevet_va_taux_reussite_general"],
             })
 
         colleges.sort(key=lambda c: (RANG_NOTATION.get(c["notation"], len(NOTATION_LETTRES)), c["nom"]))
@@ -183,6 +191,9 @@ def obtenir_colleges_ville(commune: str, code_departement: str) -> dict:
         global_stats = {
             "nb_etablissements": len(rows),
             "taux_reussite_moyen": (sum(taux_liste) / len(taux_liste)) if taux_liste else None,
+            "va_moyenne": (sum(va_liste) / len(va_liste)) if va_liste else None,
+            "va_couverture": (len(va_liste) / len(rows)) if rows else None,
+            "va_nb_renseignees": len(va_liste),
         }
 
         return {
@@ -219,12 +230,27 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
     discriminant) sert d'indicateur agrégé.
 
     Retourne : {"success": bool, "session_utilisee": str | None,
-        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None} | None,
+        "global": {"nb_etablissements": int, "taux_reussite_moyen": float | None,
+            "va_moyenne": float | None, "va_couverture": float | None,
+            "va_nb_renseignees": int} | None,
         "sous_divisions": [{"code": str, "libelle": str,
-            "nb_etablissements": int, "taux_reussite_moyen": float | None}], "error": str | None}
+            "nb_etablissements": int, "taux_reussite_moyen": float | None,
+            "va_moyenne": float | None, "va_couverture": float | None,
+            "va_nb_renseignees": int}], "error": str | None}
     "global" porte sur l'ENSEMBLE des établissements du périmètre (toute la
     région, ou tout le département) — sert aux 2 cartes d'agrégat du hero de
     la page hub, distinctes du tableau des sous-divisions.
+
+    va_moyenne : moyenne simple (non pondérée) de brevet_va_taux_reussite_general
+    sur les seuls collèges du groupe où cette VA est renseignée (colonne SQL
+    NULL quand le Ministère ne l'a pas publiée — jamais une valeur imputée à
+    0 en base, cf. data/ingest.py::calculer_scores, la substitution par 0 ne
+    vit que dans un DataFrame intermédiaire). None si aucun collège du groupe
+    n'a de VA renseignée.
+    va_couverture : proportion de collèges du groupe avec VA renseignée
+    (dénominateur = nb_etablissements du groupe, le même que celui déjà
+    affiché) — sert à nuancer va_moyenne quand elle repose sur peu de
+    collèges.
     """
     if niveau not in ("national", "region", "departement"):
         return {"success": False, "session_utilisee": None, "global": None, "sous_divisions": [], "error": f"niveau invalide : {niveau}"}
@@ -244,7 +270,7 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
 
         rows = conn.execute(f"""
             SELECT e.libelle_region, e.code_departement, e.libelle_departement, e.commune,
-                   v.brevet_taux_reussite_general
+                   v.brevet_taux_reussite_general, v.brevet_va_taux_reussite_general
             FROM etablissements e
             JOIN scores s ON e.uai = s.uai
             JOIN ivac v ON e.uai = v.uai AND v.session = s.session
@@ -255,9 +281,12 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
 
         groupes: dict[str, dict] = {}
         taux_global: list[float] = []
+        va_global: list[float] = []
         for row in rows:
             if row["brevet_taux_reussite_general"] is not None:
                 taux_global.append(row["brevet_taux_reussite_general"])
+            if row["brevet_va_taux_reussite_general"] is not None:
+                va_global.append(row["brevet_va_taux_reussite_general"])
 
             if niveau == "national":
                 cle, libelle = row["libelle_region"], row["libelle_region"]
@@ -267,10 +296,12 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
                 cle, libelle = row["commune"], row["commune"]
             if cle is None:
                 continue
-            groupe = groupes.setdefault(cle, {"libelle": libelle, "nb": 0, "taux": []})
+            groupe = groupes.setdefault(cle, {"libelle": libelle, "nb": 0, "taux": [], "va": []})
             groupe["nb"] += 1
             if row["brevet_taux_reussite_general"] is not None:
                 groupe["taux"].append(row["brevet_taux_reussite_general"])
+            if row["brevet_va_taux_reussite_general"] is not None:
+                groupe["va"].append(row["brevet_va_taux_reussite_general"])
 
         sous_divisions = [
             {
@@ -278,6 +309,9 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
                 "libelle": g["libelle"],
                 "nb_etablissements": g["nb"],
                 "taux_reussite_moyen": (sum(g["taux"]) / len(g["taux"])) if g["taux"] else None,
+                "va_moyenne": (sum(g["va"]) / len(g["va"])) if g["va"] else None,
+                "va_couverture": (len(g["va"]) / g["nb"]) if g["nb"] else None,
+                "va_nb_renseignees": len(g["va"]),
             }
             for code, g in groupes.items()
         ]
@@ -286,6 +320,9 @@ def agreger_sous_divisions(niveau: str, valeur: str | None = None) -> dict:
         global_stats = {
             "nb_etablissements": len(rows),
             "taux_reussite_moyen": (sum(taux_global) / len(taux_global)) if taux_global else None,
+            "va_moyenne": (sum(va_global) / len(va_global)) if va_global else None,
+            "va_couverture": (len(va_global) / len(rows)) if rows else None,
+            "va_nb_renseignees": len(va_global),
         }
 
         return {"success": True, "session_utilisee": session, "global": global_stats, "sous_divisions": sous_divisions, "error": None}

@@ -115,6 +115,9 @@ export type FicheEtablissement = {
 export type AgregatEtablissements = {
   nb_etablissements: number;
   taux_reussite_moyen: number | null;
+  va_moyenne: number | null;
+  va_couverture: number | null;
+  va_nb_renseignees: number;
 };
 
 export type SousDivision = AgregatEtablissements & {
@@ -192,6 +195,7 @@ export type CollegeVille = {
   section_internationale: boolean;
   section_europeenne: boolean;
   brevet_taux_reussite_general: number | null;
+  brevet_va_taux_reussite_general: number | null;
 };
 
 export type VilleHub = {
@@ -227,6 +231,7 @@ export type EtablissementRecherche = {
   section_internationale: boolean;
   section_europeenne: boolean;
   brevet_taux_reussite_general: number | null;
+  brevet_va_taux_reussite_general: number | null;
   libelle_region: string;
   code_departement: string;
   libelle_departement: string;

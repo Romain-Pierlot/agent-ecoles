@@ -28,7 +28,6 @@ export function ListeAlentours({
             key={college.uai}
             college={college}
             hrefBase={hrefBaseVille(college)}
-            tauxReussiteNational={null}
             distanceKm={college.distance_km}
           />
         ))}

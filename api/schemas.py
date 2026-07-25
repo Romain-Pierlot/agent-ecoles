@@ -193,6 +193,18 @@ class FicheEtablissement(BaseModel):
 class AgregatEtablissements(BaseModel):
     nb_etablissements: int
     taux_reussite_moyen: Optional[float] = None
+    # Moyenne non pondérée de la VA du taux de réussite, calculée uniquement
+    # sur les collèges du périmètre ayant une VA publiée par le Ministère
+    # (jamais une VA imputée à 0) — cf. agent/tools/hierarchie_tool.py::
+    # agreger_sous_divisions. None si aucun collège du périmètre n'en a.
+    va_moyenne: Optional[float] = None
+    # Proportion de collèges du périmètre avec VA renseignée (0 à 1) —
+    # nuance va_moyenne quand elle repose sur peu de collèges.
+    va_couverture: Optional[float] = None
+    # Nombre brut de collèges du périmètre avec VA renseignée — sert de seuil
+    # d'affichage minimal (ex: page ville, cf. web/src/app/.../ville/page.tsx :
+    # une moyenne sur 1-2 établissements n'est pas un indicateur territorial).
+    va_nb_renseignees: int = 0
     # Pas de notation en lettres au niveau agrégat (région/département/ville)
     # — cf. decision_log.md : la notation combine résultats + valeur ajoutée
     # d'un établissement précis, ça n'a pas de sens transposé à une zone
@@ -289,6 +301,9 @@ class CollegeVille(BaseModel):
     section_internationale: bool
     section_europeenne: bool
     brevet_taux_reussite_general: Optional[float] = None
+    # VA du taux de réussite, session la plus récente — None si non publiée
+    # par le Ministère (dans ce cas va_imputee ci-dessus vaut True).
+    brevet_va_taux_reussite_general: Optional[float] = None
 
 
 class VilleHub(BaseModel):
@@ -335,6 +350,7 @@ class EtablissementRecherche(BaseModel):
     section_internationale: bool
     section_europeenne: bool
     brevet_taux_reussite_general: Optional[float] = None
+    brevet_va_taux_reussite_general: Optional[float] = None
     libelle_region: str
     code_departement: str
     libelle_departement: str

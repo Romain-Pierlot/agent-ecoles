@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { recupererVille } from "@/lib/geographie";
-import { formaterTaux } from "@/lib/format";
+import { formaterPourcentage, formaterEcart } from "@/lib/format";
 import { AgentBlock } from "@/components/AgentBlock";
 import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
+
+// Mêmes seuils que ZoneHub (pages région/département) et SousDivisionsTable,
+// pour un vocabulaire visuel identique partout où l'écart à l'attendu
+// apparaît. Seuil supplémentaire propre à la ville : sous 3 collèges avec VA
+// renseignée, la moyenne ne représente plus un indicateur territorial fiable
+// (l'info reste consultable sur la fiche de chaque collège).
+const SEUIL_COUVERTURE_VA = 0.7;
+const SEUIL_NB_VA_MINIMUM = 3;
 
 export default async function Page({
   params,
@@ -45,19 +53,36 @@ export default async function Page({
             {ville.global.nb_etablissements} collèges · {ville.nb_publics} publics, {ville.nb_prives} privés
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-ui text-[22px] font-extrabold text-texte">{ville.global.nb_etablissements}</div>
-            <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Collèges</div>
+        <div className="grid grid-cols-[120px_224px] items-stretch gap-3">
+          <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
+            <div className="font-ui text-[26px] font-extrabold text-texte">{ville.global.nb_etablissements}</div>
+            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">Collèges</div>
           </div>
-          <div className="w-[123px] rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
-            <div className="font-ui text-[22px] font-extrabold text-positif">
-              {formaterTaux(ville.global.taux_reussite_moyen)}
+          <div className="flex flex-col justify-center rounded-xl border-[1.5px] border-filet bg-white px-3.5 py-3 text-center">
+            <div className="font-ui text-[26px] font-extrabold text-texte">
+              {ville.global.taux_reussite_moyen !== null ? formaterPourcentage(ville.global.taux_reussite_moyen, 0) : "—"}
             </div>
-            <div className="mt-0.5 text-[10px] font-semibold text-texte-doux">Réussite moyenne</div>
+            <div className="mt-1 text-[12px] leading-tight font-semibold text-texte-doux">Réussite au brevet</div>
+            {ville.global.va_moyenne !== null && ville.global.va_nb_renseignees >= SEUIL_NB_VA_MINIMUM && (
+              <div className="mt-1.5 border-t border-filet pt-1 text-[12px] leading-tight font-semibold">
+                <span className={ville.global.va_moyenne >= 0 ? "text-positif" : "text-attention"}>
+                  {`${formaterEcart(ville.global.va_moyenne, 1)} par rapport à l'attendu${
+                    ville.global.va_couverture !== null && ville.global.va_couverture < SEUIL_COUVERTURE_VA ? "*" : ""
+                  }`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      {ville.global.va_moyenne !== null &&
+        ville.global.va_nb_renseignees >= SEUIL_NB_VA_MINIMUM &&
+        ville.global.va_couverture !== null &&
+        ville.global.va_couverture < SEUIL_COUVERTURE_VA && (
+          <p className="mt-1.5 text-right text-[11px] text-texte-doux">
+            * Valeur ajoutée calculée sur une partie seulement des collèges de la ville.
+          </p>
+        )}
 
       <FiltresEtListeColleges
         colleges={ville.colleges.map((c) => ({
@@ -71,7 +96,6 @@ export default async function Page({
           libelle_departement: ville.libelle_departement,
           code_departement: ville.code_departement,
         }))}
-        tauxReussiteNational={ville.taux_reussite_national}
       />
 
       <AgentBlock exemple={`Comment choisir entre les collèges de ${ville.commune} ?`} />

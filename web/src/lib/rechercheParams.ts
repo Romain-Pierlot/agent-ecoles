@@ -33,8 +33,8 @@ export const FILTRES_PAR_DEFAUT: FiltresRecherche = {
   dispositif: null,
   section: null,
   notationMin: null,
-  tri: "notation",
-  direction: "desc",
+  tri: "alphabetique",
+  direction: "asc",
   triCommunes: "alphabetique",
   directionCommunes: "asc",
 };
