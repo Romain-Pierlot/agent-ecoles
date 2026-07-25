@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { AgregatEtablissements, SousDivision, TopEtablissement } from "@/lib/types";
 import { AgentBlock } from "@/components/AgentBlock";
-import { RechercheBloc } from "@/components/RechercheBloc";
 import { SousDivisionsTable } from "@/components/SousDivisionsTable";
 import { BlocTopEtablissements } from "@/components/BlocTopEtablissements";
 
@@ -97,8 +96,6 @@ export function ZoneHub({
           />
         </div>
       )}
-
-      <RechercheBloc />
 
       {/* ===== LISTE SOUS-DIVISIONS =====
           Le H2 porte le compteur ("N départements") plutôt que de le dupliquer

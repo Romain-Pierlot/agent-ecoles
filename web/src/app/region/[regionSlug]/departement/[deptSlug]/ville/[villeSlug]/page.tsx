@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { recupererVille } from "@/lib/geographie";
 import { AgentBlock } from "@/components/AgentBlock";
-import { RechercheBloc } from "@/components/RechercheBloc";
 import { FiltresEtListeColleges } from "@/components/FiltresEtListeColleges";
 
 function formaterTaux(taux: number | null): string {
@@ -62,8 +61,6 @@ export default async function Page({
           </div>
         </div>
       </div>
-
-      <RechercheBloc />
 
       <FiltresEtListeColleges
         colleges={ville.colleges.map((c) => ({
