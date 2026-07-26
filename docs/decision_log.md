@@ -1500,3 +1500,25 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : conserver un cadre plus discret (bordure seule, sans fond teinté) pour garder un signal minimal, écarté, l'objectif explicite était une cohérence totale entre les 3 sections plutôt qu'une distinction atténuée.
 
 **Conséquence** : `web/.../college/[collegeSlug]/_components/ValeurAjoutee.tsx`. Aucun changement de données ni de schéma, purement visuel.
+
+## S19.1 : Supabase (PostgreSQL managé) comme entrepôt des logs de conversation et de recherche
+
+**Décision** : Les échanges de l'agent conversationnel (`conversations_log`) et les recherches effectuées sur le site (`recherches_log`) sont journalisés dans une base PostgreSQL managée Supabase, distincte de la base SQLite applicative. Écriture best-effort et non bloquante (`api/journalisation.py`) : toute erreur d'écriture (base éteinte, réseau) est journalisée côté serveur mais ne fait jamais échouer ni ralentir la réponse à l'utilisateur.
+
+**Pourquoi** : Comparatif mené entre Render Postgres et Supabase pour cet usage précis (cf. `journal_de_bord.md` S10.6) : Supabase retenu pour son interface de navigation des tables incluse et son palier gratuit suffisant au volume de logs attendu, sans remettre en cause Render pour l'hébergement de l'application elle-même. Réutilisé ensuite pour Umami (S17.1), limitant le nombre de moteurs de base de données différents à opérer sur le projet.
+
+**Rejeté** : Base Postgres managée directement chez Render pour cet usage précis (conditions du palier gratuit moins favorables, pas d'interface de navigation des tables incluse).
+
+**Conséquence** : `api/journalisation.py` (`psycopg`), variable d'environnement `SUPABASE_DB_URL`, tables `conversations_log`/`recherches_log`.
+
+## S19.2 : Leaflet (carte statique) et Recharts (graphiques) comme librairies de visualisation frontend
+
+**Décision** : Deux librairies de visualisation adoptées côté frontend : `react-leaflet` (+ tuiles OpenStreetMap/CARTO) pour la carte de localisation figée sur la fiche établissement, et `recharts` pour l'histogramme d'évolution du taux de réussite.
+
+**Pourquoi** :
+- Leaflet : présentation figée (zoom seul, pas de drag/scroll) pour un point de référence unique déjà connu (l'adresse de l'établissement), cohérent avec le raisonnement UX déjà tracé en S17.2 pour écarter une carte interactive multi-résultats. Tuiles CARTO Voyager retenues après comparaison visuelle avec Positron, pour un meilleur contraste à zoom serré (commit `c4d41c3`).
+- Recharts : remplace une implémentation maison CSS/SVG qui produisait des défauts d'alignement persistants entre les barres de l'histogramme et la ligne de repère national, deux systèmes de rendu séparés (div en %, SVG en viewBox étiré) ne garantissant pas un rendu pixel-identique (commit `973ad65`).
+
+**Rejeté** : Implémentation maison CSS/SVG pour le graphique d'évolution. Pas d'alternative à Leaflet documentée comme explicitement comparée puis écartée.
+
+**Conséquence** : `web/src/components/CarteLocalisationCarte.tsx` (react-leaflet), composant du graphique d'évolution du taux de réussite migré vers Recharts (fiche établissement). Dépendances `leaflet`/`react-leaflet`/`recharts` dans `web/package.json`.

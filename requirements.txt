@@ -18,9 +18,6 @@ python-dotenv
 # Data processing
 pandas
 
-# Interface utilisateur
-streamlit
-
 # API backend (Next.js appelle l'agent via cette couche HTTP)
 fastapi
 uvicorn

@@ -5,10 +5,16 @@ Agent conversationnel d'aide au choix d'établissement scolaire (collèges) bas�
 ## Stack technique
 - Python + LangGraph + LangChain
 - SQLite (données IPS, IVAC, Annuaire)
-- ChromaDB (RAG méthodologie DEPP)
+- ChromaDB (RAG méthodologie DEPP) + sentence-transformers (re-ranking)
 - GPT-4o-mini
 - FastAPI (API backend)
+- sqlglot (validation du SQL généré par le LLM avant exécution)
+- Supabase / PostgreSQL (journalisation des conversations)
 - Next.js / React / TypeScript (frontend)
+- Tailwind CSS
+- Leaflet / react-leaflet (carte de localisation)
+- Recharts (graphiques)
+- Umami (analytics)
 - LangSmith
 
 ## Structure du projet
