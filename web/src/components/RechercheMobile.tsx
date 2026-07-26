@@ -73,7 +73,7 @@ export function RechercheMobile({ hrefAssistant = "/assistant" }: { hrefAssistan
                     aller(lignes[0]);
                   }
                 }}
-                placeholder="Collège, ville, code postal…"
+                placeholder="Rechercher un collège, une commune…"
                 aria-label="Rechercher un collège ou une commune"
                 className="min-w-0 flex-1 bg-transparent font-ui text-[14px] font-medium text-texte outline-none placeholder:font-medium placeholder:text-filet-fonce"
               />

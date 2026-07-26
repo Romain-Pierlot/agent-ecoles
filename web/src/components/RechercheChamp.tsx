@@ -28,7 +28,7 @@ import { GaletAgent } from "@/components/GaletAgent";
 
 export function RechercheChamp({
   hrefAssistant = "/assistant",
-  placeholder = "Collège, ville, code postal…",
+  placeholder = "Rechercher un collège, une commune…",
 }: {
   hrefAssistant?: string;
   placeholder?: string;
