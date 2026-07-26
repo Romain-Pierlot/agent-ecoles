@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Newsreader, Hanken_Grotesk, Schibsted_Grotesk } from "next/font/google";
 import { TopBar } from "@/components/TopBar";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <TopBar />
         {children}
+        <Footer />
         {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
           <Script
             src={process.env.NEXT_PUBLIC_UMAMI_SRC}

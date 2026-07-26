@@ -110,6 +110,30 @@ export type FicheEtablissement = {
   etablissements_proches: CollegeSecteurItem[];
 };
 
+// Miroir TypeScript de api/schemas.py (PeriodeVacances, AcademieZone,
+// CalendrierScolaire) — GET /calendrier-scolaire.
+
+export type PeriodeVacances = {
+  zone: string;
+  annee_scolaire: string;
+  periode: string;
+  type_periode: "vacances" | "jalon";
+  date_debut: string;
+  date_fin: string | null;
+};
+
+export type AcademieZone = {
+  code_academie: string;
+  libelle_academie: string;
+  zone: string | null;
+};
+
+export type CalendrierScolaire = {
+  metropole: PeriodeVacances[];
+  outre_mer: PeriodeVacances[];
+  academies: AcademieZone[];
+};
+
 // Miroir TypeScript de api/schemas.py (RegionHub, DepartementHub) —
 // GET /region/{slug}, GET /region/{slug}/departement/{slug}.
 

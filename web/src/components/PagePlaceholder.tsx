@@ -30,7 +30,7 @@ const LIENS_SQUELETTE: { label: string; href: string }[] = [
     href: "/region/auvergne-rhone-alpes/departement/69-rhone/ville/lyon/college/college-jean-moulin-0692696f",
   },
   { label: "Académie (exemple : Lyon)", href: "/academie/lyon" },
-  { label: "Calendrier scolaire", href: "/calendrier" },
+  { label: "Calendrier scolaire", href: "/calendrier-scolaire" },
   { label: "Notre méthode", href: "/methodologie" },
   { label: "Sources & données", href: "/sources" },
   { label: "À propos", href: "/a-propos" },

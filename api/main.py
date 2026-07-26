@@ -18,9 +18,11 @@ from api.schemas import (
     ChatRequest, ChatResponse, Choix, FicheEtablissement,
     NationalHub, RegionHub, DepartementHub, VilleHub, RechercheResultats,
     SecteurResultats, SuggestionsAdresseResultats, RechercheLogRequest,
+    CalendrierScolaire,
 )
 from api.journalisation import journaliser_echange, journaliser_recherche
 from agent.tools.etablissement_tool import obtenir_fiche_etablissement
+from agent.tools.calendrier_tool import obtenir_calendrier_scolaire
 from agent.tools.hierarchie_tool import (
     resoudre_region_par_slug,
     resoudre_departement_par_slug,
@@ -126,6 +128,18 @@ def obtenir_etablissement(uai: str):
     if resultat["fiche"] is None:
         raise HTTPException(status_code=404, detail=f"Établissement {uai} introuvable")
     return resultat["fiche"]
+
+
+@app.get("/calendrier-scolaire", response_model=CalendrierScolaire)
+def obtenir_calendrier():
+    resultat = obtenir_calendrier_scolaire()
+    if not resultat["success"]:
+        raise HTTPException(status_code=500, detail=resultat["error"])
+    return CalendrierScolaire(
+        metropole=resultat["metropole"],
+        outre_mer=resultat["outre_mer"],
+        academies=resultat["academies"],
+    )
 
 
 @app.get("/region", response_model=NationalHub)

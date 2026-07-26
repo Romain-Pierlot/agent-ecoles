@@ -79,6 +79,29 @@
   --color-badge-option: #9C5A34;         /* section sport / arts / cinéma / théâtre — argile */
   --color-badge-option-pale: #F2E6D6;
 
+  /* ---- NOUVEAU · Zones de vacances scolaires (page /calendrier-scolaire) ----
+     Teintes "pleines" : Zone A = --color-action, Zone B = --color-descriptif,
+     Corse = --color-statut-public (valeurs identiques dans la maquette —
+     réutilisées telles quelles, cf. décision_log). Zone C seule est une
+     teinte inédite. En-tête/pâle : aucun équivalent existant (le reste du
+     thème n'a qu'un seul palier de clair par couleur, la maquette en veut
+     deux distincts pour cette page). */
+  --color-zone-c: #8A5A12;
+  --color-zone-a-entete: #F5DED4;
+  --color-zone-a-pale: #FAECE6;
+  --color-zone-b-entete: #DFE6F0;
+  --color-zone-b-pale: #EBEFF6;
+  --color-zone-c-entete: #F2E4CA;
+  --color-zone-c-pale: #F8F0E1;
+  --color-zone-corse-entete: #DCE9DE;
+  --color-zone-corse-pale: #E9F1EA;
+
+  /* Deux teintes utilitaires de la même page, réutilisées à plusieurs
+     endroits (encarts, en-tête tableau outre-mer, lignes alternées) — pas
+     un token "zone", donc nommées à part. */
+  --color-fond-encart: #EFEAE0;
+  --color-fond-carte-alt: #FBF9F4;
+
   /* ---- Distance (carte scolaire) — DÉSORMAIS NEUTRE ----
      Passée du bleu au gris chaud : l'ancien bleu se confondait avec le
      tag « Privé ». Décrit une distance, pas un statut. */

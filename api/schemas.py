@@ -420,6 +420,31 @@ class SuggestionsAdresseResultats(BaseModel):
     suggestions: list[SuggestionAdresse] = []
 
 
+# ============================================================
+# Calendrier scolaire (GET /calendrier-scolaire)
+# ============================================================
+
+class PeriodeVacances(BaseModel):
+    zone: str
+    annee_scolaire: str
+    periode: str
+    type_periode: Literal["vacances", "jalon"]
+    date_debut: str
+    date_fin: Optional[str] = None
+
+
+class AcademieZone(BaseModel):
+    code_academie: str
+    libelle_academie: str
+    zone: Optional[str] = None
+
+
+class CalendrierScolaire(BaseModel):
+    metropole: list[PeriodeVacances]
+    outre_mer: list[PeriodeVacances]
+    academies: list[AcademieZone]
+
+
 class RechercheLogRequest(BaseModel):
     """Corps de POST /recherche/log — journalisation d'une recherche par nom.
 
