@@ -170,7 +170,7 @@ export function FicheIdentite({
           </div>
 
           {identite.notation && (
-            <div className="flex-none text-center">
+            <div className="relative flex-none">
               <div
                 className="flex h-[74px] w-[74px] items-center justify-center rounded-[18px]"
                 style={
@@ -184,17 +184,28 @@ export function FicheIdentite({
               >
                 <span className="font-notation text-[34px] font-bold text-white">{identite.notation}</span>
               </div>
-              <div className="mt-2 flex items-center justify-center text-[9.5px] font-bold uppercase tracking-wide text-texte-doux/70">
-                Notation
-                {identite.va_imputee && (
-                  <BoutonAide texte="Ce collège n'a pas de valeur ajoutée publiée par le Ministère cette session — sa notation est calculée en supposant un résultat conforme à l'attendu (ni positif ni négatif), plutôt que sans notation du tout." />
-                )}
-              </div>
-              <div className="mt-0.5 text-[10px] font-semibold text-texte-doux/60">
-                A+ → B ·{" "}
-                <Link href="/methodologie" className="text-action-dark underline underline-offset-2">
-                  méthode
-                </Link>
+              <div className="absolute -right-2 -top-2">
+                <BoutonAide
+                  alignementDroite
+                  decalageHaut="top-[82px]"
+                  texte={
+                    <>
+                      5 niveaux : A+, A, A-, B+, B. Calculés à partir des résultats au brevet et de l&apos;écart
+                      aux résultats attendus, à poids égal.
+                      {identite.va_imputee && (
+                        <>
+                          {" "}
+                          Ce collège n&apos;a pas de valeur ajoutée publiée par le Ministère cette session : sa
+                          notation est calculée en supposant un résultat conforme à l&apos;attendu (ni positif ni
+                          négatif), plutôt que sans notation du tout.
+                        </>
+                      )}{" "}
+                      <Link href="/methodologie" className="text-action-dark underline underline-offset-2">
+                        En savoir plus sur la méthode
+                      </Link>
+                    </>
+                  }
+                />
               </div>
             </div>
           )}
