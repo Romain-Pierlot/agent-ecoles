@@ -304,6 +304,20 @@ def _normaliser_code_departement(code):
     return code
 
 
+def _normaliser_code_postal(code):
+    """
+    Corrige le code postal brut de la source, même anomalie que
+    _normaliser_code_departement : les départements 1 à 9 sont fournis avec
+    un code postal tronqué à 4 chiffres ("6000" pour Nice au lieu de
+    "06000"). Un code postal français fait toujours 5 chiffres.
+    """
+    if pd.isna(code):
+        return code
+    if code.isdigit() and len(code) == 4:
+        return code.zfill(5)
+    return code
+
+
 def ingerer_annuaire(conn):
     print("→ Chargement annuaire...")
     df = pd.read_csv(CSV_ANNUAIRE, sep=',', dtype=str, low_memory=False)
@@ -383,6 +397,8 @@ def ingerer_annuaire(conn):
     # espace -> "collèges à Paris/Lyon/Marseille Xe" retournait 0 résultat.
     if 'commune' in df.columns:
         df['commune'] = df['commune'].str.strip().str.replace(r'\s+', ' ', regex=True)
+    if 'code_postal' in df.columns:
+        df['code_postal'] = df['code_postal'].apply(_normaliser_code_postal)
     # Arrondissement reconstruit depuis le code postal quand la commune est
     # étiquetée génériquement (cf. _deriver_arrondissement) — Paris, Lyon,
     # Marseille seulement, sans effet sur les autres communes.
