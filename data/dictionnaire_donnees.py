@@ -629,7 +629,7 @@ DICTIONNAIRE = {
     },
 
     "zones_academiques.zone": {
-        "description": "Zone de vacances scolaires (A, B ou C) à laquelle appartient l'académie, pour l'échelonnement national des vacances d'hiver et de printemps. NULL pour la Corse et les académies d'outre-mer (Guadeloupe, Guyane, Martinique, Mayotte, La Réunion, Nouvelle-Calédonie, Polynésie française, Saint-Pierre-et-Miquelon, Wallis-et-Futuna), qui fixent leur calendrier indépendamment de ce zonage.",
+        "description": "Zone de vacances scolaires à laquelle appartient l'académie : 'A', 'B', 'C' pour la métropole zonée, ou le nom du territoire pour la Corse et les académies d'outre-mer (Guadeloupe, Guyane, Martinique, Mayotte, Réunion, Nouvelle Calédonie, Polynésie, Saint Pierre et Miquelon, Wallis et Futuna), qui fixent leur calendrier indépendamment du zonage A/B/C.",
         "source": "Arrêtés ministériels (ex: arrêté du 22 octobre 2025 fixant le calendrier scolaire 2026-2027, Légifrance JORFTEXT000052416058)",
         "synonymes": ["zone de vacances", "zone A", "zone B", "zone C"],
         "notes": "Regroupement académie→zone stable dans le temps (change au rythme d'un arrêté rare), à ne pas confondre avec vacances_scolaires qui, elle, se rafraîchit chaque année.",
@@ -690,10 +690,10 @@ DICTIONNAIRE = {
     },
 
     "vacances_scolaires.zone": {
-        "description": "Zone concernée par cette période : 'A', 'B', 'C', ou 'TOUTES' pour les périodes communes aux 3 zones (Toussaint, Noël, prérentrée, rentrée, fin d'année) — stockées une seule fois plutôt que dupliquées ×3.",
+        "description": "Zone concernée par cette période : 'A', 'B', 'C', 'Corse', ou 'TOUTES' pour les périodes communes à toutes les zones (Toussaint, Noël, fin d'année), stockées une seule fois plutôt que dupliquées.",
         "source": "Arrêtés ministériels (Légifrance)",
         "synonymes": [],
-        "notes": "Une lecture pour une académie donnée doit filtrer sur zone = <sa zone> OU zone = 'TOUTES'.",
+        "notes": "Une lecture pour une académie donnée doit filtrer sur zone = <sa zone> OU zone = 'TOUTES'. Pour un jalon (prérentrée/rentrée), si une ligne existe pour la zone spécifique, elle remplace la ligne 'TOUTES' pour cette académie, elle ne s'y ajoute pas.",
     },
 
     "vacances_scolaires.periode": {

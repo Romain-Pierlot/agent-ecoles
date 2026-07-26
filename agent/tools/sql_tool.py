@@ -117,7 +117,7 @@ TABLE referentiel_temporel
 TABLE zones_academiques — 1 ligne par académie (rattachement via etablissements.code_academie)
   code_academie TEXT PRIMARY KEY
   libelle_academie TEXT
-  zone TEXT  -- 'A'/'B'/'C', NULL pour la Corse et les académies d'outre-mer
+  zone TEXT  -- 'A'/'B'/'C'/'Corse'/nom du territoire d'outre-mer
 
 TABLE langues_offertes — 0 à N lignes par établissement (uniquement collèges, ~78% de couverture)
   uai TEXT FK
@@ -179,9 +179,11 @@ RÈGLES IMPORTANTES :
 - Pour "quand sont les prochaines vacances d'un établissement" : joindre
   etablissements → zones_academiques ON code_academie, puis filtrer
   vacances_scolaires WHERE type_periode = 'vacances' AND zone IN (za.zone,
-  'TOUTES') AND date_debut >= date('now') ORDER BY date_debut LIMIT 1. Si
-  za.zone est NULL (Corse, outre-mer), dire que cette académie fixe son
-  calendrier indépendamment plutôt que de deviner une zone.
+  'TOUTES') AND date_debut >= date('now') ORDER BY date_debut LIMIT 1.
+- Pour un jalon (Prérentrée/Rentrée/Fin d'année) : si une ligne existe pour
+  la zone spécifique de l'académie (ex: 'Corse') sur ce même periode, elle
+  prévaut toujours sur la ligne 'TOUTES', ne jamais remonter les deux à la
+  fois. La ligne spécifique remplace la commune, elle ne s'y ajoute pas.
 - DEUX critères de tri distincts selon la formulation exacte de la question —
   ne jamais les confondre :
   1. "quels sont les meilleurs/pires collèges", "classe les collèges",
