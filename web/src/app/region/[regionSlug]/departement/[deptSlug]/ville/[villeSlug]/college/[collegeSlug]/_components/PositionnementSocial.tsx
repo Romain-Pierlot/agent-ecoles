@@ -107,7 +107,7 @@ export function PositionnementSocial({ positionnementSocial }: { positionnementS
               <BoutonAide texte="L'écart-type mesure la diversité des profils sociaux au sein du collège : plus il est élevé, plus les familles des élèves sont différentes socialement (grande mixité) ; plus il est bas, plus elles se ressemblent (population homogène)." />
             </div>
             <div className="mt-1 font-ui text-[34px] font-extrabold leading-none text-descriptif">
-              {formaterDecimale(ecart_type_ips, 1)}
+              {formaterDecimale(ecart_type_ips, 0)}
             </div>
             <Jauge
               valeur={ecart_type_ips}

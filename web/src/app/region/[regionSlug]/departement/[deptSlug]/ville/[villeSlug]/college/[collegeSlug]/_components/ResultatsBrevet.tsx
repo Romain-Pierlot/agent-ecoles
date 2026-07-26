@@ -62,8 +62,10 @@ function DonutMentions({ brevet }: { brevet: BrevetResultats }) {
                 // eslint-disable-next-line no-restricted-syntax -- repli du registre COULEURS_MENTIONS ci-dessus
                 style={{ backgroundColor: COULEURS_MENTIONS[m.libelle] ?? "#D8CBB4" }}
               />
-              {m.libelle} · <b>{m.taux_pct ?? "—"}%</b>{" "}
-              <span className="text-texte-doux">· {m.nb_eleves ?? "—"} él.</span>
+              {m.libelle} · <b>{m.taux_pct != null ? formaterPourcentage(m.taux_pct, 1) : "—"}</b>{" "}
+              <span className="text-texte-doux">
+                · {m.nb_eleves ?? "—"} {accorder(m.nb_eleves ?? 0, "élève")}
+              </span>
             </div>
           ))}
         </div>
@@ -115,7 +117,7 @@ export function ResultatsBrevet({
 
       <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
         <div className="rounded-[18px] border-2 border-filet bg-white p-[18px_20px]">
-          <div className="text-[13.5px] font-bold text-texte">Taux de réussite au brevet</div>
+          <div className="text-[13.5px] font-bold text-texte">Taux de réussite</div>
           <div
             className={`mt-1.5 font-ui text-[40px] font-extrabold leading-none ${CLASSE_TEXTE_SENTIMENT[sentimentTaux]}`}
           >

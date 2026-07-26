@@ -129,7 +129,7 @@ export function FicheIdentite({
     { label: "Identifiant UAI", valeur: identite.uai },
   ];
   if (identite.telephone) coordonnees.push({ label: "Téléphone", valeur: identite.telephone });
-  if (identite.mail) coordonnees.push({ label: "Courriel", valeur: identite.mail, classe: "text-positif" });
+  if (identite.mail) coordonnees.push({ label: "Courriel", valeur: identite.mail.toLowerCase(), classe: "text-positif" });
   if (identite.web) {
     coordonnees.push({
       label: "Site internet",

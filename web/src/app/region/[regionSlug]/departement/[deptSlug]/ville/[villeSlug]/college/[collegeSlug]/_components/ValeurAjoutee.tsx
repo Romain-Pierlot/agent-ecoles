@@ -33,15 +33,16 @@ export function ValeurAjoutee({ valeurAjoutee }: { valeurAjoutee: ValeurAjouteeD
   return (
     <div className="mt-4 scroll-mt-28">
       <div className="font-titre text-[25px] font-semibold text-texte">La valeur ajoutée</div>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-texte-doux">
-        Écart entre résultat obtenu et attendu selon le profil des élèves : positif, le collège dépasse les prévisions.
+      <p className="mt-1 max-w-[660px] text-[12.5px] leading-relaxed text-texte-doux">
+        L&apos;écart entre le résultat obtenu et celui qu&apos;obtiennent en moyenne des collèges au profil
+        d&apos;élèves comparable.
       </p>
 
       {valeurAjoutee ? (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {valeurAjoutee.taux_attendu != null && valeurAjoutee.taux_observe != null && (
             <CarteVa
-              titre="Réussite au brevet, écart à l'attendu"
+              titre="Réussite au brevet"
               attendu={valeurAjoutee.taux_attendu}
               obtenu={valeurAjoutee.taux_observe}
               unite="%"
@@ -49,7 +50,7 @@ export function ValeurAjoutee({ valeurAjoutee }: { valeurAjoutee: ValeurAjouteeD
           )}
           {valeurAjoutee.note_attendue != null && valeurAjoutee.note_observee != null && (
             <CarteVa
-              titre="Note à l'écrit, écart à l'attendu"
+              titre="Note à l'écrit"
               attendu={valeurAjoutee.note_attendue}
               obtenu={valeurAjoutee.note_observee}
               unite="pts"

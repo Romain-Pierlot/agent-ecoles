@@ -3,6 +3,7 @@
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { useXAxisScale, useYAxisScale } from "recharts";
 import type { EvolutionPoint } from "@/lib/types";
+import { formaterPourcentage } from "@/lib/format";
 
 // Échelle verticale volontairement fixe (70-100, pas de 10) plutôt que
 // calée sur le min/max de l'établissement affiché : sur les données
@@ -58,7 +59,7 @@ function EtiquettesValeurs({ donnees }: { donnees: PointGraphe[] }) {
             textAnchor="middle"
             className="fill-positif text-[11px] font-bold"
           >
-            {d.taux}%
+            {formaterPourcentage(d.taux, 0)}
           </text>
         );
       })}
