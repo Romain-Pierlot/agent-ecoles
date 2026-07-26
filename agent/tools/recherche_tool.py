@@ -189,6 +189,9 @@ def _echapper_like(texte: str) -> str:
     return texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+_RE_UAI = re.compile(r"^[0-9]{7}[a-z]$")
+
+
 def _construire_clause_recherche_etablissements(requete_normalisee: str) -> tuple[str, list]:
     """
     Clause de matching des établissements sur `requete_normalisee` (déjà
@@ -212,7 +215,18 @@ def _construire_clause_recherche_etablissements(requete_normalisee: str) -> tupl
       "saint" ET "denis", remontant 239 collèges sans rapport ; avec cette
       contrainte, 26 résultats tous plausibles — mesuré empiriquement,
       même session).
+
+    - UAI complet (7 chiffres + 1 lettre, ex. "0751234a" une fois
+      normalisé) : court-circuite tout ce qui précède avec une égalité
+      stricte sur `e.uai` — format vérifié empiriquement sur 100% des
+      14732 UAI en base (session du 2026-07-25). Une saisie partielle
+      (UAI incomplet) n'est volontairement PAS traitée ici et retombe
+      dans la recherche texte classique ci-dessous, qui ne la retrouvera
+      pas — comportement voulu, pas de matching en préfixe sur ce champ.
     """
+    if _RE_UAI.match(requete_normalisee):
+        return "normaliser(e.uai) = ?", [requete_normalisee]
+
     mots = requete_normalisee.split(" ")
 
     if len(mots) == 1:
@@ -251,10 +265,18 @@ def _normaliser_recherche(texte: str) -> str:
     celles-ci comparent un nom à une égalité stricte pour l'agent
     conversationnel, un usage différent qui n'a pas besoin de ce repli
     supplémentaire (et qu'on ne modifie pas ici pour ne rien y régresser).
+
+    Abréviations géographiques universelles repliées sur leur forme longue,
+    mot entier uniquement (jamais une sous-chaîne : "Strasbourg" n'est pas
+    affecté) : "st" -> "saint", "ste" -> "sainte". Sans ce repli, "st
+    etienne" ne retrouvait pas la commune réelle "Saint-Étienne".
     """
     texte = normaliser_texte_base(texte)
     texte = re.sub(r"[-'’]", " ", texte)
-    return re.sub(r"\s+", " ", texte).strip()
+    texte = re.sub(r"\s+", " ", texte).strip()
+    texte = re.sub(r"\bste\b", "sainte", texte)
+    texte = re.sub(r"\bst\b", "saint", texte)
+    return texte
 
 
 def rechercher(
