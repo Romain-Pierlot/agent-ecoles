@@ -2,6 +2,7 @@ import type { BrevetResultats, EvolutionPoint } from "@/lib/types";
 import { sentimentReussite } from "@/lib/tokens";
 import { formaterDecimale, formaterPourcentage, accorder } from "@/lib/format";
 import { BoutonAide } from "@/components/BoutonAide";
+import { GraphiqueEvolutionTaux } from "./GraphiqueEvolutionTaux";
 
 // Classes Tailwind statiques — jamais interpolées dans un template string
 // (Tailwind ne peut détecter que des noms de classe littéraux à la compilation).
@@ -41,73 +42,31 @@ function DonutMentions({ brevet }: { brevet: BrevetResultats }) {
   );
 
   return (
-    <div className="rounded-[22px] border-2 border-filet bg-white p-[22px_24px]">
-      <div className="mb-3.5 font-titre text-[15px] font-semibold text-texte">Répartition des mentions</div>
-      <div className="flex items-center gap-[22px]">
+    <div className="flex h-full flex-col justify-center rounded-[22px] border-2 border-filet bg-white p-[22px_24px]">
+      <div className="mb-4.5 font-titre text-[15px] font-semibold text-texte">Répartition des mentions</div>
+      <div className="flex items-center gap-[28px]">
         <div
-          className="relative h-[132px] w-[132px] flex-none rounded-full"
+          className="relative h-[168px] w-[168px] flex-none rounded-full"
           style={{ background: `conic-gradient(${segments.join(", ")})` }}
         >
-          <div className="absolute inset-[26px] flex flex-col items-center justify-center rounded-full bg-white">
-            <div className="font-ui text-[22px] font-extrabold text-texte">{total}</div>
-            <div className="text-[9.5px] font-semibold text-texte-doux">{accorder(total, "candidat")}</div>
+          <div className="absolute inset-[33px] flex flex-col items-center justify-center rounded-full bg-white">
+            <div className="font-ui text-[26px] font-extrabold text-texte">{total}</div>
+            <div className="text-[10.5px] font-semibold text-texte-doux">{accorder(total, "candidat")}</div>
           </div>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {brevet.mentions.map((m) => (
-            <div key={m.libelle} className="flex items-center gap-2 text-[12.5px] font-semibold text-texte">
+            <div key={m.libelle} className="flex items-center gap-2.5 text-[13.5px] font-semibold text-texte">
               <span
-                className="h-3 w-3 rounded"
+                className="h-3.5 w-3.5 rounded"
                 // eslint-disable-next-line no-restricted-syntax -- repli du registre COULEURS_MENTIONS ci-dessus
                 style={{ backgroundColor: COULEURS_MENTIONS[m.libelle] ?? "#D8CBB4" }}
               />
-              {m.libelle} — <b>{m.taux_pct ?? "—"}%</b>{" "}
+              {m.libelle} · <b>{m.taux_pct ?? "—"}%</b>{" "}
               <span className="text-texte-doux">· {m.nb_eleves ?? "—"} él.</span>
             </div>
           ))}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function EvolutionTaux({ evolution }: { evolution: EvolutionPoint[] }) {
-  const points = [...evolution].reverse().filter((p) => p.brevet_taux_reussite_general != null);
-  if (points.length === 0) return null;
-
-  const valeurs = points.map((p) => p.brevet_taux_reussite_general as number);
-  const plancher = Math.max(0, Math.min(...valeurs) - 8);
-  const plafond = Math.min(100, Math.max(...valeurs) + 4);
-  const echelle = plafond - plancher || 1;
-
-  return (
-    <div className="rounded-[22px] border-2 border-filet bg-white p-[22px_24px]">
-      <div className="mb-2 flex items-baseline justify-between">
-        <div className="font-titre text-[15px] font-semibold text-texte">Évolution du taux de réussite</div>
-        <div className="text-[11px] font-semibold text-texte-doux">
-          {points[0].session} → {points[points.length - 1].session}
-        </div>
-      </div>
-      <div className="flex h-40 items-end justify-between gap-3 border-b-2 border-filet px-1">
-        {points.map((p) => {
-          const valeur = p.brevet_taux_reussite_general as number;
-          const pct = ((valeur - plancher) / echelle) * 100;
-          // Hauteur calculée en pixels, pas en % : un `height: X%` sur cette
-          // barre se résoudrait contre son parent flex-col, qui n'a pas de
-          // hauteur définie (sizing par contenu) — un % de hauteur contre un
-          // ancêtre en "auto" ne produit aucun effet visible (piège CSS classique).
-          const hauteurPx = Math.max((pct / 100) * 96, 6);
-          return (
-            <div key={p.session} className="flex flex-1 flex-col items-center justify-end gap-1.5">
-              <div className="text-[11px] font-bold text-positif">{valeur}%</div>
-              <div
-                className="w-[70%] rounded-t-lg bg-gradient-to-t from-mention-b to-positif"
-                style={{ height: `${hauteurPx}px` }}
-              />
-              <div className="text-[11px] font-semibold text-texte-doux">{p.session}</div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -233,7 +192,7 @@ export function ResultatsBrevet({
 
       <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1.15fr]">
         <DonutMentions brevet={brevet} />
-        <EvolutionTaux evolution={evolution} />
+        <GraphiqueEvolutionTaux evolution={evolution} />
       </div>
     </div>
   );

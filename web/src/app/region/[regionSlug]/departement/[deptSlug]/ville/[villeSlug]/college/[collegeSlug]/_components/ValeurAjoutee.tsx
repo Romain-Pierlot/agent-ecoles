@@ -31,11 +31,10 @@ function CarteVa({ titre, attendu, obtenu, unite }: { titre: string; attendu: nu
 
 export function ValeurAjoutee({ valeurAjoutee }: { valeurAjoutee: ValeurAjouteeDetail | null }) {
   return (
-    <div className="mt-4 rounded-[22px] border-2 border-[color:var(--color-positif-pale)] bg-fond-carte p-6">
+    <div className="mt-4 scroll-mt-28">
       <div className="font-titre text-[25px] font-semibold text-texte">La valeur ajoutée</div>
-      <p className="mt-1 max-w-[660px] text-[12.5px] leading-relaxed text-texte-doux">
-        On compare les résultats obtenus à ceux attendus compte tenu du profil des élèves. Un écart positif = le
-        collège fait progresser ses élèves au-delà des prévisions.
+      <p className="mt-1 text-[12.5px] leading-relaxed text-texte-doux">
+        Écart entre résultat obtenu et attendu selon le profil des élèves : positif, le collège dépasse les prévisions.
       </p>
 
       {valeurAjoutee ? (
@@ -59,7 +58,7 @@ export function ValeurAjoutee({ valeurAjoutee }: { valeurAjoutee: ValeurAjouteeD
         </div>
       ) : (
         <p className="mt-4 text-[12.5px] text-texte-doux">
-          La valeur ajoutée n&apos;est pas calculée pour cet établissement — généralement parce que l&apos;effectif
+          La valeur ajoutée n&apos;est pas calculée pour cet établissement : généralement parce que l&apos;effectif
           de candidats est insuffisant (moins de 40) pour produire une estimation fiable.
         </p>
       )}

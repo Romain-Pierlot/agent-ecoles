@@ -112,6 +112,7 @@ class EvolutionPoint(BaseModel):
     session: str
     brevet_taux_reussite_general: Optional[float] = None
     brevet_note_ecrit_general: Optional[float] = None
+    brevet_taux_reussite_national: Optional[float] = None
     notation: Optional[str] = None
     badge_va: Optional[str] = None
 

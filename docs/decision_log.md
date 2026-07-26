@@ -1490,3 +1490,13 @@ Appliqués de façon constante v3 à v6.
 **Rejeté** : le fichier `fr-en-calendrier-scolaire` de data.gouv.fr dans son ensemble, écarté pour la métropole (redondant avec les données déjà en place) et insuffisant pour l'outre-mer (cf. ci-dessus).
 
 **Conséquence** : `data/vacances_scolaires_2026_2027_domtom.csv` (nouveau, 65 lignes), insérées dans `data/agent_ecoles.db` directement plutôt que via une réingestion complète (`data/ingest.py` reconstruit toute la base depuis les sources brutes, action disproportionnée pour cet ajout) ; le fichier sera repris automatiquement lors d'une prochaine réingestion complète. Point de vigilance non résolu, noté dans `roadmap_technique.md` : les dates de Wallis-et-Futuna et de Nouvelle-Calédonie sont strictement identiques dans la source collectée, plausible vu qu'elles partagent historiquement le même vice-rectorat, mais non vérifié indépendamment contrairement à la correction ci-dessus.
+
+## S18.2 — Retrait du cadre teinté "valeur ajoutée", harmonisation totale du style des 3 sections de la fiche établissement
+
+**Décision** : Retrait du cadre teinté (fond `fond-carte`, bordure `--color-positif-pale`) qui distinguait visuellement la section "La valeur ajoutée" des deux autres sections de la fiche établissement (brevet, milieu social), introduit en S15.3. Les 3 sections partagent désormais exactement le même traitement : titre nu sur fond de page, sans distinction de cadre entre donnée évaluative et donnée descriptive.
+
+**Pourquoi** : le cadre teinté visait à signaler qu'une valeur ajoutée résulte d'une évaluation (comparaison à un attendu), contrairement aux données brutes des deux autres sections. En usage réel, ce traitement différent a été perçu comme une incohérence de style entre sections plutôt que comme un signal volontaire. La nature évaluative de la donnée reste portée par le contenu textuel lui-même : chaque indicateur de la section affiche explicitement la comparaison attendu → obtenu, ce qui rend le cadre de fond redondant avec cette information.
+
+**Rejeté** : conserver un cadre plus discret (bordure seule, sans fond teinté) pour garder un signal minimal, écarté, l'objectif explicite était une cohérence totale entre les 3 sections plutôt qu'une distinction atténuée.
+
+**Conséquence** : `web/.../college/[collegeSlug]/_components/ValeurAjoutee.tsx`. Aucun changement de données ni de schéma, purement visuel.

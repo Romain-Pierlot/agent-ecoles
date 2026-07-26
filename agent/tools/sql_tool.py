@@ -799,7 +799,8 @@ def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = No
         "sessions_disponibles": [str, ...],
         "resultats": [ {uai, nom, commune, secteur, session, notation,
                          badge_va, brevet_taux_reussite_general,
-                         brevet_note_ecrit_general}, ... ],
+                         brevet_note_ecrit_general,
+                         brevet_taux_reussite_national}, ... ],
         "error": str | None
     }
     """
@@ -822,7 +823,8 @@ def obtenir_evolution_etablissements(uai_filtre: list[str], n_sessions: int = No
             placeholders_sessions = ",".join("?" for _ in sessions_ciblees)
             rows = conn.execute(f"""
                 SELECT e.uai, e.nom, e.commune, e.secteur, s.session, s.notation, s.badge_va,
-                       v.brevet_taux_reussite_general, v.brevet_note_ecrit_general
+                       v.brevet_taux_reussite_general, v.brevet_note_ecrit_general,
+                       v.brevet_taux_reussite_national
                 FROM etablissements e
                 JOIN scores s ON e.uai = s.uai
                 JOIN ivac v ON e.uai = v.uai AND v.session = s.session

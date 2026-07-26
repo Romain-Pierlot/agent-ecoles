@@ -68,6 +68,7 @@ export type EvolutionPoint = {
   session: string;
   brevet_taux_reussite_general: number | null;
   brevet_note_ecrit_general: number | null;
+  brevet_taux_reussite_national: number | null;
   notation: string | null;
   badge_va: string | null;
 };

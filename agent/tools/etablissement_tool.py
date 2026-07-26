@@ -170,6 +170,7 @@ def _obtenir_evolution(uai: str) -> list[dict]:
             "session": r["session"],
             "brevet_taux_reussite_general": r["brevet_taux_reussite_general"],
             "brevet_note_ecrit_general": r["brevet_note_ecrit_general"],
+            "brevet_taux_reussite_national": r["brevet_taux_reussite_national"],
             "notation": r["notation"],
             "badge_va": r["badge_va"],
         }
