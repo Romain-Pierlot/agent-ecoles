@@ -66,7 +66,11 @@ export default async function Page({
         />
 
         <div className="mt-9">
-          <ResultatsBrevet brevet={fiche.brevet} evolution={fiche.evolution} />
+          <ResultatsBrevet
+            brevet={fiche.brevet}
+            evolution={fiche.evolution}
+            libelleDepartement={fiche.identite.libelle_departement}
+          />
           <ValeurAjoutee valeurAjoutee={fiche.valeur_ajoutee} />
           <PositionnementSocial positionnementSocial={fiche.positionnement_social} />
         </div>

@@ -126,7 +126,7 @@ export function FicheIdentite({
   const badges = deriveBadgesDispositifs(identite);
 
   const coordonnees: { label: string; valeur: string; classe?: string; lien?: string }[] = [
-    { label: "Identifiant UAI", valeur: identite.uai, classe: "font-mono" },
+    { label: "Identifiant UAI", valeur: identite.uai },
   ];
   if (identite.telephone) coordonnees.push({ label: "Téléphone", valeur: identite.telephone });
   if (identite.mail) coordonnees.push({ label: "Courriel", valeur: identite.mail, classe: "text-positif" });

@@ -113,7 +113,17 @@ function EvolutionTaux({ evolution }: { evolution: EvolutionPoint[] }) {
   );
 }
 
-export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats | null; evolution: EvolutionPoint[] }) {
+export function ResultatsBrevet({
+  brevet,
+  evolution,
+  libelleDepartement,
+}: {
+  brevet: BrevetResultats | null;
+  evolution: EvolutionPoint[];
+  libelleDepartement: string | null;
+}) {
+  const labelDepartement = libelleDepartement ?? "Département";
+
   if (!brevet) {
     return (
       <div id="brevet" className="scroll-mt-28">
@@ -162,7 +172,7 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
               )}
               {brevet.taux_reussite_departemental != null && (
                 <span>
-                  Département <b className="text-texte">{formaterPourcentage(brevet.taux_reussite_departemental, 0)}</b>
+                  {labelDepartement} <b className="text-texte">{formaterPourcentage(brevet.taux_reussite_departemental, 0)}</b>
                 </span>
               )}
             </div>
@@ -186,7 +196,7 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
               )}
               {brevet.note_ecrit_departemental != null && (
                 <span>
-                  Département <b className="text-texte">{formaterDecimale(brevet.note_ecrit_departemental, 1)}</b>
+                  {labelDepartement} <b className="text-texte">{formaterDecimale(brevet.note_ecrit_departemental, 1)}</b>
                 </span>
               )}
             </div>
@@ -213,7 +223,7 @@ export function ResultatsBrevet({ brevet, evolution }: { brevet: BrevetResultats
               )}
               {brevet.taux_acces_6eme_3eme_departemental != null && (
                 <span>
-                  Département <b className="text-texte">{formaterPourcentage(brevet.taux_acces_6eme_3eme_departemental, 0)}</b>
+                  {labelDepartement} <b className="text-texte">{formaterPourcentage(brevet.taux_acces_6eme_3eme_departemental, 0)}</b>
                 </span>
               )}
             </div>
