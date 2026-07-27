@@ -70,6 +70,19 @@ export type Source = {
 export type SectionGuide = {
   titre: string; // rendu en <h2>, une entrée du sommaire "Sur cette page"
   paragraphes: string[];
+  encadre?: { titre: string; texte: string }; // encart secondaire optionnel (ex. "Score par profession")
+};
+
+// Figure d'échelle positionnelle (ex. repères IPS) — au plus une par guide,
+// cf. gabarit de lecture. Type dédié plutôt que du HTML libre : la même
+// figure doit pouvoir se rendre identiquement sur plusieurs guides
+// d'indicateurs (IPS, valeur ajoutée...).
+export type FigureEchelle = {
+  min: number;
+  max: number;
+  graduations: number[];
+  moitieCentrale: [number, number]; // bornes de la plage mise en évidence
+  reperes: { label: string; valeur: number; accent?: boolean }[];
 };
 
 export type Guide = {
@@ -81,8 +94,9 @@ export type Guide = {
   publieLe: string; // ISO — affiché "Publié le ..." sur la page du guide, sert aussi à trier au sein de la catégorie
   resumeCourt: string[]; // 3 puces de l'encadré "En résumé"
   corps: SectionGuide[];
+  figure?: FigureEchelle;
   sources: Source[];
-  apparaitSur?: { label: string; href: string }[]; // "Où il apparaît sur le site"
+  apparaitSur?: { label: string; description: string; href?: string }[]; // "Où il apparaît sur le site"
 };
 
 export type NoteMethode = {
