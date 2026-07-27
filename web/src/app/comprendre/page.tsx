@@ -37,7 +37,11 @@ export default function Page() {
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-8.5 md:grid-cols-[250px_1fr]">
-          <RailComprendre mode="navigateur" comptes={comptes} compteGlossaire={QUESTIONS_GLOSSAIRE.length} />
+          <RailComprendre
+            mode="navigateur"
+            comptes={comptes}
+            glossaire={{ label: "Glossaire", href: "/comprendre/glossaire", compte: QUESTIONS_GLOSSAIRE.length }}
+          />
 
           <div>
             {categoriesAvecGuides.map((categorie) => (

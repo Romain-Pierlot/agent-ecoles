@@ -13,7 +13,10 @@ type RailNavigateur = {
   // pour l'instant) — à revisiter si le besoin se confirme à l'usage.
   categorieActive?: Categorie;
   comptes: Partial<Record<Categorie["slug"], number>>;
-  compteGlossaire: number;
+  // Le libellé/lien/compte du glossaire varient selon le contexte : "Glossaire"
+  // (total) sur l'index, "Glossaire de la catégorie" (compte filtré) sur une
+  // page catégorie — cf. bundle, écrans 22a et 24b.
+  glossaire: { label: string; href: string; compte: number };
 };
 
 type RailSommaire = {
@@ -49,7 +52,7 @@ export function RailComprendre(props: RailNavigateur | RailSommaire) {
     );
   }
 
-  const { categorieActive, comptes, compteGlossaire } = props;
+  const { categorieActive, comptes, glossaire } = props;
 
   return (
     <div className="sticky top-[76px] flex flex-col gap-1">
@@ -101,11 +104,11 @@ export function RailComprendre(props: RailNavigateur | RailSommaire) {
         Méthodologie du site
       </Link>
       <Link
-        href="/comprendre/glossaire"
+        href={glossaire.href}
         className="flex items-center justify-between gap-2.5 rounded-[9px] px-3 py-2.5 font-ui text-[14px] font-semibold text-texte"
       >
-        <span>Glossaire</span>
-        <span className="font-ui text-[12px] font-bold text-texte-doux">{compteGlossaire}</span>
+        <span>{glossaire.label}</span>
+        <span className="font-ui text-[12px] font-bold text-texte-doux">{glossaire.compte}</span>
       </Link>
     </div>
   );
