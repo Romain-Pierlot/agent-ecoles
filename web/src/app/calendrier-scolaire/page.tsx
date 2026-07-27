@@ -20,7 +20,7 @@ export default async function Page() {
         <div className="flex flex-wrap items-center gap-1.5 py-3.5 text-[12px] font-semibold text-texte-doux/70">
           <Link href="/" className="hover:text-texte-doux">Accueil</Link>
           <span className="text-filet-fonce">›</span>
-          <Link href="/comprendre/ips" className="hover:text-texte-doux">Comprendre</Link>
+          <Link href="/comprendre" className="hover:text-texte-doux">Comprendre</Link>
           <span className="text-filet-fonce">›</span>
           <span className="text-texte">Calendrier scolaire</span>
         </div>

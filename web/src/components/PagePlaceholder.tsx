@@ -11,7 +11,7 @@ const LIENS_SQUELETTE: { label: string; href: string }[] = [
   { label: "Assistant", href: "/assistant" },
   { label: "Recherche", href: "/recherche" },
   { label: "Explorer", href: "/explorer" },
-  { label: "Comprendre (exemple : IPS)", href: "/comprendre/ips" },
+  { label: "Comprendre", href: "/comprendre" },
   { label: "Régions (liste)", href: "/region" },
   {
     label: "Région (exemple : Auvergne-Rhône-Alpes)",

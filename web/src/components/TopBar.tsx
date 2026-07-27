@@ -19,9 +19,8 @@ import { MenuMobile } from "@/components/MenuMobile";
 //    qu'il prenne le pas sur les actions produit.
 //
 // Ajout état actif/hover/focus :
-//  - "match" distinct de "href" pour Comprendre, dont la destination réelle
-//    est /comprendre/ips mais dont toutes les sous-pages /comprendre/[slug]
-//    doivent allumer l'item.
+//  - "match" (optionnel) permet à un lien de nav d'allumer l'item pour un
+//    préfixe différent de son href, si un futur lien en a besoin.
 //  - Composant passé en client : usePathname n'existe pas côté serveur.
 //
 // Refonte recherche : le lien nav "Rechercher" disparaît, remplacé par un

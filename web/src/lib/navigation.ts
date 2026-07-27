@@ -7,5 +7,5 @@ export type LienNav = { href: string; label: string; match?: string };
 export const LIENS_NAV: LienNav[] = [
   { href: "/carte-scolaire", label: "Mon collège de secteur" },
   { href: "/explorer", label: "Explorer" },
-  { href: "/comprendre/ips", label: "Comprendre", match: "/comprendre" },
+  { href: "/comprendre", label: "Comprendre" },
 ];
