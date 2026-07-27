@@ -79,7 +79,7 @@ export function TableauOutreMer({ outreMer }: { outreMer: PeriodeVacances[] }) {
 
   return (
     <section id="outre-mer" className="border-t border-filet bg-fond-sable px-4.5 py-9 md:px-11">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-[1280px]">
         <h2 className="font-titre text-[21px] font-semibold text-texte md:text-[26px]">Outre-mer</h2>
         <p className="mt-1.5 max-w-[720px] font-ui text-[13px] leading-[1.6] text-texte-doux md:text-[14px]">
           Chaque territoire a son calendrier, avec ses propres intitulés de vacances. La

@@ -46,7 +46,7 @@ export function ZoneHub({
   exempleAgent: string;
 }) {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
+    <div className="mx-auto w-full max-w-[1280px] px-4 pb-24 pt-4.5 md:px-8">
       {/* ===== FIL D'ARIANE ===== */}
       <div className="flex flex-wrap items-center gap-1.5 py-3.5 text-[12px] font-semibold text-texte-doux/70">
         {filAriane.map((item, index) => (

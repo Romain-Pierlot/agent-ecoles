@@ -83,7 +83,7 @@ export default async function Page({
   const aucunResultat = resultatsBruts.etablissements.length === 0 && resultatsBruts.communes.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4.5 md:px-8">
+    <div className="mx-auto w-full max-w-[1280px] px-4 pb-24 pt-4.5 md:px-8">
       {/* ===== HERO ===== */}
       <div className="pt-3.5">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-action">Recherche</span>

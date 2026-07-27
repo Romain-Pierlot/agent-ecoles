@@ -127,7 +127,7 @@ export default async function Page({
       </div>
 
       <div className="border-t border-filet bg-fond-sable">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4.5 text-[12px] font-semibold text-texte-doux md:px-8">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-2 px-4 py-4.5 text-[12px] font-semibold text-texte-doux md:px-8">
           <span>Rattachement d&apos;après la carte scolaire officielle du Ministère · à confirmer auprès de votre rectorat</span>
           <span className="flex gap-4.5">
             <Link href="/methodologie" className="hover:text-texte">Notre méthode</Link>

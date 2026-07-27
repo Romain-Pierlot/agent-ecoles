@@ -15,7 +15,7 @@ export default async function Page() {
 
   return (
     <div className="min-h-screen bg-fond-creme text-texte">
-      <div className="mx-auto w-full max-w-6xl px-4.5 pb-16 pt-4.5 md:px-11">
+      <div className="mx-auto w-full max-w-[1280px] px-4.5 pb-16 pt-4.5 md:px-11">
         {/* ===== FIL D'ARIANE ===== */}
         <div className="flex flex-wrap items-center gap-1.5 py-3.5 text-[12px] font-semibold text-texte-doux/70">
           <Link href="/" className="hover:text-texte-doux">Accueil</Link>
@@ -66,7 +66,7 @@ export default async function Page() {
 
       <TableauOutreMer outreMer={calendrier.outre_mer} />
 
-      <div className="mx-auto w-full max-w-6xl px-4.5 py-9 md:px-11">
+      <div className="mx-auto w-full max-w-[1280px] px-4.5 py-9 md:px-11">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[14px] border border-filet-fonce bg-fond-encart px-5.5 py-4.5">
           <div>
             <p className="font-ui text-[13px] font-bold text-texte">D&apos;où viennent ces dates</p>
