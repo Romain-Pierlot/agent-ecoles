@@ -5,8 +5,8 @@
 // Deux tailles fidèles à la maquette (tour 9/11/12) : "mini" dans les CTA
 // de nav, "carte" dans les blocs agent (AgentBlock, fiche établissement...).
 const TAILLES = {
-  mini: { largeur: 24, hauteur: 22, coinNet: 7, dot: 3.5, gap: 2.5, ombre: "0 2px 6px rgba(192,81,46,.28)" },
-  carte: { largeur: 38, hauteur: 35, coinNet: 11, dot: 5, gap: 3, ombre: "0 4px 11px rgba(192,81,46,.28)" },
+  mini: { largeur: 24, hauteur: 22, coinNet: 7, dot: 3.5, gap: 2.5, ombre: "0 2px 6px rgba(201,125,20,.28)" },
+  carte: { largeur: 38, hauteur: 35, coinNet: 11, dot: 5, gap: 3, ombre: "0 4px 11px rgba(201,125,20,.28)" },
 } as const;
 
 export function GaletAgent({ taille = "carte" }: { taille?: keyof typeof TAILLES }) {
@@ -22,14 +22,14 @@ export function GaletAgent({ taille = "carte" }: { taille?: keyof typeof TAILLES
         height: t.hauteur,
         gap: t.gap,
         borderRadius: `44% 44% 44% ${t.coinNet}px`,
-        background: "linear-gradient(150deg,#EFB85A,#C0512E)",
+        background: "linear-gradient(150deg,#E79A2C,#C97D14)",
         boxShadow: t.ombre,
       }}
     >
       {[1, 0.72, 0.46].map((opacite, i) => (
         <span
           key={i}
-          className="rounded-full bg-[#FFF7E6]"
+          className="rounded-full bg-fond-carte"
           style={{ width: t.dot, height: t.dot, opacity: opacite }}
         />
       ))}

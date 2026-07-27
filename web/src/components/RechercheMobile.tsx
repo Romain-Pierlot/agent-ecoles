@@ -199,13 +199,13 @@ export function RechercheMobile({ hrefAssistant = "/assistant" }: { hrefAssistan
                   key={index}
                   type="button"
                   onClick={() => aller(ligne)}
-                  className="flex w-full items-center gap-2.5 border-t border-camille bg-camille-pale/70 px-4 py-3 text-left"
+                  className="flex w-full items-center gap-2.5 border-t border-agent bg-agent-pale/70 px-4 py-3 text-left"
                 >
                   <GaletAgent taille="mini" />
-                  <span className="flex-1 font-ui text-[12.5px] font-semibold text-camille-ink">
+                  <span className="flex-1 font-ui text-[12.5px] font-semibold text-agent-ink">
                     Décrire ma situation à {NOM_ASSISTANT} plutôt qu&apos;un nom
                   </span>
-                  <span aria-hidden className="flex-none font-ui text-[11px] font-bold text-camille-dark">→</span>
+                  <span aria-hidden className="flex-none font-ui text-[11px] font-bold text-agent-dark">→</span>
                 </button>
               );
             })}

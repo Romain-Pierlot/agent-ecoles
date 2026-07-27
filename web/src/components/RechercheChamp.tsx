@@ -109,8 +109,8 @@ export function RechercheChamp({
   }
 
   return (
-    <div ref={conteneurRef} className="relative w-full max-w-[300px] flex-1">
-      <div className="flex h-9 items-center gap-2 rounded-[9px] border border-filet bg-white pl-3 pr-2.5 focus-within:border-action focus-within:ring-[3px] focus-within:ring-action/15">
+    <div ref={conteneurRef} className="relative w-[250px] flex-none">
+      <div className="flex h-8 items-center gap-2 rounded-[9px] border border-filet bg-white pl-3 pr-2.5 focus-within:border-action focus-within:ring-[3px] focus-within:ring-action/15">
         <span aria-hidden className="flex-none text-[14px] text-filet-fonce">⌕</span>
         <input
           ref={champRef}
@@ -295,15 +295,15 @@ export function RechercheChamp({
                 type="button"
                 onMouseEnter={() => setActif(index)}
                 onClick={() => aller(ligne)}
-                className={`flex w-full cursor-pointer items-center gap-2.5 border-t border-camille px-3.5 py-2.5 text-left ${
-                  surbrille ? "bg-camille-pale" : "bg-camille-pale/70"
+                className={`flex w-full cursor-pointer items-center gap-2.5 border-t border-agent px-3.5 py-2.5 text-left ${
+                  surbrille ? "bg-agent-pale" : "bg-agent-pale/70"
                 }`}
               >
                 <GaletAgent taille="mini" />
-                <span className="flex-1 whitespace-nowrap font-ui text-[11.5px] font-semibold text-camille-ink">
+                <span className="flex-1 whitespace-nowrap font-ui text-[11.5px] font-semibold text-agent-ink">
                   Décrire ma situation à {NOM_ASSISTANT} plutôt qu&apos;un nom
                 </span>
-                <span aria-hidden className="flex-none font-ui text-[11px] font-bold text-camille-dark">→</span>
+                <span aria-hidden className="flex-none font-ui text-[11px] font-bold text-agent-dark">→</span>
               </button>
             );
           })}
