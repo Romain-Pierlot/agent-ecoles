@@ -89,6 +89,7 @@ export type Guide = {
   slug: string;
   titre: string;
   resume: string; // 1-2 lignes, affiché dans toute ligne de guide
+  chapeau: string; // paragraphe plus long, affiché seulement en tête de la page du guide
   categorie: CategorieSlug;
   sousTheme?: string;
   publieLe: string; // ISO — affiché "Publié le ..." sur la page du guide, sert aussi à trier au sein de la catégorie

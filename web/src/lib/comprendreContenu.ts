@@ -15,6 +15,8 @@ export const GUIDES: Guide[] = [
     titre: "IPS : ce que mesure l'indice de position sociale",
     resume:
       "Un indice de composition sociale des familles, publié par établissement. Comment il est calculé, à quoi il se compare, et pourquoi il ne dit rien du niveau scolaire.",
+    chapeau:
+      "Chaque collège public et privé sous contrat se voit attribuer un indice de position sociale, calculé à partir des professions des responsables de l'élève. Il décrit la composition sociale des familles d'un établissement et sert de repère pour interpréter ses résultats.",
     categorie: "indicateurs-resultats",
     sousTheme: "IPS & mixité",
     publieLe: "2026-06-18",

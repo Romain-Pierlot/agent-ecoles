@@ -140,6 +140,21 @@
      touche pas aux tokens existants et on nomme ces deux teintes à part. */
   --color-fond-entete-carte: #F7F2E8;   /* en-tête d'une carte de catégorie */
   --color-rail-actif: #F5DED4;          /* fond de l'item actif du rail de catégories */
+
+  /* ---- NOUVEAU · Figure d'échelle (guides d'indicateurs, ex. IPS) ----
+     Même logique que ci-dessus : le bundle propose de réutiliser le rôle
+     `descriptif`, déjà assigné à une teinte bleue sans rapport (profil
+     social sur la fiche établissement). Tokens dédiés, pas de conflit. */
+  --color-figure-plage: #DFD3BC;   /* moitié centrale mise en évidence */
+  --color-figure-repere: #8A6A45;  /* repère national (ligne fine) */
+
+  /* ---- NOUVEAU · Corps de texte éditorial (guides Comprendre) ----
+     Un troisième palier entre `texte` (très sombre, titres) et
+     `texte-doux` (métas) : le bundle distingue "texte principal / corps /
+     corps secondaire" avec deux teintes très proches (#3F382F, #4A4238)
+     qu'on consolide en un seul token plutôt que d'en créer deux quasi
+     identiques. */
+  --color-texte-corps: #3F382F;
 }
 
 body {
