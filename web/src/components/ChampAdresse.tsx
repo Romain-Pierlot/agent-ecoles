@@ -65,54 +65,64 @@ export function ChampAdresse({ adresseInitiale = "" }: { adresseInitiale?: strin
   const afficherDropdown = focus && adresse.trim().length > 0 && suggestions.length > 0;
 
   return (
-    <div className="relative mx-auto mt-5 max-w-xl">
+    <div className="max-w-[600px]">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           naviguerVers(adresse);
         }}
-        className={`flex items-center gap-2.5 rounded-[18px] border-2 bg-white p-2.5 pl-4.5 shadow-[0_10px_30px_rgba(34,59,48,.10)] ${
-          focus ? "border-action" : "border-filet"
-        }`}
       >
-        <span className="text-lg text-texte-doux">📍</span>
-        <input
-          type="text"
-          value={adresse}
-          onChange={(e) => setAdresse(e.target.value)}
-          onFocus={() => setFocus(true)}
-          onBlur={() => {
-            // Délai avant de fermer le menu : laisse le temps au clic sur
-            // une suggestion de se terminer (même pattern que RechercheBloc).
-            blurTimeout.current = setTimeout(() => setFocus(false), 150);
-          }}
-          placeholder="12 rue des Farges, 69005 Lyon"
-          autoComplete="off"
-          className="min-w-0 flex-1 border-none bg-transparent py-1.5 text-[15px] text-texte outline-none placeholder:text-texte-doux/40"
-        />
+        <div className="relative">
+          <div className="flex h-[58px] items-center gap-3 rounded-[18px] bg-white pl-5 pr-2 shadow-[0_8px_24px_rgba(40,28,14,.10)] focus-within:ring-2 focus-within:ring-action/30 md:h-[74px] md:gap-3.5 md:rounded-[22px] md:pl-6 md:pr-2.5">
+            <span className="flex-none text-[19px] leading-none">📍</span>
+            <input
+              id="champ-adresse-input"
+              type="text"
+              value={adresse}
+              onChange={(e) => setAdresse(e.target.value)}
+              onFocus={() => setFocus(true)}
+              onBlur={() => {
+                // Délai avant de fermer le menu : laisse le temps au clic sur
+                // une suggestion de se terminer (même pattern que RechercheBloc).
+                blurTimeout.current = setTimeout(() => setFocus(false), 150);
+              }}
+              placeholder="18 avenue des Fleurs, 06000 Nice"
+              aria-label="Votre adresse"
+              autoComplete="off"
+              className="min-w-0 flex-1 border-none bg-transparent text-[15px] text-texte outline-none placeholder:text-[#9A9086] md:text-[17px]"
+            />
+            <button
+              type="submit"
+              className="hidden h-14 flex-none items-center whitespace-nowrap rounded-[16px] bg-action px-7 text-[16px] font-bold text-white hover:bg-action-dark md:flex"
+            >
+              Trouver mon secteur
+            </button>
+          </div>
+
+          {afficherDropdown && (
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-2xl border-[1.5px] border-filet bg-white text-left shadow-[0_18px_44px_rgba(34,59,48,.16)]">
+              {suggestions.map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onMouseDown={() => naviguerVers(s.label)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-fond-carte/60"
+                >
+                  <span className="flex-none text-[13px] text-texte-doux">📍</span>
+                  <span className="truncate text-[13px] font-semibold text-texte">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
           type="submit"
-          className="whitespace-nowrap rounded-[13px] bg-action px-5 py-2.5 text-[14px] font-bold text-white shadow-[0_4px_12px_rgba(158,58,31,.28)] hover:bg-action-dark"
+          className="mt-2.5 flex h-[52px] w-full items-center justify-center rounded-[16px] bg-action text-[16px] font-bold text-white hover:bg-action-dark md:hidden"
         >
           Trouver mon secteur
         </button>
       </form>
-
-      {afficherDropdown && (
-        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-2xl border-[1.5px] border-filet bg-white text-left shadow-[0_18px_44px_rgba(34,59,48,.16)]">
-          {suggestions.map((s) => (
-            <button
-              key={s.label}
-              type="button"
-              onMouseDown={() => naviguerVers(s.label)}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-fond-carte/60"
-            >
-              <span className="flex-none text-[13px] text-texte-doux">📍</span>
-              <span className="truncate text-[13px] font-semibold text-texte">{s.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

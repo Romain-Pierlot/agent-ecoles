@@ -3,7 +3,7 @@ import Link from "next/link";
 import { recupererSecteur } from "@/lib/secteur";
 import { NOM_ASSISTANT } from "@/lib/constants";
 import { AgentBlock } from "@/components/AgentBlock";
-import { ChampAdresse } from "./_components/ChampAdresse";
+import { ChampAdresse } from "@/components/ChampAdresse";
 import { BlocTrouve } from "./_components/BlocTrouve";
 import { BlocMultiSecteur } from "./_components/BlocMultiSecteur";
 import { BlocNonDeterminable } from "./_components/BlocNonDeterminable";
@@ -86,7 +86,9 @@ export default async function Page({
             suggestion d'adresse ambiguë, "Modifier"...) — sans ça,
             useState(adresseInitiale) ne se réexécute qu'au premier montage
             et le champ garde l'ancien texte tapé après la résolution. */}
-        <ChampAdresse key={adresse} adresseInitiale={adresse} />
+        <div className="mx-auto mt-5 max-w-[600px]">
+          <ChampAdresse key={adresse} adresseInitiale={adresse} />
+        </div>
         <p className="mx-auto mt-2.5 max-w-md text-[12px] leading-relaxed text-texte-doux">
           Le rattachement dépend de l&apos;adresse exacte. Il n&apos;est pas toujours déterminable au numéro près
           dans les données officielles — dans ce cas nous vous l&apos;indiquons clairement.
