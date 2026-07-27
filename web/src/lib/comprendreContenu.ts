@@ -7,7 +7,7 @@
 // (ex. "data.education.gouv.fr") : à remplacer par le lien précis vers le
 // jeu de données ou la note avant publication réelle, une fois vérifié.
 
-import type { Guide, QuestionGlossaire } from "@/lib/comprendre";
+import type { Guide, NoteMethode, QuestionGlossaire } from "@/lib/comprendre";
 
 export const GUIDES: Guide[] = [
   {
@@ -119,3 +119,13 @@ export const QUESTIONS_GLOSSAIRE: QuestionGlossaire[] = [
     guideSlug: "ips-indice-position-sociale",
   },
 ];
+
+// Notes de méthode : pas encore rédigées. Le bundle de référence propose
+// des valeurs de pondération/seuils explicitement marquées "démonstration"
+// (40/40/20 %, seuils A+ >= 85...), qui ne correspondent pas au calcul réel
+// du site (cf. data/ingest.py::calculer_scores — normalisation par session
+// puis répartition par percentiles, pas de seuils absolus fixes). Écrire
+// une note de méthode inexacte sur ce sujet serait pire que ne pas en
+// avoir : contenu à rédiger avec les vraies valeurs (phase 10 du plan),
+// pas à partir du texte du bundle.
+export const NOTES_METHODE: NoteMethode[] = [];

@@ -14,7 +14,7 @@ import Link from "next/link";
 // d'autre point d'entrée navigable ailleurs sur la plupart des pages.
 const LIENS_OUVERT: { href: string; label: string }[] = [
   { href: "/calendrier-scolaire", label: "Calendrier scolaire" },
-  { href: "/methodologie", label: "Notre méthode" },
+  { href: "/comprendre/methodologie", label: "Notre méthode" },
   { href: "/sources", label: "Sources & données" },
   { href: "/a-propos", label: "À propos" },
   { href: "/mentions-legales", label: "Mentions légales" },
