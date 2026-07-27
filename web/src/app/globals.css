@@ -129,6 +129,17 @@
   --color-methode-filet-clair: #E4CCA9; /* séparateurs internes entre notes/lignes */
   --color-methode-accent: #A0724A;      /* point de puce, repère de rail actif */
   --color-methode-ink: #7A4A1E;         /* texte de la pastille « Choix du site », titres de rôle */
+
+  /* ---- NOUVEAU · Comprendre — deux teintes propres, pas de réutilisation
+     de token existant malgré une suggestion en ce sens dans le bundle de
+     référence : le bundle propose de réutiliser les rôles `fond-sable`
+     (#F7F2E8) et `action-pale` (#F5DED4) à des valeurs différentes de
+     celles déjà en usage ailleurs sur le site (calendrier, filtres, menu
+     mobile...). Conformément à la règle de REFERENCE.md « une référence
+     dont les couleurs ne matchent pas globals.css est périmée », on ne
+     touche pas aux tokens existants et on nomme ces deux teintes à part. */
+  --color-fond-entete-carte: #F7F2E8;   /* en-tête d'une carte de catégorie */
+  --color-rail-actif: #F5DED4;          /* fond de l'item actif du rail de catégories */
 }
 
 body {
