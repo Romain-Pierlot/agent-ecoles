@@ -8,6 +8,9 @@ import { CATEGORIES, type Categorie } from "@/lib/comprendre";
 
 type RailNavigateur = {
   mode: "navigateur";
+  // Lien de retour affiché au-dessus des catégories : utilisé sur le
+  // glossaire ("‹ Comprendre"), absent sur l'index (rien au-dessus).
+  retour?: { label: string; href: string };
   // Catégorie de la page courante : déplie ses ancres "Aller à" (règle A du
   // bundle). Sur l'index, laissé vide au lancement (pas de suivi de scroll
   // pour l'instant) — à revisiter si le besoin se confirme à l'usage.
@@ -15,8 +18,9 @@ type RailNavigateur = {
   comptes: Partial<Record<Categorie["slug"], number>>;
   // Le libellé/lien/compte du glossaire varient selon le contexte : "Glossaire"
   // (total) sur l'index, "Glossaire de la catégorie" (compte filtré) sur une
-  // page catégorie — cf. bundle, écrans 22a et 24b.
-  glossaire: { label: string; href: string; compte: number };
+  // page catégorie. Absent sur le glossaire lui-même (pas de lien vers la
+  // page courante) — cf. bundle, écrans 22a, 24b et 26a.
+  glossaire?: { label: string; href: string; compte: number };
 };
 
 type RailSommaire = {
@@ -52,10 +56,18 @@ export function RailComprendre(props: RailNavigateur | RailSommaire) {
     );
   }
 
-  const { categorieActive, comptes, glossaire } = props;
+  const { retour, categorieActive, comptes, glossaire } = props;
 
   return (
     <div className="sticky top-[76px] flex flex-col gap-1">
+      {retour && (
+        <Link
+          href={retour.href}
+          className="inline-flex items-center gap-1.5 pb-3.5 font-ui text-[12.5px] font-semibold text-action-dark"
+        >
+          ‹ {retour.label}
+        </Link>
+      )}
       <div className="px-3 pb-2.5 font-ui text-[11px] font-bold tracking-[.09em] text-texte-doux uppercase">
         Catégories
       </div>
@@ -103,13 +115,15 @@ export function RailComprendre(props: RailNavigateur | RailSommaire) {
         <span className="h-1.5 w-1.5 flex-none rounded-full bg-methode-accent" />
         Méthodologie du site
       </Link>
-      <Link
-        href={glossaire.href}
-        className="flex items-center justify-between gap-2.5 rounded-[9px] px-3 py-2.5 font-ui text-[14px] font-semibold text-texte"
-      >
-        <span>{glossaire.label}</span>
-        <span className="font-ui text-[12px] font-bold text-texte-doux">{glossaire.compte}</span>
-      </Link>
+      {glossaire && (
+        <Link
+          href={glossaire.href}
+          className="flex items-center justify-between gap-2.5 rounded-[9px] px-3 py-2.5 font-ui text-[14px] font-semibold text-texte"
+        >
+          <span>{glossaire.label}</span>
+          <span className="font-ui text-[12px] font-bold text-texte-doux">{glossaire.compte}</span>
+        </Link>
+      )}
     </div>
   );
 }
