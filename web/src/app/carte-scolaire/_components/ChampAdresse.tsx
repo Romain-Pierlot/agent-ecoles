@@ -88,7 +88,7 @@ export function ChampAdresse({ adresseInitiale = "" }: { adresseInitiale?: strin
           }}
           placeholder="12 rue des Farges, 69005 Lyon"
           autoComplete="off"
-          className="min-w-0 flex-1 border-none bg-transparent py-1.5 text-[15px] text-texte outline-none placeholder:text-texte-doux/60"
+          className="min-w-0 flex-1 border-none bg-transparent py-1.5 text-[15px] text-texte outline-none placeholder:text-texte-doux/40"
         />
         <button
           type="submit"
