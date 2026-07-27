@@ -116,6 +116,19 @@
   --color-agent-dark: #C97D14;
   --color-agent-pale: #FBEEDA;
   --color-agent-ink: #3A2610;          /* texte lisible sur apricot plein */
+
+  /* ---- NOUVEAU · Méthodologie du site (section /comprendre/methodologie) ----
+     Famille à part de la palette éditoriale des guides : un guide reconfirme
+     un fait externe stable, une note de méthode documente un choix du site
+     lui-même — les deux mécanismes doivent rester visuellement distincts
+     (cf. docs/Design_system/REFERENCE.md). Nuances secondaires de texte à
+     obtenir par opacité sur -ink plutôt que par token dédié. */
+  --color-methode-fond: #F6F0E4;        /* fond de page d'une note de méthode */
+  --color-methode-pale: #F6E9D6;        /* fond d'en-tête (bloc index + page note) */
+  --color-methode-filet: #DDBE95;       /* bordure du bloc, bordure de la pastille */
+  --color-methode-filet-clair: #E4CCA9; /* séparateurs internes entre notes/lignes */
+  --color-methode-accent: #A0724A;      /* point de puce, repère de rail actif */
+  --color-methode-ink: #7A4A1E;         /* texte de la pastille « Choix du site », titres de rôle */
 }
 
 body {
