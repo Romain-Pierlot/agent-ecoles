@@ -110,14 +110,56 @@ function PageGuide({ slug }: { slug: string }) {
         </div>
 
         <div className="max-w-[820px]">
-          <h1 className="font-titre text-[36px] font-semibold leading-[1.1] text-texte md:text-[42px]">
+          <h1 className="font-titre text-[30px] font-semibold leading-[1.1] text-texte md:text-[42px]">
             {guide.titre}
           </h1>
-          <p className="mt-3.5 font-ui text-[17px] leading-[1.62] text-texte-corps">{guide.chapeau}</p>
+          <p className="mt-3.5 font-ui text-[16px] leading-[1.6] text-texte-corps md:text-[17px] md:leading-[1.62]">
+            {guide.chapeau}
+          </p>
           <div className="mt-4 flex flex-wrap items-center gap-2.5 font-ui text-[12.5px] font-medium text-texte-doux">
             <span>Publié le {formaterDateJourMoisAnnee(guide.publieLe)}</span>
             <span>·</span>
             <span>{guide.sources.length} source{guide.sources.length > 1 ? "s" : ""} officielle{guide.sources.length > 1 ? "s" : ""}</span>
+          </div>
+
+          {/* Mobile (< md) uniquement : le rail sommaire et la carte de
+              sources se replient en deux dépliants sous le chapeau (cf.
+              bundle, écran 25b) — la carte complète reste aussi en fin de
+              page (ListeSources, colonne de droite → dernière sur mobile). */}
+          <div className="mt-3.5 flex flex-col gap-2 md:hidden">
+            <details className="rounded-[10px] border border-filet-fonce bg-fond-carte">
+              <summary className="flex min-h-[46px] cursor-pointer items-center justify-between px-3.5 font-ui text-[13.5px] font-bold text-texte-corps">
+                {guide.sources.length} source{guide.sources.length > 1 ? "s" : ""} officielle
+                {guide.sources.length > 1 ? "s" : ""}
+                <span className="font-ui text-[13px] font-normal text-texte-doux">Voir ▾</span>
+              </summary>
+              <div className="flex flex-col gap-1.5 border-t border-filet px-3.5 py-3">
+                {guide.sources.map((source) => (
+                  <div key={`${source.producteur}-${source.titre}`} className="font-ui text-[13px] text-texte-corps">
+                    {source.producteur} — {source.titre}
+                  </div>
+                ))}
+              </div>
+            </details>
+            <details className="rounded-[10px] border border-filet-fonce bg-fond-carte">
+              <summary className="flex min-h-[46px] cursor-pointer items-center justify-between px-3.5 font-ui text-[13.5px] font-bold text-texte-corps">
+                Sur cette page
+                <span className="font-ui text-[13px] font-normal text-texte-doux">
+                  {guide.corps.length} sections ▾
+                </span>
+              </summary>
+              <div className="flex flex-col border-t border-filet px-1.5 py-1.5">
+                {guide.corps.map((section) => (
+                  <a
+                    key={section.titre}
+                    href={`#${slugifier(section.titre)}`}
+                    className="flex min-h-11 items-center rounded-lg px-2 font-ui text-[13.5px] font-medium text-texte-corps"
+                  >
+                    {section.titre}
+                  </a>
+                ))}
+              </div>
+            </details>
           </div>
         </div>
 
@@ -147,12 +189,12 @@ function PageGuide({ slug }: { slug: string }) {
               <div key={section.titre}>
                 <h2
                   id={slugifier(section.titre)}
-                  className="scroll-mt-24 font-titre text-[27px] font-semibold text-texte"
+                  className="scroll-mt-24 font-titre text-[23px] font-semibold text-texte md:text-[27px]"
                 >
                   {section.titre}
                 </h2>
                 {section.paragraphes.map((paragraphe) => (
-                  <p key={paragraphe} className="mt-3 font-ui text-[16.5px] leading-[1.72] text-texte-corps">
+                  <p key={paragraphe} className="mt-3 font-ui text-[16px] leading-[1.7] text-texte-corps md:text-[16.5px] md:leading-[1.72]">
                     {paragraphe}
                   </p>
                 ))}

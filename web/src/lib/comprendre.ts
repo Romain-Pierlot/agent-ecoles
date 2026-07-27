@@ -22,6 +22,7 @@ export type CategorieSlug =
 export type Categorie = {
   slug: CategorieSlug;
   label: string;
+  labelMobile?: string; // libellé raccourci pour la rangée de pastilles mobile (largeur réduite)
   role: string; // phrase de rôle affichée en en-tête de carte catégorie
   sousThemes?: string[]; // repères internes (intertitres, ancres, filtres) — pas d'URL propre
 };
@@ -32,23 +33,27 @@ export const CATEGORIES: Categorie[] = [
   {
     slug: "indicateurs-resultats",
     label: "Indicateurs & résultats",
+    labelMobile: "Indicateurs",
     role: "Ce que chaque chiffre de la fiche mesure, et ce qu'il ne mesure pas.",
     sousThemes: ["IPS & mixité", "Valeur ajoutée", "Brevet", "Effectifs & parcours"],
   },
   {
     slug: "sectorisation-inscription",
     label: "Sectorisation & inscription",
+    labelMobile: "Sectorisation",
     role: "Qui décide de votre collège de secteur, et par quelles étapes passe une inscription.",
     sousThemes: ["Secteur", "Démarches", "Calendrier"],
   },
   {
     slug: "dispositifs-accompagnement",
     label: "Dispositifs & accompagnement",
+    labelMobile: "Dispositifs",
     role: "Les dispositifs signalés sur une fiche, et ce qu'ils impliquent au quotidien.",
   },
   {
     slug: "college-fil-du-cycle",
     label: "Le collège au fil du cycle",
+    labelMobile: "Au fil du cycle",
     role: "Ce qui attend un élève de la 6e à la 3e, puis au moment de l'orientation.",
   },
 ];
