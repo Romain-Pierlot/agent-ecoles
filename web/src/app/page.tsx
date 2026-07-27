@@ -76,13 +76,7 @@ export default function Page() {
           </p>
 
           <div className="mt-[34px] text-left">
-            <label
-              htmlFor="champ-adresse-input"
-              className="block text-[12px] font-semibold text-texte-doux"
-            >
-              Votre adresse
-            </label>
-            <div className="mt-2">
+            <div className="mx-auto max-w-[600px]">
               <ChampAdresse />
             </div>
             <p className="mt-3.5 text-[12.5px] text-texte-doux">
