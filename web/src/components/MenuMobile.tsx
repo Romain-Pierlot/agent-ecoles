@@ -47,8 +47,7 @@ export function MenuMobile() {
         <div className="fixed inset-0 z-50 flex flex-col bg-fond-creme md:hidden">
           <div className="flex flex-none items-center justify-between border-b border-filet px-4 py-3">
             <Link href="/" className="flex items-center gap-2.5" onClick={() => setOuvert(false)}>
-              <div className="h-6 w-6 rounded-[7px] bg-action" />
-              <span className="font-titre text-[21px] font-semibold text-texte">écoles</span>
+              <span className="font-titre text-[21px] font-semibold text-texte">info-scolarité.fr</span>
             </Link>
             <button
               type="button"

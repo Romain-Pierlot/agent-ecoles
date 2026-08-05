@@ -39,8 +39,7 @@ export function TopBar() {
     <div className="sticky top-0 z-40 h-14 flex-none border-b border-filet bg-fond-creme">
       <div className="mx-auto flex h-full max-w-[1280px] items-center gap-5.5 px-4 md:px-[34px]">
         <Link href="/" className="flex flex-none items-center gap-2.5">
-          <div className="h-6 w-6 rounded-[7px] bg-action" />
-          <span className="font-titre text-[21px] font-semibold text-texte">écoles</span>
+          <span className="font-titre text-[21px] font-semibold text-texte">info-scolarité.fr</span>
         </Link>
 
         {/* Masqué sous md : RechercheMobile prend le relais (recherche

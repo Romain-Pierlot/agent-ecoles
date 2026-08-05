@@ -28,7 +28,7 @@ export default async function Page({
   if (!fiche) notFound();
 
   return (
-    <div className="min-h-screen bg-fond-creme text-texte">
+    <div className="theme-encre min-h-screen bg-fond-creme text-texte">
       <div className="mx-auto w-full max-w-[1280px] px-4 pb-24 pt-4.5 md:px-8">
         {/* ===== FIL D'ARIANE ===== */}
         {/* Libellés pris sur les vraies données de l'établissement (avec

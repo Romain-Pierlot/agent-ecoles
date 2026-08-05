@@ -15,33 +15,131 @@
   --foreground: #201C17;   /* encre chaude (ancien #171717) */
 }
 
+/* =====================================================================
+   VALEURS BRUTES DES COULEURS — indirection nécessaire pour rester
+   testable. Tailwind v4 fige (« inline ») la valeur de chaque token dans
+   chaque classe utilitaire au moment du build : une classe .text-action
+   compile en `color: #bf4a2a` en dur, pas en `color: var(--color-action)`.
+   Une fois figée, aucune classe scopée (ex. .theme-encre) ne peut plus la
+   redéfinir. En faisant pointer chaque --color-x du bloc @theme inline
+   vers une variable "brute" définie ici (--raw-x), Tailwind fige la
+   RÉFÉRENCE (`var(--raw-x)`) plutôt que la valeur — exactement comme
+   --font-titre pointe déjà vers var(--font-newsreader) plus bas. Résultat
+   : zéro changement visuel par rapport à avant (mêmes valeurs), mais
+   n'importe quel token redevient redéfinissable localement (ex. une
+   classe .theme-xxx appliquée à un conteneur, pour tester une palette
+   alternative sur une page réelle sans toucher au reste du site).
+   ===================================================================== */
+:root {
+  --raw-action: #BF4A2A;
+  --raw-action-dark: #9E3A1F;
+  --raw-action-pale: #F6E4DC;
+
+  --raw-positif: #2E8F5E;
+  --raw-positif-pale: #E6EFE6;
+  --raw-descriptif: #33506E;
+  --raw-descriptif-pale: #E5E9F4;
+  --raw-attention: #C68A2E;
+  --raw-attention-dark: #9A6714;
+  --raw-attention-pale: #F7E8CF;
+  --raw-accent: #C15A3C;
+
+  --raw-fond-creme: #F3F0EA;
+  --raw-fond-sable: #ECE3D2;
+  --raw-fond-carte: #FFFCF6;
+  --raw-texte: #201C17;
+  --raw-texte-doux: #6E655A;
+  --raw-filet: #E4DDCE;
+  --raw-filet-fonce: #D8CDB9;
+
+  --raw-notation-a-plus: #2E8F5E;
+  --raw-notation-a: #4FA772;
+  --raw-notation-a-moins: #7FB65E;
+  --raw-notation-b-plus: #F0A02E;
+  --raw-notation-b: #E58A3C;
+  --raw-mention-tb: #2E8F5E;
+  --raw-mention-b: #5DB98B;
+  --raw-mention-ab: #9BCBAF;
+  --raw-mention-sans: #D8CBB4;
+
+  --raw-statut-public: #3E7150;
+  --raw-statut-public-pale: #E6EFE6;
+  --raw-statut-prive: #3B4F87;
+  --raw-statut-prive-pale: #E5E9F4;
+
+  --raw-badge-prioritaire: #9A6714;
+  --raw-badge-prioritaire-pale: #F7E8CF;
+  --raw-badge-inclusion: #2C6C68;
+  --raw-badge-inclusion-pale: #DBEBEA;
+  --raw-badge-langue: #7C3A61;
+  --raw-badge-langue-pale: #EFE0EB;
+  --raw-badge-option: #9C5A34;
+  --raw-badge-option-pale: #F2E6D6;
+
+  --raw-zone-c: #8A5A12;
+  --raw-zone-a-entete: #F5DED4;
+  --raw-zone-a-pale: #FAECE6;
+  --raw-zone-b-entete: #DFE6F0;
+  --raw-zone-b-pale: #EBEFF6;
+  --raw-zone-c-entete: #F2E4CA;
+  --raw-zone-c-pale: #F8F0E1;
+  --raw-zone-corse-entete: #DCE9DE;
+  --raw-zone-corse-pale: #E9F1EA;
+
+  --raw-fond-encart: #EFEAE0;
+  --raw-fond-carte-alt: #FBF9F4;
+
+  --raw-distance: #8B7D6B;
+  --raw-distance-pale: #EFE7D7;
+
+  --raw-agent: #E79A2C;
+  --raw-agent-dark: #C97D14;
+  --raw-agent-pale: #FBEEDA;
+  --raw-agent-ink: #3A2610;
+
+  --raw-methode-fond: #F6F0E4;
+  --raw-methode-pale: #F6E9D6;
+  --raw-methode-filet: #DDBE95;
+  --raw-methode-filet-clair: #E4CCA9;
+  --raw-methode-accent: #A0724A;
+  --raw-methode-ink: #7A4A1E;
+
+  --raw-fond-entete-carte: #F7F2E8;
+  --raw-rail-actif: #F5DED4;
+
+  --raw-figure-plage: #DFD3BC;
+  --raw-figure-repere: #8A6A45;
+
+  --raw-texte-corps: #3F382F;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
   /* ---- ACTION : terracotta (ancien framboise) ---- */
-  --color-action: #BF4A2A;
-  --color-action-dark: #9E3A1F;
-  --color-action-pale: #F6E4DC;
+  --color-action: var(--raw-action);
+  --color-action-dark: var(--raw-action-dark);
+  --color-action-pale: var(--raw-action-pale);
 
   /* ---- Sémantiques data (inchangés de rôle, retouchés pour le sable) ---- */
-  --color-positif: #2E8F5E;
-  --color-positif-pale: #E6EFE6;
-  --color-descriptif: #33506E;      /* bleu encre (ex #3A5A8C) */
-  --color-descriptif-pale: #E5E9F4;
-  --color-attention: #C68A2E;       /* ambre (ex #F0A02E) */
-  --color-attention-dark: #9A6714;
-  --color-attention-pale: #F7E8CF;
-  --color-accent: #C15A3C;
+  --color-positif: var(--raw-positif);
+  --color-positif-pale: var(--raw-positif-pale);
+  --color-descriptif: var(--raw-descriptif);      /* bleu encre (ex #3A5A8C) */
+  --color-descriptif-pale: var(--raw-descriptif-pale);
+  --color-attention: var(--raw-attention);       /* ambre (ex #F0A02E) */
+  --color-attention-dark: var(--raw-attention-dark);
+  --color-attention-pale: var(--raw-attention-pale);
+  --color-accent: var(--raw-accent);
 
   /* ---- Fonds & filets (réchauffés, sans le rose) ---- */
-  --color-fond-creme: #F3F0EA;   /* page */
-  --color-fond-sable: #ECE3D2;   /* section un ton plus dense */
-  --color-fond-carte: #FFFCF6;   /* surface carte */
-  --color-texte: #201C17;
-  --color-texte-doux: #6E655A;
-  --color-filet: #E4DDCE;
-  --color-filet-fonce: #D8CDB9;
+  --color-fond-creme: var(--raw-fond-creme);   /* page */
+  --color-fond-sable: var(--raw-fond-sable);   /* section un ton plus dense */
+  --color-fond-carte: var(--raw-fond-carte);   /* surface carte */
+  --color-texte: var(--raw-texte);
+  --color-texte-doux: var(--raw-texte-doux);
+  --color-filet: var(--raw-filet);
+  --color-filet-fonce: var(--raw-filet-fonce);
 
   /* ---- Polices (voir layout.tsx) ---- */
   --font-titre: var(--font-newsreader);     /* sérif éditorial : titres, noms de collèges/communes, titres de section */
@@ -51,33 +149,33 @@
   /* ---- Pastille notation (A+ → B) : gradients gérés dans CarteCollege
      (NOTATION_GRADIENTS) ; ces tokens restent pour le badge solide de la
      fiche et le donut mentions. Valeurs inchangées. ---- */
-  --color-notation-a-plus: #2E8F5E;
-  --color-notation-a: #4FA772;
-  --color-notation-a-moins: #7FB65E;
-  --color-notation-b-plus: #F0A02E;
-  --color-notation-b: #E58A3C;
-  --color-mention-tb: #2E8F5E;
-  --color-mention-b: #5DB98B;
-  --color-mention-ab: #9BCBAF;
-  --color-mention-sans: #D8CBB4;
+  --color-notation-a-plus: var(--raw-notation-a-plus);
+  --color-notation-a: var(--raw-notation-a);
+  --color-notation-a-moins: var(--raw-notation-a-moins);
+  --color-notation-b-plus: var(--raw-notation-b-plus);
+  --color-notation-b: var(--raw-notation-b);
+  --color-mention-tb: var(--raw-mention-tb);
+  --color-mention-b: var(--raw-mention-b);
+  --color-mention-ab: var(--raw-mention-ab);
+  --color-mention-sans: var(--raw-mention-sans);
 
   /* ---- Statut Public / Privé ---- */
-  --color-statut-public: #3E7150;
-  --color-statut-public-pale: #E6EFE6;
-  --color-statut-prive: #3B4F87;         /* indigo (ex bleu #2C6FA6) */
-  --color-statut-prive-pale: #E5E9F4;
+  --color-statut-public: var(--raw-statut-public);
+  --color-statut-public-pale: var(--raw-statut-public-pale);
+  --color-statut-prive: var(--raw-statut-prive);         /* indigo (ex bleu #2C6FA6) */
+  --color-statut-prive-pale: var(--raw-statut-prive-pale);
 
   /* ---- NOUVEAU · Badges dispositifs/sections par famille ----
      « une couleur = un rôle ». Consommés via classeBadgeDispositif()
      (lib/tokens.ts). Public/Privé réutilisent les tokens statut ci-dessus. */
-  --color-badge-prioritaire: #9A6714;    /* REP / REP+ — ocre */
-  --color-badge-prioritaire-pale: #F7E8CF;
-  --color-badge-inclusion: #2C6C68;      /* ULIS / SEGPA — sarcelle */
-  --color-badge-inclusion-pale: #DBEBEA;
-  --color-badge-langue: #7C3A61;         /* section internationale / européenne — prune */
-  --color-badge-langue-pale: #EFE0EB;
-  --color-badge-option: #9C5A34;         /* section sport / arts / cinéma / théâtre — argile */
-  --color-badge-option-pale: #F2E6D6;
+  --color-badge-prioritaire: var(--raw-badge-prioritaire);    /* REP / REP+ — ocre */
+  --color-badge-prioritaire-pale: var(--raw-badge-prioritaire-pale);
+  --color-badge-inclusion: var(--raw-badge-inclusion);      /* ULIS / SEGPA — sarcelle */
+  --color-badge-inclusion-pale: var(--raw-badge-inclusion-pale);
+  --color-badge-langue: var(--raw-badge-langue);         /* section internationale / européenne — prune */
+  --color-badge-langue-pale: var(--raw-badge-langue-pale);
+  --color-badge-option: var(--raw-badge-option);         /* section sport / arts / cinéma / théâtre — argile */
+  --color-badge-option-pale: var(--raw-badge-option-pale);
 
   /* ---- NOUVEAU · Zones de vacances scolaires (page /calendrier-scolaire) ----
      Teintes "pleines" : Zone A = --color-action, Zone B = --color-descriptif,
@@ -86,36 +184,36 @@
      teinte inédite. En-tête/pâle : aucun équivalent existant (le reste du
      thème n'a qu'un seul palier de clair par couleur, la maquette en veut
      deux distincts pour cette page). */
-  --color-zone-c: #8A5A12;
-  --color-zone-a-entete: #F5DED4;
-  --color-zone-a-pale: #FAECE6;
-  --color-zone-b-entete: #DFE6F0;
-  --color-zone-b-pale: #EBEFF6;
-  --color-zone-c-entete: #F2E4CA;
-  --color-zone-c-pale: #F8F0E1;
-  --color-zone-corse-entete: #DCE9DE;
-  --color-zone-corse-pale: #E9F1EA;
+  --color-zone-c: var(--raw-zone-c);
+  --color-zone-a-entete: var(--raw-zone-a-entete);
+  --color-zone-a-pale: var(--raw-zone-a-pale);
+  --color-zone-b-entete: var(--raw-zone-b-entete);
+  --color-zone-b-pale: var(--raw-zone-b-pale);
+  --color-zone-c-entete: var(--raw-zone-c-entete);
+  --color-zone-c-pale: var(--raw-zone-c-pale);
+  --color-zone-corse-entete: var(--raw-zone-corse-entete);
+  --color-zone-corse-pale: var(--raw-zone-corse-pale);
 
   /* Deux teintes utilitaires de la même page, réutilisées à plusieurs
      endroits (encarts, en-tête tableau outre-mer, lignes alternées) — pas
      un token "zone", donc nommées à part. */
-  --color-fond-encart: #EFEAE0;
-  --color-fond-carte-alt: #FBF9F4;
+  --color-fond-encart: var(--raw-fond-encart);
+  --color-fond-carte-alt: var(--raw-fond-carte-alt);
 
   /* ---- Distance (carte scolaire) — DÉSORMAIS NEUTRE ----
      Passée du bleu au gris chaud : l'ancien bleu se confondait avec le
      tag « Privé ». Décrit une distance, pas un statut. */
-  --color-distance: #8B7D6B;
-  --color-distance-pale: #EFE7D7;
+  --color-distance: var(--raw-distance);
+  --color-distance-pale: var(--raw-distance-pale);
 
   /* ---- NOUVEAU · Agent conversationnel — identité apricot, à part ----
      N'apparaît nulle part ailleurs : c'est le repère visuel de l'agent.
      Le CTA de l'agent utilise CES tokens, jamais --color-action. Nom du
      token générique à dessein : l'agent peut changer de nom, le token non. */
-  --color-agent: #E79A2C;
-  --color-agent-dark: #C97D14;
-  --color-agent-pale: #FBEEDA;
-  --color-agent-ink: #3A2610;          /* texte lisible sur apricot plein */
+  --color-agent: var(--raw-agent);
+  --color-agent-dark: var(--raw-agent-dark);
+  --color-agent-pale: var(--raw-agent-pale);
+  --color-agent-ink: var(--raw-agent-ink);          /* texte lisible sur apricot plein */
 
   /* ---- NOUVEAU · Méthodologie du site (section /comprendre/methodologie) ----
      Famille à part de la palette éditoriale des guides : un guide reconfirme
@@ -123,12 +221,12 @@
      lui-même — les deux mécanismes doivent rester visuellement distincts
      (cf. docs/Design_system/REFERENCE.md). Nuances secondaires de texte à
      obtenir par opacité sur -ink plutôt que par token dédié. */
-  --color-methode-fond: #F6F0E4;        /* fond de page d'une note de méthode */
-  --color-methode-pale: #F6E9D6;        /* fond d'en-tête (bloc index + page note) */
-  --color-methode-filet: #DDBE95;       /* bordure du bloc, bordure de la pastille */
-  --color-methode-filet-clair: #E4CCA9; /* séparateurs internes entre notes/lignes */
-  --color-methode-accent: #A0724A;      /* point de puce, repère de rail actif */
-  --color-methode-ink: #7A4A1E;         /* texte de la pastille « Choix du site », titres de rôle */
+  --color-methode-fond: var(--raw-methode-fond);        /* fond de page d'une note de méthode */
+  --color-methode-pale: var(--raw-methode-pale);        /* fond d'en-tête (bloc index + page note) */
+  --color-methode-filet: var(--raw-methode-filet);       /* bordure du bloc, bordure de la pastille */
+  --color-methode-filet-clair: var(--raw-methode-filet-clair); /* séparateurs internes entre notes/lignes */
+  --color-methode-accent: var(--raw-methode-accent);      /* point de puce, repère de rail actif */
+  --color-methode-ink: var(--raw-methode-ink);         /* texte de la pastille « Choix du site », titres de rôle */
 
   /* ---- NOUVEAU · Comprendre — deux teintes propres, pas de réutilisation
      de token existant malgré une suggestion en ce sens dans le bundle de
@@ -138,15 +236,15 @@
      mobile...). Conformément à la règle de REFERENCE.md « une référence
      dont les couleurs ne matchent pas globals.css est périmée », on ne
      touche pas aux tokens existants et on nomme ces deux teintes à part. */
-  --color-fond-entete-carte: #F7F2E8;   /* en-tête d'une carte de catégorie */
-  --color-rail-actif: #F5DED4;          /* fond de l'item actif du rail de catégories */
+  --color-fond-entete-carte: var(--raw-fond-entete-carte);   /* en-tête d'une carte de catégorie */
+  --color-rail-actif: var(--raw-rail-actif);          /* fond de l'item actif du rail de catégories */
 
   /* ---- NOUVEAU · Figure d'échelle (guides d'indicateurs, ex. IPS) ----
      Même logique que ci-dessus : le bundle propose de réutiliser le rôle
      `descriptif`, déjà assigné à une teinte bleue sans rapport (profil
      social sur la fiche établissement). Tokens dédiés, pas de conflit. */
-  --color-figure-plage: #DFD3BC;   /* moitié centrale mise en évidence */
-  --color-figure-repere: #8A6A45;  /* repère national (ligne fine) */
+  --color-figure-plage: var(--raw-figure-plage);   /* moitié centrale mise en évidence */
+  --color-figure-repere: var(--raw-figure-repere);  /* repère national (ligne fine) */
 
   /* ---- NOUVEAU · Corps de texte éditorial (guides Comprendre) ----
      Un troisième palier entre `texte` (très sombre, titres) et
@@ -154,12 +252,36 @@
      corps secondaire" avec deux teintes très proches (#3F382F, #4A4238)
      qu'on consolide en un seul token plutôt que d'en créer deux quasi
      identiques. */
-  --color-texte-corps: #3F382F;
+  --color-texte-corps: var(--raw-texte-corps);
 }
 
 body {
-  background: var(--color-fond-creme);
-  color: var(--color-texte);
+  background: var(--raw-fond-creme);
+  color: var(--raw-texte);
   font-family: var(--font-ui), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* =====================================================================
+   TEST — socle de couleurs « encre », scopé à .theme-encre uniquement.
+   Redéfinit seulement les tokens neutres (fond/texte/filet) + action, EN
+   REDÉFINISSANT LES VARIABLES BRUTES (--raw-x), pas les alias --color-x
+   (cf. bloc d'indirection ci-dessus — redéfinir --color-x directement
+   n'aurait aucun effet, aucune classe utilitaire ne le lit après le
+   build). N'affecte ni --raw-agent*, ni les tokens sémantiques data
+   (notation, mention, statut, badge, positif, descriptif, attention,
+   distance) : ceux-là restent identiques quel que soit le thème appliqué.
+   Comparatif avant/après, aucun token global existant modifié.
+   ===================================================================== */
+.theme-encre {
+  --raw-fond-creme: #FAFAF8;
+  --raw-fond-sable: #EDEFF2;
+  --raw-fond-carte: #FEFEFD;
+  --raw-texte: #16233B;
+  --raw-texte-doux: #5C6B7E;
+  --raw-filet: #E2E4E8;
+  --raw-filet-fonce: #CDD2D9;
+  --raw-action: #16233B;
+  --raw-action-dark: #0E1826;
+  --raw-action-pale: #E7EBF0;
 }
