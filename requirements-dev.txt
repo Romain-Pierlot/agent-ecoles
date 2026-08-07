@@ -1,0 +1,6 @@
+# Dépendances de développement/CI uniquement — jamais installées sur Render
+# (requirements.txt reste réservé au strict nécessaire en production).
+-r requirements.txt
+
+pytest
+httpx  # dépendance transitive de fastapi.testclient.TestClient, non déclarée par fastapi lui-même

@@ -26,11 +26,6 @@ export function MenuMobile() {
     };
   }, [ouvert]);
 
-  // Ferme automatiquement le menu après une navigation (clic sur un lien).
-  useEffect(() => {
-    setOuvert(false);
-  }, [pathname]);
-
   return (
     <>
       <button
@@ -70,6 +65,7 @@ export function MenuMobile() {
                     key={lien.href}
                     href={lien.href}
                     aria-current={actif ? "page" : undefined}
+                    onClick={() => setOuvert(false)}
                     className={`rounded-xl px-3 py-3 font-ui text-[16px] font-semibold ${
                       actif ? "bg-action-pale text-action-dark" : "text-texte hover:bg-fond-carte"
                     }`}
@@ -82,6 +78,7 @@ export function MenuMobile() {
 
             <Link
               href="/assistant"
+              onClick={() => setOuvert(false)}
               className="mt-4 flex items-center gap-2.5 rounded-full border border-agent bg-agent-pale px-4 py-3 font-ui text-[14px] font-bold text-agent-ink"
             >
               <GaletAgent taille="mini" />

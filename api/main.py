@@ -4,6 +4,7 @@ Reste volontairement fine : chaque route orchestre des fonctions qui vivent
 ailleurs (graphe.py, sessions.py, graph_router.poser_question) et sont
 testables séparément. Aucune règle métier ici.
 """
+import os
 import time
 from typing import Literal, Optional
 
@@ -117,7 +118,11 @@ def _construire_choix(etat: AgentState) -> Choix | None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    # RENDER_GIT_COMMIT est fourni automatiquement par Render (absent en
+    # local/CI) — permet au smoke test post-déploiement de vérifier que
+    # c'est bien le commit qu'on vient de pousser qui répond, pas l'ancienne
+    # instance encore en train de servir pendant un déploiement zero-downtime.
+    return {"status": "ok", "commit": os.environ.get("RENDER_GIT_COMMIT")}
 
 
 @app.get("/etablissement/{uai}", response_model=FicheEtablissement)

@@ -29,9 +29,10 @@ def tester():
 
     categorie_attendue = "recherche_geo_classement"
     categorie_obtenue = resultat["categorie"]
+    ok = categorie_obtenue == categorie_attendue
     print(f"Catégorie attendue : {categorie_attendue}")
     print(f"Catégorie obtenue  : {categorie_obtenue}")
-    print("✓ Classification correcte" if categorie_obtenue == categorie_attendue else "✗ MAUVAISE CLASSIFICATION\n")
+    print("✓ Classification correcte" if ok else "✗ MAUVAISE CLASSIFICATION\n")
 
     geo = resultat.get("resultats_geo") or {}
     sql = resultat.get("resultats_sql") or {}
@@ -41,6 +42,9 @@ def tester():
     duree = time.time() - debut
     print(f"\n--- Réponse finale ---\n{resultat['reponse_finale']}")
     print(f"\n⏱ Durée totale : {duree:.1f}s")
+    return ok
+
 
 if __name__ == "__main__":
-    tester()
+    import sys
+    sys.exit(0 if tester() else 1)

@@ -12,6 +12,7 @@ import { NOTATION_GRADIENTS } from "@/components/CarteCollege";
 // note à l'écrit sous l'attendu), qui illustre bien "pas de classement".
 const UAI_EXEMPLE = "0061339Y";
 
+// eslint-disable-next-line no-restricted-syntax -- dégradé dynamique du donut des mentions au brevet, registre légitime cité dans docs/Design_system/REFERENCE.md
 const COULEURS_MENTIONS = ["#1F6B43", "#4FA772", "#9BCBAF", "#DDD2BB"];
 
 type Annotation = {
@@ -154,11 +155,9 @@ export async function FicheAnnoteeAccueil() {
   const mentions = brevet.mentions;
   const totalCandidats = brevet.brevet_nb_candidats_general ?? 0;
 
-  let cumul = 0;
   const stopsMentions = mentions.map((m, i) => {
-    const debut = cumul;
-    const fin = cumul + (m.taux_pct ?? 0);
-    cumul = fin;
+    const debut = mentions.slice(0, i).reduce((s, mm) => s + (mm.taux_pct ?? 0), 0);
+    const fin = debut + (m.taux_pct ?? 0);
     return `${COULEURS_MENTIONS[i]} ${debut}% ${fin}%`;
   });
 

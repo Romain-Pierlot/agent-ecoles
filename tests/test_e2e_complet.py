@@ -186,6 +186,12 @@ def tester():
         print(f"{symbole} {nom_cas} ({duree:.1f}s)")
     nb_ok = sum(1 for _, ok, _ in resultats if ok)
     print(f"\n{nb_ok}/{len(resultats)} corrects (pas d'exception + vérification de contenu quand présente).")
+    return nb_ok == len(resultats)
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if tester() else 1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,61 @@
+name: deploy
+
+# Déclenchement manuel (workflow_dispatch) tant que les services Render
+# n'existent pas et que les secrets ci-dessous ne sont pas configurés. Une
+# fois Render en place, remplacer par `push: { branches: [main] }` pour un
+# déploiement automatique gaté sur les tests à chaque push sur main.
+#
+# Secrets/variables GitHub requis avant la première exécution réelle :
+#   secrets.RENDER_DEPLOY_HOOK_BACKEND, secrets.RENDER_DEPLOY_HOOK_FRONTEND
+#   vars.RENDER_BACKEND_URL, vars.RENDER_FRONTEND_URL
+on:
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+
+  deploy-backend:
+    needs: run-tests
+    if: needs.run-tests.outputs.backend_ok == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déclencher le Deploy Hook Render (backend)
+        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
+
+      - name: Attendre que le nouveau commit soit servi (smoke test)
+        run: |
+          for i in $(seq 1 20); do
+            reponse=$(curl -sf "${{ vars.RENDER_BACKEND_URL }}/health" || true)
+            commit=$(echo "$reponse" | python3 -c "import json,sys; print(json.load(sys.stdin).get('commit',''))" 2>/dev/null || true)
+            if [ "$commit" = "${{ github.sha }}" ]; then
+              echo "Backend déployé et confirmé sur le commit ${{ github.sha }}."
+              exit 0
+            fi
+            echo "Tentative $i/20 : commit servi = '$commit', attendu = ${{ github.sha }}"
+            sleep 15
+          done
+          echo "::error::Le backend ne sert pas le nouveau commit après 5 minutes — vérifier le déploiement sur le dashboard Render, rollback manuel si besoin."
+          exit 1
+
+  deploy-frontend:
+    needs: run-tests
+    if: needs.run-tests.outputs.frontend_ok == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déclencher le Deploy Hook Render (frontend)
+        run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
+
+      - name: Attendre que le service réponde (smoke test)
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf -o /dev/null "${{ vars.RENDER_FRONTEND_URL }}/"; then
+              echo "Frontend déployé et répond."
+              exit 0
+            fi
+            echo "Tentative $i/20 : pas encore de réponse 200."
+            sleep 15
+          done
+          echo "::error::Le frontend ne répond pas après 5 minutes — vérifier le déploiement sur le dashboard Render, rollback manuel si besoin."
+          exit 1

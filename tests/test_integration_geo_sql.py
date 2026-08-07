@@ -18,7 +18,7 @@ def tester():
 
     if not resultat_geo["success"]:
         print(f"✗ ÉCHEC geo_tool : {resultat_geo['error']}")
-        return
+        return False
 
     uai_geo = [e["uai"] for e in resultat_geo["etablissements"]]
     print(f"✓ geo_tool OK — {len(uai_geo)} établissements trouvés dans le rayon")
@@ -26,7 +26,7 @@ def tester():
 
     if not uai_geo:
         print("⚠ Aucun établissement trouvé — impossible de tester le chaînage plus loin.")
-        return
+        return False
 
     # Étape 2 : sql_tool avec le filtre UAI
     print("2. Appel recherche_sql avec uai_filtre=<UAI trouvés par geo>...")
@@ -37,7 +37,7 @@ def tester():
 
     if not resultat_sql["success"]:
         print(f"✗ ÉCHEC sql_tool : {resultat_sql['error']}")
-        return
+        return False
 
     print(f"✓ sql_tool OK — {resultat_sql['nb_resultats']} résultats")
     print(f"  SQL généré : {resultat_sql['sql_genere']}\n")
@@ -49,7 +49,7 @@ def tester():
     if not uai_retournes_sql:
         print("⚠ La requête SQL générée ne retourne pas la colonne 'uai' — impossible de vérifier le filtre.")
         print("  (Le SQL généré doit inclure e.uai dans le SELECT pour que ce test soit concluant.)")
-        return
+        return False
 
     uai_geo_set = set(uai_geo)
     hors_perimetre = uai_retournes_sql - uai_geo_set
@@ -57,8 +57,12 @@ def tester():
     if hors_perimetre:
         print(f"✗ ÉCHEC : {len(hors_perimetre)} établissement(s) retourné(s) par SQL hors du périmètre géo !")
         print(f"  UAI problématiques : {hors_perimetre}")
-    else:
-        print(f"✓ SUCCÈS : tous les établissements retournés par SQL sont bien dans le périmètre geo.")
+        return False
+
+    print(f"✓ SUCCÈS : tous les établissements retournés par SQL sont bien dans le périmètre geo.")
+    return True
+
 
 if __name__ == "__main__":
-    tester()
+    import sys
+    sys.exit(0 if tester() else 1)

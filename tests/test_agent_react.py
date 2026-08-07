@@ -90,7 +90,9 @@ def tester():
 
     nb_ok = sum(resultats)
     print(f"=== RÉSULTAT AUTOMATIQUE : {nb_ok}/{len(CAS_DE_TEST)} — relire les réponses ci-dessus pour la qualité ===")
+    return nb_ok == len(CAS_DE_TEST)
 
 
 if __name__ == "__main__":
-    tester()
+    import sys
+    sys.exit(0 if tester() else 1)

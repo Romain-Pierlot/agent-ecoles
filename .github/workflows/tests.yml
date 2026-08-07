@@ -1,0 +1,133 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+  workflow_call:
+    outputs:
+      backend_ok:
+        description: "Résultat du job backend-tests-bloquants (success/failure)"
+        value: ${{ jobs.backend-tests-bloquants.result }}
+      frontend_ok:
+        description: "Résultat du job frontend-build (success/failure)"
+        value: ${{ jobs.frontend-build.result }}
+
+jobs:
+  # Tier bloquant : rapide, déterministe, gratuit. Gate le déploiement.
+  backend-tests-bloquants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements-dev.txt
+
+      # data/agent_ecoles.db (~80 Mo) est git-ignorée. Reconstruite une fois
+      # via data/ingest.py et publiée manuellement dans ce cache tant qu'aucun
+      # script de téléchargement automatisé des CSV sources n'existe (cf.
+      # data/DATA_VERSION, à incrémenter quand les données changent pour
+      # invalider ce cache). Sans ce cache, test_zone_administrative.py est
+      # sauté proprement (voir step suivante), pas de faux vert silencieux.
+      - name: Restaurer la vraie base (test_zone_administrative.py)
+        id: cache-db
+        uses: actions/cache/restore@v4
+        with:
+          path: data/agent_ecoles.db
+          key: agent-ecoles-db-v${{ hashFiles('data/DATA_VERSION') }}
+
+      - name: Tests déterministes purs (aucune dépendance externe)
+        env:
+          OPENAI_API_KEY: sk-test-dummy-jamais-appele
+        run: |
+          for f in test_guardrails_phase_a test_input_limits test_output_vocabulary test_prompt_leakage test_scope_guard; do
+            python3 -m tests.$f
+          done
+
+      - name: Test SQL safety (fixture dédiée, committée)
+        env:
+          OPENAI_API_KEY: sk-test-dummy-jamais-appele
+          AGENT_ECOLES_DB_PATH: data/fixtures/agent_ecoles_test.db
+        run: python3 -m tests.test_sql_safety
+
+      - name: Test zone administrative (vraie base, si le cache est peuplé)
+        if: steps.cache-db.outputs.cache-hit == 'true'
+        env:
+          OPENAI_API_KEY: sk-test-dummy-jamais-appele
+        run: python3 -m tests.test_zone_administrative
+
+      - name: Avertir si la vraie base n'est pas encore en cache
+        if: steps.cache-db.outputs.cache-hit != 'true'
+        run: echo "::warning::data/agent_ecoles.db absente du cache CI — test_zone_administrative.py non exécuté cette fois-ci. Seed manuel du cache requis une première fois (voir notes de déploiement)."
+
+      - name: Nouveaux tests API (pytest, TestClient, sans appel LLM)
+        env:
+          OPENAI_API_KEY: sk-test-dummy-jamais-appele
+          AGENT_ECOLES_DB_PATH: data/fixtures/agent_ecoles_test.db
+        run: python3 -m pytest tests/test_api_chat.py tests/test_journalisation_resilience.py -v
+
+  # Tier bloquant frontend : lint + build sont déjà de vrais gates (TS strict,
+  # règle custom anti-hex-en-dur), plus une vérification XSS statique.
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+      # Non bloquant pour l'instant : 54 erreurs pré-existantes (couleurs hex
+      # en dur sans token correspondant, dans un mockup et le footer), qui
+      # relèvent d'une vraie décision de design system, pas d'un bug — cf.
+      # docs/Design_system/REFERENCE.md. À rendre bloquant une fois traitées.
+      - name: Lint (informatif, dette pré-existante non bloquante)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Vérification XSS statique (E3 — protection react-markdown non contournée)
+        run: |
+          if grep -rn "dangerouslySetInnerHTML\|rehype-raw" src/; then
+            echo "::error::Rendu HTML non filtré détecté dans le code source — react-markdown sanitise par défaut, ce motif le contournerait (guardrail E3)."
+            exit 1
+          fi
+          echo "Aucun contournement du rendu sanitisé détecté."
+
+  # Tier informatif : réseau/LLM réels, coût réel, jamais bloquant. Tourne à
+  # chaque push (y compris branches de travail), coût assumé.
+  backend-tests-informatifs:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Tests réseau/LLM (agent, e2e, router) — non bloquant
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echec=0
+          for f in test_agent_react test_e2e_complet test_e2e_geo_classement test_integration_geo_sql test_rapprochement_carte_scolaire test_router_classification; do
+            python3 -m tests.$f || { echo "::warning::$f a échoué (tier informatif, non bloquant)"; echec=1; }
+          done
+          exit 0
+
+      - name: Tests API réseau (pytest, appellent l'API BAN réelle) — non bloquant
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python3 -m pytest tests/test_route_secteur.py tests/test_suggestions_adresse.py -v || echo "::warning::tests API réseau en échec (tier informatif, non bloquant)"

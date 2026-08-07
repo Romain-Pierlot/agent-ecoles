@@ -11,6 +11,9 @@ __pycache__/
 *.db
 *.sqlite
 
+# Exception : petite fixture de test committée (pas les données de prod)
+!data/fixtures/agent_ecoles_test.db
+
 # ChromaDB local
 chroma_db/
 

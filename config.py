@@ -57,7 +57,14 @@ VA_SEUIL_POSITIF = 2.0          # VA taux > +2 → badge vert
 VA_SEUIL_NEGATIF = -2.0         # VA taux < -2 → badge rouge
 
 # --- Base de données ---
-DB_PATH = os.path.join(_PROJECT_ROOT, "data", "agent_ecoles.db")
+# Surchargeable via AGENT_ECOLES_DB_PATH (ex: la fixture de test en CI) —
+# toujours recombiné avec _PROJECT_ROOT pour rester un chemin absolu, y
+# compris quand la surcharge est relative (os.path.join ignore _PROJECT_ROOT
+# si la surcharge est déjà absolue, donc les deux cas restent corrects).
+DB_PATH = os.path.join(
+    _PROJECT_ROOT,
+    os.environ.get("AGENT_ECOLES_DB_PATH", os.path.join("data", "agent_ecoles.db")),
+)
 
 # --- ChromaDB ---
 CHROMA_PATH = os.path.join(_PROJECT_ROOT, "chroma_db")
@@ -88,7 +95,14 @@ GEO_RAYON_ENVIRONS_KM = 5      # Rayon pour un élargissement explicite ("et les
                                # région parisienne : 10 km y ramène des communes trop éloignées.
 
 # --- API backend ---
-API_CORS_ORIGINS = ["http://localhost:3000"]  # Origine du frontend Next.js en local
+# Surchargeable via API_CORS_ORIGINS (liste d'origines séparées par des
+# virgules, ex. "https://info-scolarite.fr,https://www.info-scolarite.fr"
+# une fois le domaine de production rattaché au service Render).
+API_CORS_ORIGINS = (
+    os.environ["API_CORS_ORIGINS"].split(",")
+    if os.environ.get("API_CORS_ORIGINS")
+    else ["http://localhost:3000"]  # Origine du frontend Next.js en local
+)
 
 
 # --- Router : catégories de question (ensemble fermé -> enum, pas des chaînes libres) ---

@@ -120,12 +120,12 @@ export default function Page() {
             <div className="flex max-w-[82%] items-end gap-2">
               <div
                 className="mb-0.5 h-5 w-[22px] flex-none"
-                style={{ borderRadius: "46% 46% 46% 7px", background: "linear-gradient(150deg,#E79A2C,#C97D14)" }}
+                style={{ borderRadius: "46% 46% 46% 7px", background: "linear-gradient(150deg,var(--color-agent),var(--color-agent-dark))" }}
               />
               <div className="rounded-[14px_14px_14px_4px] border border-[#E2CDA3] bg-[#F2E2C4] px-3.5 py-3 font-ui text-[13.5px] leading-[1.6] text-agent-ink">
                 L&apos;IPS mesure le milieu social des familles des élèves. Celui-ci est à{" "}
-                <b className="text-[#201C17]">108</b>, la moyenne nationale est à{" "}
-                <b className="text-[#201C17]">106</b>. C&apos;est une information sur le public
+                <b className="text-texte">108</b>, la moyenne nationale est à{" "}
+                <b className="text-texte">106</b>. C&apos;est une information sur le public
                 accueilli, pas sur l&apos;établissement.
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function Page() {
             <div className="flex max-w-[82%] items-end gap-2">
               <div
                 className="mb-0.5 h-5 w-[22px] flex-none"
-                style={{ borderRadius: "46% 46% 46% 7px", background: "linear-gradient(150deg,#E79A2C,#C97D14)" }}
+                style={{ borderRadius: "46% 46% 46% 7px", background: "linear-gradient(150deg,var(--color-agent),var(--color-agent-dark))" }}
               />
               <div className="rounded-[14px_14px_14px_4px] border border-[#E2CDA3] bg-[#F2E2C4] px-3.5 py-3 font-ui text-[13.5px] leading-[1.6] text-agent-ink">
                 Je n&apos;ai pas cette information. Les données publiques ne mesurent ni le climat
