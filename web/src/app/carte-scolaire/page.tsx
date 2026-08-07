@@ -70,9 +70,6 @@ export default async function Page({
   return (
     <div className="min-h-full flex-1 bg-fond-creme">
       <div className="mx-auto max-w-2xl px-4 pb-1.5 pt-8 text-center md:px-8">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-statut-public/30 bg-statut-public-pale px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-statut-public">
-          Carte scolaire officielle du Ministère
-        </span>
         <h1 className="mt-3.5 font-titre text-[31px] font-semibold leading-tight text-texte">
           Quel est mon collège de secteur ?
         </h1>

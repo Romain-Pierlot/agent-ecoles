@@ -36,7 +36,7 @@ export function TopBar() {
   const pathname = usePathname();
 
   return (
-    <div className="sticky top-0 z-40 h-14 flex-none border-b border-filet bg-fond-creme">
+    <div className="topbar-sticky sticky top-0 z-40 h-14 flex-none border-b border-filet bg-fond-creme">
       <div className="mx-auto flex h-full max-w-[1280px] items-center gap-5.5 px-4 md:px-[34px]">
         <Link href="/" className="flex flex-none items-center gap-2.5">
           <span className="font-titre text-[21px] font-semibold text-texte">info-scolarité.fr</span>
@@ -74,7 +74,7 @@ export function TopBar() {
           <MenuMobile />
           <Link
             href="/assistant"
-            className="hidden items-center gap-2 rounded-full border border-agent bg-agent-pale py-2 pl-[7px] pr-[15px] font-ui text-[12.5px] font-bold text-agent-ink outline-none hover:border-agent-dark focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-offset-[3px] focus-visible:ring-offset-fond-creme md:flex"
+            className="cta-agent-nav hidden items-center gap-2 rounded-full border border-agent bg-agent-pale py-2 pl-[7px] pr-[15px] font-ui text-[12.5px] font-bold text-agent-ink outline-none hover:border-agent-dark focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-offset-[3px] focus-visible:ring-offset-fond-creme md:flex"
           >
             <GaletAgent taille="mini" />
             Demander à {NOM_ASSISTANT}
